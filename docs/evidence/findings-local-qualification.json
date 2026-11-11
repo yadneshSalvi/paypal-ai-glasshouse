@@ -1,0 +1,284 @@
+{
+  "unit": "Immutable finding review, challenge, revision and retraction",
+  "status": "source implementation and isolated local qualification complete; root native and hosted qualification pending",
+  "qualifiedAt": "2026-11-11T21:20:52.468663+00:00",
+  "baseCommit": "d83451d74157d4eb53006e9b404fe079a990c20e",
+  "deployedSourceUnchanged": "a182422",
+  "applicationSourceSha256": "ae5e4afda725e14d8abe3ce1d68b9f7056f71b7e27bd3c709609c8c611629eb7",
+  "sourceScope": "Only Glasshouse finding lifecycle, integrated Studio/report/agent/dependency paths and their meaningful tests/docs. Full later scope is retained.",
+  "environment": {
+    "sourceCopy": ".artifacts/finding-work-4541",
+    "origin": "http://localhost:4541",
+    "port": 4541,
+    "database": "gh_findings_stage9_2b4c4ecfb08f",
+    "databaseRole": "ghfind9_2b4c4ecfb08f",
+    "rolePrivileges": {
+      "rolsuper": false,
+      "rolcreatedb": false,
+      "rolcreaterole": false,
+      "rolreplication": false
+    },
+    "schemaVersions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "tables": 63,
+    "immutableFindingTables": 8,
+    "separateCookie": true,
+    "modelCredentials": "absent",
+    "providerCredentials": "absent",
+    "runtimeProviderResources": 0,
+    "runtimeModelTurns": 0,
+    "privateEnvAndAccessFiles": "mode 0600; excluded from Git",
+    "protectedPortsUntouched": [
+      4507,
+      4518,
+      4525,
+      4536,
+      4537
+    ]
+  },
+  "tests": [
+    {
+      "kind": "complete regression",
+      "log": "regression-04.log",
+      "tests": 218,
+      "pass": 218,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "8e86fdd2ef7d52739cd378d78e3c02913a6c46f8fcc39cd7467cc8b3b44911d7"
+    },
+    {
+      "kind": "real PostgreSQL finding/report domain",
+      "log": "findings-pg-domain-07.log",
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "9e3b69e4de3e51e3a0bf4fa7d53045df280a15526dbb3ff6b6185d98674a16bb"
+    },
+    {
+      "kind": "real PostgreSQL dispatch and source projections",
+      "log": "findings-pg-recovery-03.log",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "53698af53ed9b25299facacd94f2ab5afa0824a593bda648d57b1be911743c46"
+    },
+    {
+      "kind": "real PostgreSQL and real route HTTP",
+      "log": "findings-pg-http-04.log",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "aba62287e77091b67969b71852314de00a259bf44eb6ca401d7bb0e52fe48550"
+    },
+    {
+      "kind": "real PostgreSQL bounded agent tools with synthetic transport",
+      "log": "findings-pg-agents-02.log",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "e51adb511fb6c6693f9ba0f6aee1c5950a4799b8a82d04ff2a0bd6182028b44d"
+    },
+    {
+      "kind": "DOM recovery and focus contract",
+      "log": "findings-dom-02.log",
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "sha256": "3c64b88ebeb7af26535f3da94136af6d545f77497d04e4048db310e72f80f746"
+    }
+  ],
+  "strictTypeScript": {
+    "result": "passed",
+    "log": "typecheck-integrated-15.log",
+    "sameStrictCompilerOptions": true,
+    "isolatedGeneratedReferences": [
+      "next-env.d.ts",
+      "tsconfig.json"
+    ],
+    "generatedReferencesExcludedFromCommit": true
+  },
+  "build": {
+    "result": "passed",
+    "log": "build-03.log",
+    "buildId": "nkjaEGqhwfuVZX0us3ns-",
+    "sha256": "7b64debff2867f728d5d8d6576e3cc50307b60154cc54f18a7e48856a7144225",
+    "files": 459,
+    "directory": ".next-findings-stage9"
+  },
+  "dependencies": {
+    "files": 46177,
+    "bytes": 761526872,
+    "fileManifestSha256": "271e97ae3f8dc45e481f776230f8f0fd5ef455921d8d05751d994ecee66dc6ee",
+    "packageLockSha256": "c73b96dbb3896b42bc17c6b707f499467bb23b272dc18bfd2b31cdc0db06f270",
+    "npmTreeSha256": "db10c3321e844478e2fd9ebc3d43d87e737f2c765f28c9af620d557c9af3d609",
+    "independentDirectory": true,
+    "lockUnchangedFromMain": true
+  },
+  "productionHttp": {
+    "checks": 24,
+    "result": "passed",
+    "log": "built-http-04.log",
+    "folder": ".qualification/http-2026-11-11T21-09-22.563Z",
+    "tenantId": "fernwood-568c5a1f-89e9-4bef-b572-a38e28e66128",
+    "fixture": {
+      "findingId": "finding-7fcc2303-bd20-4c44-8aea-92dfb7b6fd54",
+      "reportId": "report-2441cc59-6e43-46ae-9581-86105712b50a",
+      "laterReportId": "report-91311d94-e64e-4d46-aa92-50e88aebbaf4",
+      "stalePlanIds": [
+        "plan-4cb66495-6bbd-4ed0-831a-173237c3f64a",
+        "plan-da7a54e1-09ac-4f79-8f57-8630dda3c5d7"
+      ],
+      "newPlanId": "plan-ebd1da7d-d5d2-4403-988f-45a8b8d908d5",
+      "removedOrderIds": [
+        "fernwood-order-0001",
+        "fernwood-order-0002",
+        "fernwood-order-0003",
+        "fernwood-order-0004",
+        "fernwood-order-0005",
+        "fernwood-order-0006",
+        "fernwood-order-0007",
+        "fernwood-order-0008",
+        "fernwood-order-0009"
+      ],
+      "counts": {
+        "operations": "105",
+        "providers": "0",
+        "agents": "0"
+      }
+    },
+    "readBoundary": "Real Next HTTP and restricted PostgreSQL; explicit Sample/synthetic data only"
+  },
+  "reports": {
+    "uniquePdfPagesRenderedAndVisuallyInspected": 108,
+    "pdfs": [
+      {
+        "file": "old-before-A4.pdf",
+        "pages": 31,
+        "sha256": "bc776ffda2aa9ff3d9622601da4d7006c6280ef79e43ebbe5750bd29512430a6",
+        "embeddedJsonByteIdentical": true,
+        "pageBoundsValid": true
+      },
+      {
+        "file": "old-before-LETTER.pdf",
+        "pages": 33,
+        "sha256": "65923406bd02d0f83dcb36514d55906058f249d122c8282cca11e854739d6ba1",
+        "embeddedJsonByteIdentical": true,
+        "pageBoundsValid": true
+      },
+      {
+        "file": "new-edition-A4.pdf",
+        "pages": 21,
+        "sha256": "32316dd0b5b313592669021628ab0ccfb1bc9d64658b4b21d3b684f84f161e03",
+        "embeddedJsonByteIdentical": true,
+        "pageBoundsValid": true
+      },
+      {
+        "file": "new-edition-LETTER.pdf",
+        "pages": 23,
+        "sha256": "b5ba5623e888cd5b62ade10a0c9cd041893b760ce6ebc354e3ed5cf97746d677",
+        "embeddedJsonByteIdentical": true,
+        "pageBoundsValid": true
+      }
+    ],
+    "oldJsonAndPdfBeforeAfter": "byte identical during the full source/review lifecycle",
+    "acrossRebuildRepresentations": 6,
+    "acrossRebuildByteIdentity": true,
+    "legacyShape": "An original-shape encrypted report without findingRevisions and its actual PDF remain byte-identical after adoption/correction in the PostgreSQL corpus.",
+    "renderManifest": "pdf-review/final/render-manifest.json"
+  },
+  "browserFixture": {
+    "setupSmokePassed": true,
+    "metadata": "browser-fixture-smoke.json",
+    "separateFromHttpFixture": true,
+    "nativeBrowserPassClaimed": false,
+    "admission": "Root opens a fresh Sample session in the native browser, then runs guarded browser-fixture mode. No cookie import or runtime backdoor."
+  },
+  "retainedFailures": [
+    {
+      "files": [
+        "findings-pg-domain-01.log",
+        "findings-pg-domain-02.log",
+        "findings-pg-domain-04.log"
+      ],
+      "resolution": "Fixed preserved historical citations and corrected isolated actor/scope/report-input fixtures; final eleven domain cases pass."
+    },
+    {
+      "files": [
+        "findings-pg-http-01.log",
+        "findings-pg-http-03.log"
+      ],
+      "resolution": "Corrected fixture initialization and enforced foreign/private 404 before requiring a local dataset; final five HTTP cases pass."
+    },
+    {
+      "files": [
+        "findings-pg-agents-01.log"
+      ],
+      "resolution": "Used independent permitted parent runs for Planner/Writer instead of reusing an in-flight delegation; final two cases pass."
+    },
+    {
+      "files": [
+        "regression-01.log",
+        "regression-02.log"
+      ],
+      "resolution": "Fresh review timestamps are checked separately from frozen evidence; private-content assertion no longer matches a random hash substring; foreign/private lookup issue corrected. Final complete regression passes."
+    },
+    {
+      "files": [
+        "built-http-01.log"
+      ],
+      "resolution": "The original 127.0.0.1 Origin was correctly denied; the harness now uses the runtime localhost origin. Security checks were not weakened."
+    },
+    {
+      "files": [
+        "pdf-review/attempt-01-notes.json",
+        "pdf-review/attempt-02-notes.json"
+      ],
+      "resolution": "New editions now distinguish source cohort from review sequence and count explicitly shared versions. Legacy rendering text and all cached old bytes remain preserved."
+    },
+    {
+      "files": [
+        "schema-inspection-01.json"
+      ],
+      "resolution": "Corrected a read-only schema inspection table name; no data write occurred."
+    }
+  ],
+  "boundaries": {
+    "actualProviderCalls": 0,
+    "actualModelCalls": 0,
+    "nativeBrowserQualification": false,
+    "humanReviewOrSellerResearchClaimed": false,
+    "originalOrHostedDataMutated": false,
+    "sharedCoreChanged": false,
+    "dependencyPinsChanged": false,
+    "deployedReleaseChanged": false,
+    "legacyManifestHashesChanged": false
+  },
+  "rootNext": [
+    "Review the isolated source commit and freeze.",
+    "Own the frozen 4541 server and follow docs/findings-native-protocol.md at desktop/390/360/200% zoom/reduced motion, including exact downloads, recovery and denial states.",
+    "Qualify actual models/providers only under root ownership.",
+    "Before any release, retain a verified backup, preserve keys, apply additive schema10, compare original records/bytes and qualify hosted behavior."
+  ],
+  "remainingProductScope": "docs/remaining-scope.md"
+}

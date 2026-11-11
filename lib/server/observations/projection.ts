@@ -1,3 +1,5 @@
+import {recordFindingSourceChange} from '../findings/sources';
+import {hasFindingsSchema} from '../findings/schema';
 import type { Database } from '@/packages/db/client';
 import type { SourceEvent } from '@/packages/domain/types';
 import { STORY_END } from '@/packages/domain/seed';
@@ -31,6 +33,7 @@ export async function projectCapacity(db: Database, connector: ObservationConnec
       throw new HttpError(409,'REFUND_INVENTORY_REGRESSED','A complete confirmed refund disappeared from the new read. Keep the prior evidence and check again.');
     }
     const actor = connectorActor(connector), dataset = await datasetFor(actor,tx), order = dataset.orders.find(value => value.id === owned.orderId);
+    const before=structuredClone(dataset);
     if (!order) throw new HttpError(409,'OWNED_ORDER_MISSING','The independently owned order is unavailable.');
     const completedMinor = observation.refunds.filter(refund => refund.status === 'COMPLETED').reduce((sum,refund) => sum+refund.amountMinor,0);
     // The same balance can recur after a pending refund stops consuming money.
@@ -53,7 +56,8 @@ export async function projectCapacity(db: Database, connector: ObservationConnec
       [connector.tenantId,owned.captureId,owned.orderId,owned.runId,observation.observedAt,JSON.stringify(observation)]);
     await tx.query(`INSERT INTO gh_provider_observations(tenant_id,id,order_id,resource_id,kind,observed_at,body_hash,body) VALUES($1,$2,$3,$4,'capture_capacity',$5,$6,$7::jsonb) ON CONFLICT DO NOTHING`,
       [connector.tenantId,event.id,owned.orderId,owned.captureId,observation.observedAt,observation.bodyHash,JSON.stringify(observation)]);
-    await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"A complete independent refund inventory changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')",[connector.tenantId]);
+    await recordFindingSourceChange(tx,actor,before,dataset,{kind:'refund_inventory',reason:'A complete independent refund inventory changed the available payment balance.',sourceId:event.id});
+    if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"A complete independent refund inventory changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')",[connector.tenantId]);
     await audit(tx,actor,'provider.balance_observed',`${order.reference} · current refund inventory independently checked`,owned.captureId,{readOnly:true,receiptHash:observation.bodyHash,completedMinor,consumedMinor:observation.consumedMinor});
   });
 }

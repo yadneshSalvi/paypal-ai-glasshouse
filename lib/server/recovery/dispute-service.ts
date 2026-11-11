@@ -1,3 +1,5 @@
+import {recordFindingSourceChange} from '../findings/sources';
+import {hasFindingsSchema} from '../findings/schema';
 import type { Database } from '@/packages/db/client';
 import type { Actor, SourceEvent } from '@/packages/domain/types';
 import { appendStateObservation, STORY_END } from '@/packages/domain/seed';
@@ -85,7 +87,7 @@ export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPay
   if (existing && Date.parse(existing.body.updatedAt) > Date.parse(observation.updatedAt)) return;
   if (existing && Date.parse(existing.body.updatedAt) === Date.parse(observation.updatedAt) && Date.parse(existing.body.observedAt) > Date.parse(observation.observedAt)) return;
   if (existing?.body.status === 'RESOLVED' && observation.status !== 'RESOLVED' && Date.parse(observation.updatedAt) <= Date.parse(existing.body.updatedAt)) return;
-  const dataset = await datasetFor(actor,tx);
+  const dataset = await datasetFor(actor,tx), before=structuredClone(dataset);
   const capabilities = disputeCapabilities(observation);
   const baseEventId = `paypal:dispute:${observation.id}:${observation.bodyHash.slice(0,16)}:capabilities-v1:${digest(capabilities).slice(0,12)}`;
   const eventId = existing && existing.body.bodyHash !== observation.bodyHash && dataset.events.some(event=>event.id===baseEventId)
@@ -124,7 +126,8 @@ export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPay
   if (ownPlanId) {
     await tx.query("UPDATE gh_recovery_runs SET accepted_revision=$3,accepted_resources=jsonb_set(accepted_resources,ARRAY[$4]::text[],to_jsonb($5::integer)),updated_at=now() WHERE tenant_id=$1 AND plan_id=$2 AND accepted_revision=$6", [actor.tenantId,ownPlanId,revision,order.id,order.resourceVersion,revision-1]);
   }
-  await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent PayPal case observation changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2", [actor.tenantId,ownPlanId??'']);
+  await recordFindingSourceChange(tx,actor,before,dataset,{kind:'dispute_observation',reason:'An independent case observation changed the source evidence.',sourceId:event.id,ownPlanId});
+  if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent PayPal case observation changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2", [actor.tenantId,ownPlanId??'']);
   await audit(tx,actor,'dispute.observed',`${order.reference} · ${observation.status.toLowerCase().replaceAll('_',' ')} observed from PayPal`,observation.id,
     {orderId:order.id,source:'sandbox',transport:'typed_rest',bodyHash:observation.bodyHash,stage:observation.stage,sellerResponseDueAt:observation.sellerResponseDueAt});
 }

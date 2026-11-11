@@ -33,8 +33,8 @@ export class RecoveryCases {
     return{receipt:{status:200,debugId:null,bodyHash:observation.bodyHash,observedAt:observation.observedAt},observation,submitted:true};
   };
 }
-export async function recoveryHarness(count=1){
-  const h=await paymentHarness();await ensureRecoverySchema(h.db);
+export async function recoveryHarness(count=1,external?:Parameters<typeof paymentHarness>[0]){
+  const h=await paymentHarness(external);await ensureRecoverySchema(h.db);
   const run=await approvedRun(h);await h.executor.drain({tenantId:h.who.tenantId,runId:run.id,limit:1});
   const ids=Array.from({length:count},(_,index)=>`fernwood-order-${String(14+index).padStart(4,'0')}`);
   await h.db.query("UPDATE gh_seed_items SET next_attempt_at=now()+interval '1 day' WHERE tenant_id=$1 AND NOT(order_id=ANY($2::text[]))",[h.who.tenantId,ids]);

@@ -13,6 +13,7 @@ async function handle(request:Request,context:Params){try{
   if(request.method!=='GET')throw new HttpError(405,'REPORT_READ_ONLY','Saved report editions are immutable. Create a new edition to record a change.');
   if(!path.length){const result=await service.list(who,search.get('cursor')??undefined);await assertRequestCurrent(request);return Response.json(result,{headers});}
   if(path.length===1){const result=await service.read(who,path[0]);await assertRequestCurrent(request);return Response.json(result,{headers});}
+  if(path.length===2&&path[1]==='corrections'){const result=await service.corrections(who,path[0]);await assertRequestCurrent(request);return Response.json(result,{headers});}
   if(path.length===2&&path[1]==='json'){
     const result=await service.read(who,path[0]);await assertRequestCurrent(request);
     return new Response(JSON.stringify(result,null,2)+'\n',{headers:{...headers,'Content-Type':'application/json; charset=utf-8','Content-Disposition':`attachment; filename="glasshouse-${result.document.id}.json"`,'X-Glasshouse-Document-Hash':result.summary.documentHash}});

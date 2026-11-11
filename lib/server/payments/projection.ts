@@ -1,3 +1,5 @@
+import {recordFindingSourceChange} from '../findings/sources';
+import {hasFindingsSchema} from '../findings/schema';
 import type { Database } from '@/packages/db/client';
 import type { Actor, SourceEvent } from '@/packages/domain/types';
 import { appendStateObservation } from '@/packages/domain/seed';
@@ -10,7 +12,7 @@ export async function projectCapture(db: Database, run: RunRecord, item: ItemRec
   const actor: Actor = { id:run.approved_by!, tenantId:run.tenant_id, role:'operator', membershipVersion:run.membership_version };
   await db.transaction(async tx => {
     await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE', [run.tenant_id]);
-    const dataset = await datasetFor(actor,tx);
+    const dataset = await datasetFor(actor,tx), before=structuredClone(dataset);
     const record = dataset.orders.find(value=>value.id===item.order_id);
     if (!record || record.captureId && record.captureId !== capture.id || record.paypalOrderId && record.paypalOrderId !== order.id) throw new HttpError(409,'PROVIDER_BINDING_CONFLICT','This order already belongs to another provider payment.');
     await tx.query(`INSERT INTO gh_provider_resources(tenant_id,kind,provider_id,order_id,run_id,observed_at,body)
@@ -42,7 +44,8 @@ export async function projectCapture(db: Database, run: RunRecord, item: ItemRec
         await tx.query(`INSERT INTO gh_state_intervals(tenant_id,id,order_id,dimension,state,valid_from,valid_to,knowledge_from,knowledge_to,clock_domain,source_class,source_event_id,revision)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(tenant_id,id) DO UPDATE SET knowledge_to=excluded.knowledge_to`, [run.tenant_id,interval.id,item.order_id,interval.dimension,interval.state,interval.validFrom,interval.validTo,interval.knowledgeFrom,interval.knowledgeTo,interval.clockDomain,interval.sourceClass,interval.sourceEventId,interval.revision]);
       }
-      await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"New independent payment evidence changed the resource version.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')", [run.tenant_id]);
+      await recordFindingSourceChange(tx,actor,before,dataset,{kind:'payment_capture',reason:'Independent payment evidence changed the resource authority.',sourceId:event.id});
+      if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"New independent payment evidence changed the resource version.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')", [run.tenant_id]);
       await audit(tx,actor,'payment.capture_verified',`${record.reference} independently verified as a sandbox capture`,capture.id,{runId:run.id,orderId:item.order_id,amountMinor:capture.amountMinor,currency:'USD',source:'sandbox',transport:'apimatic_sdk',receiptHash:capture.bodyHash});
     }
     await tx.query("UPDATE gh_seed_items SET status='captured',provider_order_id=$4,provider_capture_id=$5,observed_at=$6,receipt=$7::jsonb,reason=NULL,lease_owner=NULL,lease_until=NULL WHERE tenant_id=$1 AND run_id=$2 AND order_id=$3", [run.tenant_id,run.id,item.order_id,order.id,capture.id,capture.observedAt,JSON.stringify(capture)]);

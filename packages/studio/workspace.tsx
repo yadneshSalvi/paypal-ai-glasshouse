@@ -72,7 +72,7 @@ export default function StudioWorkspace(props:Props){
   const bridge=useMemo<StudioBridge>(()=>({
     getSnapshot:()=>snapshotRef.current,
     onTime:v=>current.current.bridge.onTime(v),onOrder:v=>current.current.bridge.onOrder(v),
-    onBranch:v=>current.current.bridge.onBranch(v),onRevision:()=>current.current.bridge.onRevision(),
+    onBranch:v=>current.current.bridge.onBranch(v),onRevision:()=>current.current.bridge.onRevision(),onFindings:()=>current.current.bridge.onFindings?.(),
     onEvent:e=>current.current.bridge.onEvent(e),onApi:a=>current.current.bridge.onApi(a),
     onHistory:h=>current.current.bridge.onHistory(h),onError:e=>current.current.bridge.onError(e),
     onWidgetReady(id,hash,count,highlightCount){

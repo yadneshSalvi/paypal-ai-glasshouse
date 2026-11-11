@@ -8,7 +8,7 @@ export type ProposalEvidence=ReturnType<typeof proposalEvidence>;
 export function isProposalEvidence(value:unknown):value is ProposalEvidence {
   if(!value||typeof value!=='object')return false;
   const v=value as Partial<ProposalEvidence>;
-  return v.evidenceSource==='saved_immutable_proposal'&&v.hashVerified===true&&typeof v.id==='string'&&typeof v.hash==='string'&&v.manifest?.contractVersion===2&&!!v.manifest.context&&Array.isArray(v.manifest.branch?.actions)&&Array.isArray(v.manifest.branch?.rows)&&Array.isArray(v.eligibleOrderIds)&&Array.isArray(v.excludedOrders)&&!!v.policy&&!!v.approval;
+  return v.evidenceSource==='saved_immutable_proposal'&&v.hashVerified===true&&typeof v.id==='string'&&typeof v.hash==='string'&&!!v.manifest&&[2,3].includes(v.manifest.contractVersion??0)&&!!v.manifest.context&&Array.isArray(v.manifest.branch?.actions)&&Array.isArray(v.manifest.branch?.rows)&&Array.isArray(v.eligibleOrderIds)&&Array.isArray(v.excludedOrders)&&!!v.policy&&!!v.approval;
 }
 export function proposalDownload(evidence:ProposalEvidence){return {filename:`glasshouse-${evidence.id}-evidence.json`,body:JSON.stringify(evidence,null,2)};}
 function download(evidence:ProposalEvidence){

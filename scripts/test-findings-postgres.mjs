@@ -1,0 +1,10 @@
+import {readFile} from 'node:fs/promises';
+import {parseEnv} from 'node:util';
+import {spawnSync} from 'node:child_process';
+const filename=process.argv[2];if(!filename)throw new Error('Supply the dedicated finding qualification env file.');
+const values=parseEnv(await readFile(filename,'utf8')),url=new URL(values.DATABASE_URL||'');
+if(!['localhost','127.0.0.1'].includes(url.hostname)||!/^\/gh_findings_stage9_[a-f0-9]{12}$/.test(url.pathname)||!/^ghfind9_[a-f0-9]{12}$/.test(url.username)||values.GLASSHOUSE_FINDING_ISOLATED_QA!==url.pathname.slice(1)||values.GLASSHOUSE_WORKSPACE_ISOLATED_QA!=='true'||values.PORT!=='4541')throw new Error('Dedicated finding qualification database, restricted role and port4541 required.');
+for(const name of ['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_API_KEY','PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET'])if(values[name])throw new Error('Finding tests require blank provider credentials before importing application code.');
+const env={...process.env,...values,OPENAI_API_KEY:'',GEMINI_API_KEY:'',GOOGLE_API_KEY:'',PAYPAL_CLIENT_ID:'',PAYPAL_CLIENT_SECRET:'',PAYPAL_PROJECT_ISOLATED:'false',GLASSHOUSE_AGENTS_TEST_PG:'true'};
+const mode=process.argv[3]||'all';const files={all:['tests/findings.test.ts','tests/findings-http.test.ts','tests/findings-recovery.test.ts','tests/findings-agents.test.ts'],domain:['tests/findings.test.ts'],http:['tests/findings-http.test.ts'],recovery:['tests/findings-recovery.test.ts'],agents:['tests/findings-agents.test.ts']}[mode];if(!files)throw new Error('Choose all, domain, http, recovery or agents.');
+const run=spawnSync(process.execPath,['--import','tsx','--test',...files],{env,stdio:'inherit'});process.exit(run.status??1);

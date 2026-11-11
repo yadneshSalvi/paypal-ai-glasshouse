@@ -58,14 +58,14 @@ test('stored snapshot corruption and forged manifests fail before any immutable 
   assert.equal((await h.db.query('SELECT * FROM gh_report_editions')).length,0);
 });
 
-test('creator-owned findings are hash-checked against sources and private conversations never enter the report',async t=>{
+test('new report editions never implicitly publish creator-owned legacy findings or private conversations',async t=>{
   const h=await reportHarness(t),started=await h.begin(),source=h.snapshot.evidence[0];
   const finding:AgentFinding={id:'fixture-finding',runId:started.run.id,snapshotHash:h.snapshot.hash,revision:h.snapshot.context.cohortVersion,title:'Fixture supported pattern',interpretation:'This interpretation is a source-bound hypothesis.',counterpoint:'This record does not establish a cause.',status:'hypothesis',evidence:[{id:source.id,sourceClass:source.sourceClass,sourceLabel:source.sourceLabel,title:source.title,occurredAt:source.occurredAt,ingestedAt:source.ingestedAt,hash:hash(source)}],facts:snapshotFacts(h.snapshot),sourceCoverage:h.snapshot.sourceCoverage,tools:[],createdAt:new Date().toISOString()};
   await h.db.query("INSERT INTO gh_agent_documents(tenant_id,id,run_id,kind,snapshot_hash,private_document) VALUES($1,$2,$3,'finding',$4,$5)",[h.saved.tenantId,finding.id,started.run.id,h.snapshot.hash,h.secrets.seal(h.saved.tenantId,'document',finding.id,finding)]);
   await h.db.query("INSERT INTO gh_agent_documents(tenant_id,id,run_id,kind,snapshot_hash,private_document) VALUES($1,'secret-brief',$2,'brief',$3,$4)",[h.saved.tenantId,started.run.id,h.snapshot.hash,h.secrets.seal(h.saved.tenantId,'document','secret-brief',{hiddenReasoning:'NEVER_EXPORT_PRIVATE_REASONING'})]);
-  const report=await h.service.create(h.scoped,h.input());assert.deepEqual(report.document.findings,[finding]);assert.equal(JSON.stringify(report).includes('NEVER_EXPORT_PRIVATE_REASONING'),false);
+  const report=await h.service.create(h.scoped,h.input());assert.deepEqual(report.document.findings,[]);assert.deepEqual(report.document.findingRevisions,[]);assert.equal(JSON.stringify(report).includes(finding.interpretation),false);assert.equal(JSON.stringify(report).includes('NEVER_EXPORT_PRIVATE_REASONING'),false);
   await h.db.query('UPDATE gh_agent_documents SET private_document=$3 WHERE tenant_id=$1 AND id=$2',[h.saved.tenantId,finding.id,h.secrets.seal(h.saved.tenantId,'document',finding.id,{...finding,facts:{...finding.facts,affected:999}})]);
-  await assert.rejects(h.service.create(h.scoped,h.input()),failure('REPORT_SOURCE_UNVERIFIED'));
+  const later=await h.service.create(h.scoped,h.input());assert.deepEqual(later.document.findings,[]);assert.deepEqual(later.document.findingRevisions,[]);assert.equal(JSON.stringify(later).includes(finding.interpretation),false);
   assert.deepEqual(await h.service.read(h.scoped,report.summary.id),report);
 });
 

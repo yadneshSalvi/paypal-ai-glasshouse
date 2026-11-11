@@ -109,14 +109,15 @@ export class PayPalFixture {
   };
 }
 
-export async function paymentHarness() {
-  const pg=new PGlite();
-  await pg.exec(schema);
-  function adapt(client:Pick<typeof pg,'query'>):Database{return {
+export async function paymentHarness(external?:{db:Database;close():Promise<void>}) {
+  const local=external?null:new PGlite();
+  if(local)await local.exec(schema);
+  const pg=local??{close:external!.close};
+  function adapt(client:Pick<PGlite,'query'>):Database{return {
     async query<T extends Record<string,unknown>>(sql:string,params:unknown[]=[]){return(await client.query<T>(sql,params)).rows;},
-    transaction:work=>pg.transaction(tx=>work(adapt(tx))),
+    transaction:work=>local!.transaction(tx=>work(adapt(tx))),
   };}
-  const db=adapt(pg);
+  const db=external?.db??adapt(local!);
   await ensurePaymentsSchema(db);
   const who:Actor={id:'fixture-owner',tenantId:'glasshouse-fixture-tenant',role:'judge',membershipVersion:1};
   await db.query('INSERT INTO gh_memberships(tenant_id,actor_id,role,version) VALUES($1,$2,$3,$4)',[who.tenantId,who.id,who.role,who.membershipVersion]);

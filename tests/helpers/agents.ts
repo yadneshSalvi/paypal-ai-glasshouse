@@ -9,12 +9,18 @@ import type {Actor,Snapshot} from '../../packages/domain/types';
 for(const name of ['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_API_KEY','PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET'])if(process.env[name])throw new Error('Agent tests require blank inherited provider credentials.');
 if(process.env.GLASSHOUSE_AGENTS_TEST_PG==='true'){
   const url=new URL(process.env.DATABASE_URL??'');
-  if(!['localhost','127.0.0.1'].includes(url.hostname)||!/^\/gh_agents_stage5_[a-f0-9]{12}$/.test(url.pathname)||!/^ghas5_[a-f0-9]{12}$/.test(url.username)||process.env.GLASSHOUSE_AGENT_ISOLATED_QA!==url.pathname.slice(1))throw new Error('Agent tests refuse a database without the exact isolated qualification identity.');
+  const legacy=/^\/gh_agents_stage5_[a-f0-9]{12}$/.test(url.pathname)&&/^ghas5_[a-f0-9]{12}$/.test(url.username)&&process.env.GLASSHOUSE_AGENT_ISOLATED_QA===url.pathname.slice(1);
+  const finding=/^\/gh_findings_stage9_[a-f0-9]{12}$/.test(url.pathname)&&/^ghfind9_[a-f0-9]{12}$/.test(url.username)&&process.env.GLASSHOUSE_FINDING_ISOLATED_QA===url.pathname.slice(1)&&process.env.PORT==='4541';
+  if(!['localhost','127.0.0.1'].includes(url.hostname)||!legacy&&!finding)throw new Error('Agent tests refuse a database without the exact isolated qualification identity.');
 }else if(process.env.DATABASE_URL)throw new Error('Agent unit tests refuse an inherited database connection.');
 
+process.env.GLASSHOUSE_FINDING_KEY??=randomBytes(32).toString('base64');
 const {schema}=await import('../../packages/db/schema');
 const {ensurePaymentsSchema}=await import('../../lib/server/payments/schema');
 const {ensureRecoverySchema}=await import('../../lib/server/recovery/schema');
+const {ensureWorkspacesSchema}=await import('../../lib/server/workspaces/schema');
+const {ensureReportsSchema}=await import('../../lib/server/reports/schema');
+const {ensureFindingsSchema}=await import('../../lib/server/findings/schema');
 const {ensureAgentsSchema}=await import('../../lib/server/agents/schema');
 const {createSeedDataset,buildSnapshot}=await import('../../packages/domain');
 const {persistDataset}=await import('../../lib/server/repository');
@@ -74,7 +80,7 @@ export async function agentHarness(){
     db=adapt(pg);dispose=()=>pg.close();
   }
   for(const sql of schema.split(';').map(value=>value.trim()).filter(Boolean))await db.query(sql);
-  await ensurePaymentsSchema(db);await ensureRecoverySchema(db);await ensureAgentsSchema(db);
+  await ensurePaymentsSchema(db);await ensureRecoverySchema(db);await ensureAgentsSchema(db);await ensureWorkspacesSchema(db);await ensureReportsSchema(db);await ensureFindingsSchema(db);
   const who:Actor&{agentSessionHash:string}={tenantId:`agents-fixture-${randomUUID()}`,id:'fixture-reviewer',role:'judge',membershipVersion:1,agentSessionHash:randomBytes(32).toString('hex')};
   const {agentSessionHash,...sessionActor}=who;
   await db.query("INSERT INTO gh_sessions(token_hash,actor,expires_at) VALUES($1,$2::jsonb,now()+interval '1 hour')",[agentSessionHash,JSON.stringify(sessionActor)]);

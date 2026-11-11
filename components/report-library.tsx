@@ -5,11 +5,14 @@ import type {RecoveryPlan} from '@/packages/domain/types';
 import type {ReportList,ReportRequest,ReportSummary,SavedReport} from '@/packages/reports/types';
 import {reportMoney,reportTime} from '@/packages/reports/semantics';
 import {api,ApiError} from '@/lib/client';
+import {FindingSelector} from './finding-library';
+import type {FindingReference} from '@/packages/findings/types';
 import {PrivateDialog} from './private-dialog';
 
 type Prepared=Pick<ReportRequest,'snapshotHash'|'expectedLayoutVersion'|'expectedLayoutHash'>;
 export function ReportLibrary({workspaceId,actorId,readOnly,plans,onClose,onPrepare}:{workspaceId:string;actorId:string;readOnly:boolean;plans:RecoveryPlan[];onClose():void;onPrepare():Promise<Prepared>}){
   const [list,setList]=useState<ReportSummary[]>([]),[cursor,setCursor]=useState<string|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
+  const [findingDependencies,setFindingDependencies]=useState<FindingReference[]>([]);
   const [creating,setCreating]=useState(false),[title,setTitle]=useState('The Fernwood incident'),[description,setDescription]=useState(''),[selected,setSelected]=useState<string[]>([]),[parentId,setParentId]=useState('');
   const [saved,setSaved]=useState<ReportSummary|null>(null),[pending,setPending]=useState<ReportRequest|null>(null),pendingRef=useRef<ReportRequest|null>(null),lock=useRef(false);
   const storageKey='glasshouse-report-request:'+workspaceId+':'+actorId;
@@ -20,7 +23,7 @@ export function ReportLibrary({workspaceId,actorId,readOnly,plans,onClose,onPrep
     if(lock.current||readOnly)return;lock.current=true;setBusy(true);setError(null);
     try{
       let input=pendingRef.current;
-      if(!retry){if(input)throw new Error('Recover the earlier report request before creating another edition.');const prepared=await onPrepare();input={requestId:crypto.randomUUID(),title,description,...prepared,planIds:selected,...(parentId?{parentId}:{})};remember(input);}
+      if(!retry){if(input)throw new Error('Recover the earlier report request before creating another edition.');const prepared=await onPrepare();input={requestId:crypto.randomUUID(),title,description,...prepared,planIds:selected,findingDependencies,...(parentId?{parentId}:{})};remember(input);}
       if(!input)throw new Error('No earlier report request is waiting.');
       const result=await api<SavedReport>('reports',input);remember(null);setSaved(result.summary);setCreating(false);await refresh();
     }catch(reason){
@@ -47,12 +50,13 @@ export function ReportLibrary({workspaceId,actorId,readOnly,plans,onClose,onPrep
       <label>Why this edition matters<textarea maxLength={1200} value={description} rows={3} disabled={busy||!!pending} placeholder="What should a future reader understand?" onChange={event=>setDescription(event.target.value)}/></label>
       <label>Earlier edition<select value={parentId} onChange={event=>setParentId(event.target.value)} disabled={busy||!!pending}><option value="">Start an independent edition</option>{list.map(row=><option key={row.id} value={row.id}>{row.title} · {reportTime(row.createdAt)}</option>)}</select><small>A new edition preserves the earlier one exactly.</small></label>
       <fieldset disabled={busy||!!pending}><legend>Include exact saved recovery manifests <span>up to ten</span></legend>{plans.length?plans.map(plan=><label className="report-plan-option" key={plan.id}><input type="checkbox" checked={selected.includes(plan.id)} disabled={!selected.includes(plan.id)&&selected.length>=10} onChange={event=>setSelected(old=>event.target.checked?[...old,plan.id]:old.filter(id=>id!==plan.id))}/><span><strong>{plan.branch.name} · {reportMoney(plan.branch.refundTotalMinor,plan.branch.currency)}</strong><small>{plan.status.replaceAll('_',' ')} · {plan.branch.actions.length} actions · {plan.executionMode} · {plan.id}</small>{plan.branch.id==='comprehensive'&&<small>No-grace comparison; no policy override granted.</small>}</span></label>):<p>No saved proposals yet. You can create an edition of the current evidence without a manifest.</p>}</fieldset>
-      <div className="report-create-disclosure"><FileText size={18}/><p>Creating saves the current native layout first, then freezes one admitted snapshot. The six static instruments cover that whole snapshot. Native filters and custom chart mappings remain exact in the JSON. Only your sourced findings for this snapshot are shared; private conversations and hidden reasoning are excluded.</p></div>
+      <FindingSelector value={findingDependencies} onChange={setFindingDependencies} disabled={busy||!!pending}/>
+      <div className="report-create-disclosure"><FileText size={18}/><p>Creating saves the current native layout first, then freezes one admitted snapshot. The six static instruments cover that whole snapshot. Native filters and custom chart mappings remain exact in the JSON. Only the explicitly selected, creator-shared exact finding versions are included; private conversations and hidden reasoning are excluded.</p></div>
       <div className="report-form-actions"><button type="button" className="button" disabled={busy} onClick={()=>setCreating(false)}>Back to editions</button><button className="button primary" type="submit" disabled={busy||readOnly||!!pending||title.trim().length<2}>{busy?<LoaderCircle size={16} className="spin"/>:<FilePlus2 size={16}/>}Save private edition</button></div>
     </form>}
     {loading&&<div className="directory-loading"><LoaderCircle className="spin"/><p>Opening saved editions…</p></div>}
     {!creating&&!loading&&!list.length&&!error&&<div className="report-library-empty"><FileText size={36}/><h3>The first edition starts here.</h3><p>A living investigation changes. A saved edition keeps the evidence behind one moment.</p></div>}
-    {!creating&&<div className="report-edition-list">{list.map((report,index)=><article className="report-edition-card" key={report.id}><span className="report-edition-mark">{String(index+1).padStart(2,'0')}</span><div><span className="eyebrow">{reportTime(report.createdAt)}</span><h3>{report.title}</h3><p>{report.description||report.merchantName+' · A saved investigation'}</p><div className="report-edition-meta"><span>Finding v{report.context.cohortVersion}</span><span>{report.planCount} manifests</span><span>{report.operationCount} observed operations</span><span>Layout v{report.layoutVersion}</span></div><small>Saved by {report.creatorName} · {report.documentHash.slice(0,16)}…</small></div><a className="button" href={'/reports/'+report.id}>Read edition<ArrowRight size={15}/></a></article>)}</div>}
+    {!creating&&<div className="report-edition-list">{list.map((report,index)=><article className="report-edition-card" key={report.id}><span className="report-edition-mark">{String(index+1).padStart(2,'0')}</span><div><span className="eyebrow">{reportTime(report.createdAt)}</span><h3>{report.title}</h3><p>{report.description||report.merchantName+' · A saved investigation'}</p><div className="report-edition-meta"><span>Source cohort v{report.context.cohortVersion}</span><span>{report.planCount} manifests</span><span>{report.operationCount} observed operations</span><span>Layout v{report.layoutVersion}</span></div><small>Saved by {report.creatorName} · {report.documentHash.slice(0,16)}…</small></div><a className="button" href={'/reports/'+report.id}>Read edition<ArrowRight size={15}/></a></article>)}</div>}
     {!creating&&cursor&&<button className="button" disabled={busy} onClick={()=>{setBusy(true);void refresh(cursor).catch(reason=>setError(reason.message)).finally(()=>setBusy(false));}}>Load earlier editions</button>}
   </PrivateDialog>;
 }

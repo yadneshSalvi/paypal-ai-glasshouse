@@ -1,0 +1,61 @@
+# Findings that retain their history
+
+This unit adds immutable finding reviews to the existing Studio incident room. A merchant can propose an interpretation, support it for a particular source scope, record a challenge, revise it, retract it, or explicitly share a defined version. Source facts and a person's interpretation remain separate. Support is neither proof of causality nor financial approval.
+
+The implementation has its own restricted PostgreSQL, HTTP, DOM-contract and independent-build qualification. Actual provider/model qualification, native browser acceptance, original/hosted data comparison and deployment remain the integration owner's work. The original financial operations, encrypted conversations and saved reports are not fixtures for this unit. [The full delivery ledger](remaining-scope.md) retains every later workstream.
+
+## Immutable records and private versions
+
+Schema 10 adds a current finding pointer and eight append-only tables: revisions, events, explicit shares, exact commands, source changes, plan dependencies, approval authority and dependency invalidations. Database triggers reject updates and deletes to the append-only records. Each encrypted revision binds tenant/workspace/merchant, creator, recording actor and role, previous revision/hash, a review sequence, exact T/K snapshot, source cohort, deterministic facts, citations, source dependencies and a reason. The merchant identity is the workspace's stable tenant identity; no second merchant can be inferred from a client-supplied ID.
+
+| State | Meaning | Next action |
+|---|---|---|
+| Proposed | A private explanation with server-computed facts and cited sources | Support, challenge, revise or retract |
+| Supported for current scope | An attributable person supported this interpretation against these exact current dependencies | Challenge, revise or retract; explicit sharing remains separate |
+| Challenged | A reason and any permitted counterevidence require resolution; dependent unstarted work is invalid | A separately attributable support, revision or retraction resolves the recorded challenge |
+| Revised | A new interpretation, or automatically updated facts, requires a separate review | Inspect the source delta and support, challenge, revise or retract |
+| Retracted | The creator withdrew the interpretation; history remains readable | A new explanation uses a separately identified finding |
+
+Every decision compares the exact expected revision ID and hash while holding the common dataset lock. Exact command identity includes actor, request ID and complete input; conflicting reuse fails. Two simultaneous decisions cannot replace one another. A source correction does not resolve an open challenge; its identity survives until a person records a resolution.
+
+A version is creator-only until that creator explicitly shares that exact ID/hash with current workspace members. Sharing one version does not share future interpretations or conversations. Peers may support or challenge a shared current version; they cannot revise, retract or share another creator's interpretation. A peer can recover the exact receipt for their own submitted decision without receiving general access to later private versions. Viewer and archived-workspace reads retain their normal resource checks, while mutations are held.
+
+Existing encrypted `gh_agent_documents` are never rewritten or relabelled. Their earlier `revision` field means **source cohort version**, not a review sequence. The legacy adapter identifies that distinction and can create a separate proposed lifecycle record after verifying the original document and citations at its saved scope. Agent-created findings also retain their original encrypted document and hash while returning a separate lifecycle reference.
+
+## Source corrections and action dependencies
+
+The common source boundary runs inside the source writer's existing dataset transaction. Delivery correction, verified payment capture, dispute observation, independent refund inventory, scenario revision, original recovery result and later outcome observation all call it. It computes actual before/after order differences and citation changes. Added incident members and newly ingested contrary evidence count as dependency changes even when the affected count stays the same. Unrelated support statistics and identical refreshes do not fabricate revisions.
+
+For the delivery fixture, the difference is computed from the original 63 and current 54 order queries. All nine excluded IDs, revised source citations, exact affected draft IDs and the saved source-change identity are inspectable. The explanation is carried forward with review required. The deterministic correction annotation is available only when the saved revision, nine distinct removed IDs, 63→54 delta and nonempty invalidated draft list all match the persisted source event.
+
+New recovery manifests use contract version 3 and freeze an explicit `finding-dependencies-v1` policy plus at most twenty selected shared revision IDs/hashes. A creator cannot accidentally publish a private interpretation by selecting it for a workspace plan. Source-only preparation remains available with an empty dependency list. Current membership, explicit sharing, support state, exact revision/hash, source fingerprint and action scope are rechecked at preparation, fresh review, approval, queue entry and immediately before a new dispatch. The immutable SQL dependency index must agree with the manifest.
+
+An approved v3 manifest separately records its original session/context authority under authenticated encryption. New dispatch also checks that session's expiry, selected workspace, role/version and workspace status. The final dispatch admission shares the source writer's dataset lock and atomically records the original intent as submitting. A committed prior challenge or source change therefore prevents unstarted work. The application does not attempt an impossible atomic transaction between PostgreSQL and an external provider: once dispatch is admitted, the original operation identity governs any ambiguous outcome.
+
+Completed receipts remain history. A finding correction never repeats, replaces, reverses or rolls back a payment. An already ambiguous outcome still follows its original read-only reconciliation path after a finding challenge, membership revocation or workspace switch. Its financial write is not repeated. Original v2 manifest hashing is unchanged, and v2 operations retain their original contract.
+
+## Studio, models and immutable editions
+
+The cream/ink/amber finding library opens from the main workspace, Evidence Lens and agent evidence rail. It includes current/earlier and private/shared labels, searchable proposal cards, citation comparison, exact source clocks/hashes, actual order deltas, linked plans and revision navigation. Human forms require an attributable reason; source selection distinguishes support and counterevidence. Failed reads offer retry. Unknown submissions retain their exact request in the same browser session and recover without inventing another decision. Stale selections can be removed explicitly; they never silently switch to a newer revision. Dialog navigation preserves focus, returns it to the opener and supports narrow/reduced-motion layouts.
+
+Investigator, Planner and Writer can read bounded permitted summaries or one exact revision. Investigator can propose an interpretation; Planner can bind selected shared supported versions to a new proposal; Writer includes current permitted revisions and correction status. The server tool registry offers no support, share, retract, approve or execute capability to these model tools. Saved private tool/conversation evidence remains creator-scoped and encrypted. Synthetic model transports establish implementation behavior, not actual-model quality or human review.
+
+New report editions include only explicitly selected, shared and current supported finding versions. Creating a report does not automatically publish the author's private agent findings or conversations. Later editions bind their parent and exact selected revisions. Earlier saved JSON, encrypted documents and cached PDF representations remain byte-identical. The reader obtains current correction notices from a separate, freshly authorized endpoint outside the frozen document. If a later interpretation is private, a shared reader receives only a generic superseded notice, without its new ID, reason or delta. Earlier legacy report shapes remain supported and are not retrofitted.
+
+## Migration and local qualification
+
+Keep a stable `GLASSHOUSE_FINDING_KEY` (32-byte base64). If omitted, the service uses the established agent key and then payment key with a separate cipher domain. Changing the selected key requires a separately verified migration. The schema 10 migration does not rewrite earlier agent documents, reports, plan hashes, original sessions, financial receipts or layouts.
+
+After the integration owner has preserved the existing keys and verified the intended database backup and schemas 8/9:
+
+```sh
+GLASSHOUSE_FINDING_MIGRATION_CONFIRM=schema10-immutable-finding-lifecycle node --import tsx --env-file=.env scripts/findings-migrate.ts
+```
+
+The source lead uses a new source/dependency/build copy and a restricted database. `scripts/findings-qa.mjs` refuses every database/cookie/port identity outside the dedicated 4541 fixture and clears financial/model credentials before imports. It provides `migrate`, `native-history`, `build`, `start`, `http` and `browser-fixture` modes. Use the exact **http://localhost:4541** browser origin. The HTTP workflow retains failed attempts, before/after JSON and A4/Letter PDFs, source-derived IDs and checked fixture metadata. The browser fixture is seeded only after a fresh browser Sample identity has been admitted; it does not import cookies or add a runtime backdoor.
+
+`node scripts/test-findings-postgres.mjs <private-isolated-env> all` runs schema-isolated real PostgreSQL tests for source deltas, concurrency, idempotency, current grants, peer privacy, original legacy report bytes, final dispatch, ambiguous reconciliation, all source projection hooks and bounded agent tools. HTTP cases use an actual localhost server and the application route handlers; a separate production Next journey verifies the built runtime. DOM tests cover command recovery and focus contracts, and are explicitly not native visual evidence. Root's native protocol covers desktop, 390/360px, 200% zoom, reduced motion, reload, old/new downloads, focus return and denied/archived/stale states.
+
+The [native qualification protocol](findings-native-protocol.md) gives the exact fresh-browser admission, guarded fixture command, nine-order/two-draft journey, current notice and byte-comparison checks. The frozen start command reuses the isolated build and database without rebuilding or reseeding.
+
+The [local qualification record](evidence/findings-local-qualification.json) retains the exact source/build identities, 218-test regression, 27 real PostgreSQL cases, 24-case built HTTP journey, PDF inspection, earlier failures and the separate native acceptance boundary.

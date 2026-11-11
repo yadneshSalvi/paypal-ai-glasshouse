@@ -1,3 +1,5 @@
+import {recordFindingSourceChange} from '../findings/sources';
+import {hasFindingsSchema} from '../findings/schema';
 import type { Database } from '@/packages/db/client';
 import type { Actor } from '@/packages/domain/types';
 import { buildSnapshot } from '@/packages/domain/temporal';
@@ -65,7 +67,8 @@ export class ScenarioService {
       await persistDataset(tx,revised);
       await tx.query('INSERT INTO gh_scenario_revisions(tenant_id,id,payload_hash,actor_id,observed_at,body) VALUES($1,$2,$3,$4,$5,$6::jsonb)',[actor.tenantId,request.revisionId,requestHash,actor.id,observedAt,JSON.stringify(body)]);
       for(const pair of body.pairs)await tx.query('INSERT INTO gh_dispute_scenario_bindings(tenant_id,revision_id,original_order_id,target_order_id,capture_id,buyer_transaction_id,amount_minor,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb)',[actor.tenantId,request.revisionId,pair.originalOrderId,pair.targetOrderId,pair.targetCaptureId,pair.buyerTransactionId,pair.amountMinor,JSON.stringify(pair)]);
-      await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An explicitly authorized synthetic scenario revision changed the four intended case targets. Review a new exact plan.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')",[actor.tenantId]);
+      await recordFindingSourceChange(tx,actor,current,revised,{kind:'scenario_revision',reason:'An explicit synthetic scenario revision changed the intended case targets.',sourceId:request.revisionId});
+      if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An explicitly authorized synthetic scenario revision changed the four intended case targets. Review a new exact plan.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved')",[actor.tenantId]);
       await audit(tx,actor,'fixture.scenario_revised','Four uncreated case intentions moved to explicitly reviewed same-amount sandbox purchases',request.revisionId,body);
       return body;
     });

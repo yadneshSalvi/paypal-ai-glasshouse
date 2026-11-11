@@ -4,6 +4,7 @@ import type { Database } from '@/packages/db/client';
 import type { Actor, ActionRow, Operation, RecoveryPlan } from '@/packages/domain/types';
 import { buildSnapshot } from '@/packages/domain';
 import { digest, type PaymentSecrets } from '@/packages/payments/security';
+import {assertPlanFindingDependencies,bindFindingApprovalAuthority,assertFindingApprovalAuthority} from '../findings/dependencies';
 import { HttpError } from '../errors';
 import { audit, datasetFor, storePlan } from '../repository';
 import { commandIdentity } from '../payments/records';
@@ -19,7 +20,7 @@ export class RecoveryService {
     return plan;
   }
   validateContract(plan:RecoveryPlan,submittedHash:string){
-    if(plan.contractVersion!==2||!plan.context||plan.executionMode!=='sandbox')throw new HttpError(409,'CURRENT_CONTRACT_REQUIRED','Prepare a new sandbox manifest with exact evidence and current resource authority.');
+    if(![2,3].includes(plan.contractVersion??0)||!plan.context||plan.executionMode!=='sandbox')throw new HttpError(409,'CURRENT_CONTRACT_REQUIRED','Prepare a new sandbox manifest with exact evidence and current resource authority.');
     if(plan.hash!==submittedHash||exactPlanHash(plan)!==plan.hash)throw new HttpError(409,'MANIFEST_CHANGED','The exact reviewed manifest changed. Rebuild it before approval.');
     if(plan.branch.currency!=='USD'||plan.branch.policyId!=='goodwill-delay-v1'||plan.branch.refundTotalMinor>plan.branch.budgetMinor||
       plan.branch.actions.filter(action=>action.kind==='refund').reduce((sum,action)=>sum+action.amountMinor,0)!==plan.branch.refundTotalMinor)throw new HttpError(409,'BUDGET_CHANGED','The complete manifest does not match its approved refund cap.');
@@ -47,7 +48,8 @@ export class RecoveryService {
       await recoveryMember(tx,actor,true);
       await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE',[actor.tenantId]);
       const plan=await this.plan(tx,actor,id,true);this.validateContract(plan,submittedHash);
-      if(plan.status==='approved')return plan;
+      await assertPlanFindingDependencies(tx,actor,plan);
+      if(plan.status==='approved'){await assertFindingApprovalAuthority(tx,actor,plan);return plan;}
       if(plan.status!=='ready_for_review'||Date.parse(plan.expiresAt)<=Date.now())throw new HttpError(409,'PLAN_NOT_CURRENT','Prepare a fresh exact manifest before approving this recovery.');
       if(!fixtureAcknowledged)throw new HttpError(400,'FIXTURE_ACKNOWLEDGEMENT_REQUIRED','Review and acknowledge the synthetic shipment evidence before its sandbox submission.');
       const dataset=await datasetFor(actor,tx);const snapshot=buildSnapshot(dataset,plan.context);
@@ -62,6 +64,7 @@ export class RecoveryService {
         await this.qualifyAction(tx,actor,action,owned);resources[action.orderId]=order.resourceVersion;
       }
       const approved:RecoveryPlan={...plan,status:'approved',approvedBy:actor.id,approvedAt:new Date().toISOString(),approvalMembershipVersion:actor.membershipVersion,fixtureShippingAcknowledged:true};
+      await bindFindingApprovalAuthority(tx,actor,approved);
       await storePlan(tx,approved);
       await tx.query(`INSERT INTO gh_recovery_runs(tenant_id,plan_id,plan_hash,membership_version,approved_by,accepted_revision,accepted_resources,fixture_acknowledged,status)
         VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,true,'approved')`,[actor.tenantId,id,plan.hash,actor.membershipVersion,actor.id,dataset.revision,JSON.stringify(resources)]);
@@ -74,6 +77,8 @@ export class RecoveryService {
       await recoveryMember(tx,actor,true);
       await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE',[actor.tenantId]);
       const plan=await this.plan(tx,actor,id,true);this.validateContract(plan,submittedHash);
+      await assertPlanFindingDependencies(tx,actor,plan);
+      await assertFindingApprovalAuthority(tx,actor,plan);
       const run=(await tx.query<RecoveryRun>('SELECT * FROM gh_recovery_runs WHERE tenant_id=$1 AND plan_id=$2 FOR UPDATE',[actor.tenantId,id]))[0];
       if(!run||!['approved','executing','partially_complete','completed','blocked'].includes(plan.status)||run.plan_hash!==plan.hash)throw new HttpError(409,'APPROVAL_REQUIRED','Approve this exact sandbox manifest before execution.');
       const existing=(await tx.query<{count:string}>('SELECT count(*)::text AS count FROM gh_operations WHERE tenant_id=$1 AND plan_id=$2',[actor.tenantId,id]))[0];

@@ -14,6 +14,7 @@ export interface StudioBridge {
   onOrder(orderId:string):void;
   onBranch(branchId:string):void;
   onRevision():void;
+  onFindings?():void;
   onWidgetReady(widgetId:string,hash:string,count:number,highlightCount:number):void;
   onEvent(event:AgentRunEvent):void;
   onApi(api:AgStudioApi<GlasshouseRegistry>):void;

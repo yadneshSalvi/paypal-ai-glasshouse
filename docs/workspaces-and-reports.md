@@ -26,7 +26,7 @@ An edition contains:
 - All six static semantic instruments, their denominators and explicit unknown values.
 - Exact saved native configuration, filters, custom chart mappings, current state and undo/redo entries.
 - Selected immutable recovery manifests, every eligibility/exclusion row, exact action/operation identity, amount, policy, source and approval state at capture.
-- The creating member's verified findings for this exact snapshot, with source hashes, evidence clocks and counterpoints. Private conversations and hidden model reasoning are excluded.
+- Explicitly selected, creator-shared supported finding versions for this exact snapshot, with source hashes, evidence clocks and counterpoints. Schema 10 does not automatically publish private agent findings. Earlier editions retain their original finding arrays and exact bytes; private conversations and hidden model reasoning are excluded from new editions.
 - Safe observed operation/case projections and a separate workspace audit. Later observations do not rewrite the earlier T/K snapshot.
 
 The whole admitted snapshot drives the six static instruments. They do not silently claim to reproduce every custom native chart or filter; those exact settings remain in the canonical JSON. Supporting and counterpoint source IDs are complete there. The printed evidence section cites each displayed source record and its clocks; the manifest appendix prints every action/operation identity and eligibility row.
@@ -60,6 +60,7 @@ For a **dedicated new local database**, configure `.env` and run:
 GLASSHOUSE_AGENT_MIGRATION_CONFIRM=schema7-and-private-agent-documents node --import tsx --env-file=.env scripts/agents-migrate.ts
 GLASSHOUSE_WORKSPACE_MIGRATION_CONFIRM=schema8-private-workspaces node --import tsx --env-file=.env scripts/workspaces-migrate.ts
 GLASSHOUSE_REPORT_MIGRATION_CONFIRM=schema9-immutable-reports node --import tsx --env-file=.env scripts/reports-migrate.ts
+GLASSHOUSE_FINDING_MIGRATION_CONFIRM=schema10-immutable-finding-lifecycle node --import tsx --env-file=.env scripts/findings-migrate.ts
 npm run dev
 ```
 
@@ -78,4 +79,6 @@ The integration owner completed the following native journeys locally, followed 
 5. Archive a quiescent room: saved reader/JSON/PDF stay readable, new work is held, and restoration preserves its history. Revoke an invited member during a delayed download and verify its response is denied.
 6. Review desktop, 390 px and 360 px layouts, table scrolling, keyboard navigation, Escape/focus return, reduced motion, reload and held/error states. Root native acceptance covers these browser results; the source lead’s local tests remain separately attributed.
 
-Verified external login, additional real merchant connectors, finding review/supersession, broader commerce/evaluation/research/judge/film work and exact static parity for arbitrary native mappings remain in the [full delivery ledger](remaining-scope.md). The existing Toolkit dependency risk assessment remains [separately documented](agents-dependencies.md); this unit adds no Toolkit write surface.
+Verified external login, additional real merchant connectors, native/hosted qualification of the new finding lifecycle, broader commerce/evaluation/research/judge/film work and exact static parity for arbitrary native mappings remain in the [full delivery ledger](remaining-scope.md). The existing Toolkit dependency risk assessment remains [separately documented](agents-dependencies.md); this unit adds no Toolkit write surface.
+
+The [finding lifecycle contract](finding-lifecycle.md) documents schema 10, exact version sharing and current dependency checks. Current correction notices use a separate authorized endpoint outside each saved edition. Neither a notice nor a later finding mutates an earlier report JSON document or cached PDF.

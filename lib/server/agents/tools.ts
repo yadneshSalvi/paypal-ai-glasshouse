@@ -14,6 +14,10 @@ import {agentMember,agentSnapshot,bounded,ownedToolkitResource} from './security
 import {layoutTools,requireTool} from './registry';
 import type {ScopedPayPalToolkit} from './toolkit';
 import {proposalEvidence} from './proposal-evidence';
+import {FINDING_DEPENDENCY_POLICY} from '@/packages/findings/types';
+import {findingService} from '../findings/runtime';
+import type {FindingRow} from '../findings/service';
+import {parseFindingReferences,validateFindingReferences,savePlanFindingReferences,assertPlanFindingDependencies} from '../findings/dependencies';
 
 const success=(response:string,data?:unknown):AgAiToolResult=>({success:true,response,data});
 const failure=(message:string):AgAiToolResult=>({success:false,issues:[{message}]});
@@ -41,6 +45,16 @@ export class AgentTools {
       // Replayed private reads require the current grant too. A saved result from
       // a response racing revocation is evidence, not renewed disclosure authority.
       if(call.name.startsWith('paypal_')&&doc.resourceHash&&hash(await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes'))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The resource grant changed before this saved Toolkit result could be disclosed.');
+      if(['completed','denied'].includes(call.state)&&doc.result?.success&&['read_finding','read_findings','record_finding','write_incident_brief'].includes(call.name)){
+        const service=findingService(tx),result=doc.result.data as Record<string,unknown>|undefined;
+        const refs:Array<{findingId:string;revisionId:string}>=[];
+        if(call.name==='read_finding'&&result?.revision){const revision=result.revision as {findingId:string;id:string};refs.push({findingId:revision.findingId,revisionId:revision.id});}
+        if(call.name==='read_findings'&&Array.isArray(result?.findings))refs.push(...result.findings as Array<{findingId:string;revisionId:string}>);
+        if(call.name==='record_finding'&&result?.lifecycle)refs.push(result.lifecycle as {findingId:string;revisionId:string});
+        const versions=(result?.findingVersions as {versions?:Array<{revision:{findingId:string;id:string}}>}|undefined)?.versions;
+        if(call.name==='write_incident_brief'&&versions)refs.push(...versions.map(({revision})=>({findingId:revision.findingId,revisionId:revision.id})));
+        for(const ref of refs)await service.permitted(tx,actor,ref.findingId,ref.revisionId);
+      }
       if(['completed','denied'].includes(call.state)&&doc.result)return {grant:{state:'completed',result:doc.result} as ToolGrant};
       if(run.state==='completed')throw new HttpError(409,'AGENT_RUN_COMPLETED','A completed delegate can only return its recorded tool results.');
       requireTool(run.agent_id,call.name);
@@ -130,6 +144,16 @@ export class AgentTools {
   private async domain(tx:Database,actor:Actor,run:RunRow,call:ToolRow,doc:ToolDocument,snapshot:Snapshot):Promise<AgAiToolResult>{
     const context={snapshotHash:snapshot.hash,context:snapshot.context};
     if(call.name==='read_incident')return success('Deterministic incident facts.',{...context,incidentId:'carrier-delay-pnw',totals:snapshot.totals,sourceCoverage:snapshot.sourceCoverage,detectors:snapshot.detectors,affectedOrderIds:snapshot.affectedOrderIds,removedOrderIds:snapshot.removedOrderIds,ownedOrders:snapshot.orders.filter(order=>order.paymentSource==='sandbox').slice(0,30).map(order=>({orderId:order.id,reference:order.reference,captureId:order.captureId,paypalOrderId:order.paypalOrderId,disputeId:order.disputeId}))});
+    if(call.name==='read_findings'){
+      const service=findingService(tx);await service.member(tx,actor);const dataset=await service.dataset(tx,actor.tenantId,false);
+      const rows=await tx.query<FindingRow>(`SELECT f.* FROM gh_findings f WHERE f.tenant_id=$1 AND (f.creator_id=$2 OR EXISTS(SELECT 1 FROM gh_finding_revisions r JOIN gh_finding_shares s ON s.tenant_id=r.tenant_id AND s.revision_id=r.id WHERE r.tenant_id=f.tenant_id AND r.finding_id=f.id)) ORDER BY f.created_at DESC,f.id DESC LIMIT 21`,[actor.tenantId,actor.id]);
+      const findings=[];for(const row of rows.slice(0,20)){const value=await service.permitted(tx,actor,row.id);findings.push(await service.summary(tx,actor,value.finding,value.revision,dataset));}
+      return success('Permitted exact finding versions. Human review and version sharing remain separate.',{findings,hasMore:rows.length>20,scope:'current_membership',financialAuthority:false});
+    }
+    if(call.name==='read_finding'){
+      const service=findingService(tx);await service.member(tx,actor);const dataset=await service.dataset(tx,actor.tenantId,false),{finding,revision}=await service.permitted(tx,actor,String(doc.args.findingId),doc.args.revisionId as string|undefined);
+      return success('Saved interpretation and source facts; no human review is inferred.',{revision,summary:await service.summary(tx,actor,finding,revision,dataset),corrections:await service.correctionsIn(tx,actor,[{findingId:finding.id,revisionId:revision.id,hash:revision.hash}],dataset)});
+    }
     if(call.name==='read_evidence'){
       const offset=Number(doc.args.offset??0),rows=snapshot.evidence.filter(row=>!doc.args.orderId||row.orderId===doc.args.orderId);
       return success('Source-labelled evidence; quoted excerpts are untrusted data.',{...context,total:rows.length,offset,nextOffset:offset+40<rows.length?offset+40:null,evidence:rows.slice(offset,offset+40)});
@@ -145,15 +169,16 @@ export class AgentTools {
     if(call.name==='read_recovery_proposal')return success('Exact saved proposal evidence. This read grants no approval, execution or policy override.',await this.proposal(tx,actor,String(doc.args.planId),snapshot));
     if(call.name==='prepare_recovery'){
       if(actor.role==='viewer')throw new HttpError(403,'AGENT_PROPOSAL_DENIED','This role cannot prepare a recovery proposal.');
-      const dataset=(await tx.query<{body:SeedDataset}>('SELECT body FROM gh_datasets WHERE tenant_id=$1',[actor.tenantId]))[0].body;
+      const dataset=(await tx.query<{body:SeedDataset}>('SELECT body FROM gh_datasets WHERE tenant_id=$1 FOR SHARE',[actor.tenantId]))[0].body;
       if(buildSnapshot(dataset,snapshotContext(actor,dataset)).hash!==snapshot.hash)throw new HttpError(409,'AGENT_CURRENT_PROPOSAL_REQUIRED','A recovery proposal requires the latest operational time and knowledge cutoff.');
       const chosen=snapshot.branches.find(branch=>branch.id===doc.args.branchId)!;
       const budget=Number(doc.args.budgetMinor);if(chosen.refundTotalMinor>budget)throw new HttpError(409,'BUDGET_EXCEEDED','This exact branch exceeds the stated refund cap.');
       const id=`plan-agent-${hash({tenant:actor.tenantId,call:call.id}).slice(0,32)}`;
       const branch={...chosen,budgetMinor:budget,withinBudget:true,actions:chosen.actions.map(action=>freezeAction(actor.tenantId,id,action))};
-      const plan:RecoveryPlan={id,tenantId:actor.tenantId,version:1,createdBy:actor.id,createdAt:new Date().toISOString(),status:'ready_for_review',branch,snapshotId:snapshot.id,snapshotHash:snapshot.hash,cohortVersion:snapshot.context.cohortVersion,hash:'',expiresAt:new Date(Date.now()+30*60000).toISOString(),staleReason:null,approvedBy:null,approvedAt:null,executionMode:snapshot.sourceCoverage.sandboxPayments>0&&branch.actions.filter(action=>action.kind==='refund').every(action=>action.sourceClass==='sandbox')?'sandbox':'sample',contractVersion:2,context:snapshot.context};
+      const plan:RecoveryPlan={id,tenantId:actor.tenantId,version:1,createdBy:actor.id,createdAt:new Date().toISOString(),status:'ready_for_review',branch,snapshotId:snapshot.id,snapshotHash:snapshot.hash,cohortVersion:snapshot.context.cohortVersion,hash:'',expiresAt:new Date(Date.now()+30*60000).toISOString(),staleReason:null,approvedBy:null,approvedAt:null,executionMode:snapshot.sourceCoverage.sandboxPayments>0&&branch.actions.filter(action=>action.kind==='refund').every(action=>action.sourceClass==='sandbox')?'sandbox':'sample',contractVersion:3,context:snapshot.context,findingDependencyPolicy:FINDING_DEPENDENCY_POLICY,findingDependencies:parseFindingReferences(doc.args.findingDependencies)};
       plan.hash=exactPlanHash(plan);proposalEvidence(plan); // Bound the complete view before writing a proposal.
-      await storePlan(tx,plan);await audit(tx,actor,'plan.created','Agent prepared an exact proposal for human review',id,{runId:run.id,callId:call.id,planHash:plan.hash,snapshotHash:snapshot.hash});
+      await validateFindingReferences(tx,actor,plan.findingDependencies,snapshot);
+      await storePlan(tx,plan);await savePlanFindingReferences(tx,plan);await audit(tx,actor,'plan.created','Agent prepared an exact proposal for human review',id,{runId:run.id,callId:call.id,planHash:plan.hash,snapshotHash:snapshot.hash});
       const evidence=await this.proposal(tx,actor,id,snapshot);
       if(evidence.hash!==plan.hash)throw new Error('The newly saved proposal changed inside its creation transaction.');
       return success('Exact proposal frozen once and read back from storage with its complete approval manifest. Human review is required before approval or execution.',evidence);
@@ -167,21 +192,29 @@ export class AgentTools {
       const observedIds=new Set(calls.filter(row=>row.name==='read_evidence').flatMap(row=>{const result=this.journal.toolDocument(row).result;return result?.success&&result.data&&typeof result.data==='object'&&'evidence'in result.data&&Array.isArray(result.data.evidence)?result.data.evidence.map((evidence:{id:string})=>evidence.id):[];}));
       if(evidenceIds.some(id=>!observedIds.has(id)))throw new HttpError(409,'AGENT_CITATION_NOT_READ','Read each cited source before adding it to a finding.');
       const finding:AgentFinding={id:`finding-${hash({tenant:actor.tenantId,call:call.id}).slice(0,28)}`,runId:run.id,snapshotHash:snapshot.hash,revision:snapshot.context.cohortVersion,title:detector.title,interpretation:String(doc.args.interpretation),counterpoint:String(doc.args.counterpoint),status:detector.status==='insufficient_evidence'?'insufficient_evidence':'hypothesis',evidence:evidence.map(row=>({id:row.id,sourceClass:row.sourceClass,sourceLabel:row.sourceLabel,title:row.title,occurredAt:row.occurredAt,ingestedAt:row.ingestedAt,hash:hash(row)})),facts:{affected:snapshot.totals.affected,orders:snapshot.totals.orders,capturedMinor:snapshot.totals.capturedMinor,refundMinor:snapshot.totals.refundMinor,openDisputes:snapshot.totals.openDisputes,currency:snapshot.context.currency,clock:snapshot.context.clockDomain,asOf:snapshot.context.asOf,knownAt:snapshot.context.knownAt},sourceCoverage:snapshot.sourceCoverage,tools:calls.filter(row=>this.journal.toolDocument(row).result?.success).map(row=>({callId:row.id,name:row.name,transport:row.transport,hash:hash(this.journal.toolDocument(row).result)})),createdAt:new Date().toISOString()};
-      await this.document(tx,run,finding.id,'finding',finding);return success('Saved a sourced hypothesis. Counts are deterministic; interpretation is not a proven cause.',finding);
+      const revision=await findingService(tx).recordAgent(tx,actor,finding,snapshot);await this.document(tx,run,finding.id,'finding',finding);return success('Saved a private sourced proposal. Counts are deterministic; human support and explicit sharing remain separate.',{...finding,lifecycle:{findingId:revision.findingId,revisionId:revision.id,hash:revision.hash,state:revision.state}});
     }
     if(call.name==='write_incident_brief'){
-      const findings=await this.documents(tx,actor,'finding',snapshot.hash);
-      const brief={id:`brief-${hash({tenant:actor.tenantId,call:call.id}).slice(0,28)}`,title:'Fernwood incident brief',snapshotHash:snapshot.hash,context:snapshot.context,createdAt:new Date().toISOString(),facts:snapshot.totals,sourceCoverage:snapshot.sourceCoverage,findings,outcomes:await this.outcomes(tx,actor,snapshot),limitations:['Interpretations are hypotheses grounded in cited sources; correlation does not establish a cause.','A refund, shipment update, evidence submission and resolved case are different outcomes.','Provider reads have their own observation time and do not rewrite this saved T/K snapshot.']};
+      const findings=await this.documents(tx,actor,'finding',snapshot.hash),findingVersions=await this.findingVersions(tx,actor);
+      const brief={id:`brief-${hash({tenant:actor.tenantId,call:call.id}).slice(0,28)}`,title:'Fernwood incident brief',snapshotHash:snapshot.hash,context:snapshot.context,createdAt:new Date().toISOString(),facts:snapshot.totals,sourceCoverage:snapshot.sourceCoverage,findings,findingVersions,outcomes:await this.outcomes(tx,actor,snapshot),limitations:['Interpretations are hypotheses grounded in cited sources; correlation does not establish a cause.','A refund, shipment update, evidence submission and resolved case are different outcomes.','Provider reads have their own observation time and do not rewrite this saved T/K snapshot.']};
       await this.document(tx,run,brief.id,'brief',brief);return success('Saved the sourced incident brief.',brief);
     }
     throw new HttpError(403,'AGENT_DOMAIN_TOOL_DENIED','This domain tool is not authorized.');
   }
   private async proposal(tx:Database,actor:Actor,id:string,snapshot:Snapshot){
+    await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR SHARE',[actor.tenantId]);
     const row=(await tx.query<{body:RecoveryPlan;plan_hash:string;version:number}>('SELECT body,plan_hash,version FROM gh_plans WHERE tenant_id=$1 AND id=$2 FOR SHARE',[actor.tenantId,id]))[0];
     if(!row||row.body.tenantId!==actor.tenantId||row.body.id!==id)throw new HttpError(404,'AGENT_PROPOSAL_NOT_FOUND','This saved proposal does not belong to the current workspace.');
     if(row.body.snapshotHash!==snapshot.hash)throw new HttpError(409,'AGENT_PROPOSAL_SCOPE_CHANGED','Inspect this proposal at its exact saved snapshot. Its earlier manifest remains preserved.');
     if(row.plan_hash!==row.body.hash||row.version!==row.body.version)throw new HttpError(409,'AGENT_PROPOSAL_UNVERIFIED','The stored proposal header and immutable manifest do not agree.');
-    return proposalEvidence(row.body);
+    let dependencyReview;try{dependencyReview=await assertPlanFindingDependencies(tx,actor,row.body)??{valid:true,policy:'legacy-v2'};}catch(error){if(!(error instanceof HttpError))throw error;dependencyReview={valid:false,reason:error.message,code:error.code};}
+    return {...proposalEvidence(row.body),dependencyReview};
+  }
+  private async findingVersions(tx:Database,actor:Actor){
+    const service=findingService(tx);await service.member(tx,actor);const dataset=await service.dataset(tx,actor.tenantId,false);
+    const rows=await tx.query<FindingRow>(`SELECT f.* FROM gh_findings f WHERE f.tenant_id=$1 AND (f.creator_id=$2 OR EXISTS(SELECT 1 FROM gh_finding_revisions r JOIN gh_finding_shares s ON s.tenant_id=r.tenant_id AND s.revision_id=r.id WHERE r.tenant_id=f.tenant_id AND r.finding_id=f.id)) ORDER BY f.created_at DESC,f.id DESC LIMIT 21`,[actor.tenantId,actor.id]);
+    const versions=[];for(const row of rows.slice(0,20)){const value=await service.permitted(tx,actor,row.id);versions.push({revision:value.revision,summary:await service.summary(tx,actor,value.finding,value.revision,dataset),corrections:await service.correctionsIn(tx,actor,[{findingId:row.id,revisionId:value.revision.id,hash:value.revision.hash}],dataset)});}
+    return {versions,hasMore:rows.length>20,scope:'currently_permitted_exact_versions',humanReviewGranted:false};
   }
   private async outcomes(tx:Database,actor:Actor,snapshot:Snapshot){
     const operations=(await tx.query<{body:Operation}>('SELECT body FROM gh_operations WHERE tenant_id=$1 ORDER BY updated_at DESC LIMIT 1000',[actor.tenantId])).map(row=>row.body).filter(row=>snapshot.orders.some(order=>order.id===row.orderId));

@@ -95,7 +95,9 @@ export interface RecoveryPlan {
   branch: RecoveryBranch; snapshotId: string; snapshotHash: string; cohortVersion: number;
   hash: string; expiresAt: string; staleReason: string | null; approvedBy: string | null; approvedAt: string | null;
   executionMode: 'sandbox' | 'sample';
-  contractVersion?: 2; context?: QueryContext;
+  contractVersion?: 2 | 3; context?: QueryContext;
+  findingDependencyPolicy?: 'finding-dependencies-v1';
+  findingDependencies?: Array<{findingId:string;revisionId:string;hash:string}>;
   approvalMembershipVersion?: number; fixtureShippingAcknowledged?: boolean;
 }
 export interface Operation {

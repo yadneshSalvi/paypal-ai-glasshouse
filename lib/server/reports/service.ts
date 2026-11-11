@@ -8,7 +8,7 @@ import type {ReportHistory} from '@/packages/studio/history-saves';
 import type {SeedManifest,SeedManifestEntry} from '@/packages/payments/types';
 import type {DisputeObservation} from '../recovery/disputes';
 import {buildSnapshot} from '@/packages/domain';
-import {historyCounts,snapshotFacts} from '@/packages/reports/semantics';
+import {historyCounts} from '@/packages/reports/semantics';
 import {digest} from '@/packages/payments/security';
 import {audit,hash} from '../repository';
 import {HttpError} from '../errors';
@@ -19,10 +19,15 @@ import {proposalEvidence} from '../agents/proposal-evidence';
 import {AgentSecrets} from '../agents/security';
 import {ReportSecrets} from './crypto';
 import {requireReportsSchema} from './schema';
+import {parseFindingReferences,validateFindingReferences} from '../findings/dependencies';
+import {findingService} from '../findings/runtime';
+import {hasFindingsSchema} from '../findings/schema';
+import type {FindingRevision,FindingReference} from '@/packages/findings/types';
+import type {FindingRow,RevisionRow} from '../findings/service';
 
 const cleanText=(min:number,max:number)=>z.string().trim().min(min).max(max).refine(value=>!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value));
 const id=z.string().min(1).max(160).regex(/^[A-Za-z0-9_-]+$/),fingerprint=z.string().regex(/^[a-f0-9]{64}$/);
-const createSchema=z.object({requestId:z.uuid(),title:cleanText(2,120),description:cleanText(0,1200).default(''),snapshotHash:fingerprint,expectedLayoutVersion:z.number().int().min(1),expectedLayoutHash:fingerprint,planIds:z.array(id).max(10).refine(ids=>new Set(ids).size===ids.length),parentId:id.optional()}).strict();
+const createSchema=z.object({requestId:z.uuid(),title:cleanText(2,120),description:cleanText(0,1200).default(''),snapshotHash:fingerprint,expectedLayoutVersion:z.number().int().min(1),expectedLayoutHash:fingerprint,planIds:z.array(id).max(10).refine(ids=>new Set(ids).size===ids.length),parentId:id.optional(),findingDependencies:z.array(z.object({findingId:id,revisionId:id,hash:fingerprint}).strict()).max(20).optional()}).strict();
 type EditionRow=Record<string,unknown>&{tenant_id:string;id:string;created_by:string;membership_version:number;request_id:string;request_hash:string;document_hash:string;snapshot_hash:string;layout_version:number;layout_hash:string;parent_id:string|null;private_document:string;private_summary:string};
 type PdfRow=Record<string,unknown>&{state:'rendering'|'ready'|'failed';lease_id:string|null;lease_until:Date|null;private_bytes:string|null;byte_hash:string|null;page_count:number|null;attempts:number};
 type SummaryEnvelope={summary:ReportSummary;grants:ReportGrant[]};
@@ -114,13 +119,11 @@ export class ReportService {
       const grants=await this.freezeGrants(tx,actor,snapshot,plans);
       const workspace=(await tx.query<{name:string;merchant_name:string;source_kind:'sample'|'existing';organization_name:string|null}>(`SELECT w.name,w.merchant_name,w.source_kind,o.name AS organization_name FROM gh_workspaces w LEFT JOIN gh_organizations o ON o.id=w.organization_id WHERE w.tenant_id=$1`,[actor.tenantId]))[0];
       const person=(await tx.query<{display_name:string}>(`SELECT p.display_name FROM gh_actor_people a JOIN gh_people p ON p.id=a.person_id WHERE a.tenant_id=$1 AND a.actor_id=$2`,[actor.tenantId,actor.id]))[0];
-      const findingsRows=await tx.query<{id:string;run_id:string;private_document:string}>(`SELECT d.id,d.run_id,d.private_document FROM gh_agent_documents d JOIN gh_agent_runs r ON r.tenant_id=d.tenant_id AND r.id=d.run_id WHERE d.tenant_id=$1 AND r.actor_id=$2 AND d.kind='finding' AND d.snapshot_hash=$3 ORDER BY d.created_at,d.id LIMIT 51`,[actor.tenantId,actor.id,snapshot.hash]);
-      if(findingsRows.length>50)throw new HttpError(413,'REPORT_SIZE_LIMIT','This snapshot has more findings than one verified edition can contain. No findings were silently omitted.');
-      const findings=findingsRows.map(row=>{
-        const finding=this.agentSecrets.open<AgentFinding>(actor.tenantId,'document',row.id,row.private_document);
-        if(finding.id!==row.id||finding.runId!==row.run_id||finding.snapshotHash!==snapshot.hash||finding.revision!==snapshot.context.cohortVersion||hash(finding.facts)!==hash(snapshotFacts(snapshot))||hash(finding.sourceCoverage)!==hash(snapshot.sourceCoverage)||!Array.isArray(finding.evidence)||finding.evidence.some(citation=>{const source=snapshot.evidence.find(item=>item.id===citation.id);return !source||hash(source)!==citation.hash||source.occurredAt!==citation.occurredAt||source.ingestedAt!==citation.ingestedAt||source.sourceClass!==citation.sourceClass;}))throw bad('A finding does not match this exact source snapshot. Its original private document remains saved.');
-        return finding;
-      });
+      // A report is a workspace share. Its author chooses already shared exact
+      // lifecycle versions; creating an edition never publishes a private chat.
+      const refs=parseFindingReferences(input.findingDependencies),findingRevisions:FindingRevision[]=[];
+      if(refs.length){await validateFindingReferences(tx,actor,refs,snapshot);const service=findingService(tx);for(const ref of refs)findingRevisions.push((await service.permitted(tx,actor,ref.findingId,ref.revisionId)).revision);}
+      const findings:AgentFinding[]=[];
       const orderIds=new Set(snapshot.orders.map(row=>row.id));
       const operationsRows=await tx.query<{id:string;plan_id:string;action_id:string;status:string;body:Operation}>('SELECT id,plan_id,action_id,status,body FROM gh_operations WHERE tenant_id=$1 ORDER BY updated_at,id LIMIT 5001',[actor.tenantId]);
       if(operationsRows.length>5000)throw new HttpError(413,'REPORT_SIZE_LIMIT','The observed operation history exceeds this edition bound. No incomplete operation inventory was saved.');
@@ -139,26 +142,43 @@ export class ReportService {
       const reportId=`report-${randomUUID()}`,createdAt=new Date().toISOString();
       const draft:ReportDocument={schemaVersion:1,id:reportId,title:input.title,description:input.description,createdAt,parentId:input.parentId??null,
         workspace:{id:actor.tenantId,name:workspace?.name??'Existing investigation',merchantName:workspace?.merchant_name??'Fernwood Supply',organizationName:workspace?.organization_name??null,source:workspace?.source_kind??'existing'},
-        creator:{actorId:actor.id,displayName:person?.display_name??'Existing workspace member',role:actor.role,membershipVersion:actor.membershipVersion,identityKind:'browser_capability'},snapshot,layout:{history,version:layout.version,hash:input.expectedLayoutHash},plans,findings,
+        creator:{actorId:actor.id,displayName:person?.display_name??'Existing workspace member',role:actor.role,membershipVersion:actor.membershipVersion,identityKind:'browser_capability'},snapshot,layout:{history,version:layout.version,hash:input.expectedLayoutHash},plans,findings,findingRevisions,
         observed:{capturedAt:createdAt,operations,cases},audit:{scope:'workspace_at_export',events,throughSequence:Number(auditRows.at(-1)?.sequence??0)},grants,
-        coverage:{snapshotOrders:snapshot.orders.length,snapshotEvidence:snapshot.evidence.length,snapshotTransitions:snapshot.tables.transition_snapshot.length,...historyCounts(history),fullSnapshotInJson:true,staticInstruments:'whole_admitted_snapshot',customMappings:'preserved_in_native_history',agentNarratives:'creator_owned_findings_for_exact_snapshot',sharing:'current_workspace_members_only',limitations:[
+        coverage:{snapshotOrders:snapshot.orders.length,snapshotEvidence:snapshot.evidence.length,snapshotTransitions:snapshot.tables.transition_snapshot.length,...historyCounts(history),fullSnapshotInJson:true,staticInstruments:'whole_admitted_snapshot',customMappings:'preserved_in_native_history',agentNarratives:'explicitly_shared_exact_finding_versions',sharing:'current_workspace_members_only',limitations:[
           'The six static instruments describe the whole admitted snapshot. Native filters, mappings, custom charts and full undo/redo entries are preserved exactly in the attached JSON; they are not silently reinterpreted as the static overview.',
           'Snapshot event time T, knowledge cutoff K, source observation times and report generation time are distinct. Observed operations and cases may be later than the snapshot.',
           'A proposal, approved action, observed refund, tracking update, submitted evidence and resolved dispute are distinct states. A comparison branch grants no policy override.',
-          'Findings are source-bound interpretations, not causal proof. Only the creating member\'s findings for this exact snapshot are shared in this edition; private chats and model reasoning are excluded.',
+          'Findings are source-bound interpretations, not causal proof. Only explicitly selected, creator-shared finding versions are included in this edition. Private findings, chats and model reasoning are excluded.',
           'A browser display name is self-declared. Saved report access requires current workspace membership and active grants for included provider resources.',
         ]}};
       // Bind responses, encrypted storage and hashes to the same JSON transport
       // value. Optional JS undefined fields are absent in every stored edition.
       const document=JSON.parse(JSON.stringify(draft)) as ReportDocument;
       limit(document,24_000_000,'This complete edition exceeds the 24 MB evidence bound. The saved investigation is unchanged.');
-      const documentHash=hash(document),summary:ReportSummary={id:reportId,title:input.title,description:input.description,createdAt,createdBy:actor.id,creatorName:document.creator.displayName,workspaceName:document.workspace.name,merchantName:document.workspace.merchantName,parentId:document.parentId,documentHash,snapshotHash:snapshot.hash,context:snapshot.context,layoutVersion:layout.version,planCount:plans.length,operationCount:operations.length,findingCount:findings.length};
+      const documentHash=hash(document),summary:ReportSummary={id:reportId,title:input.title,description:input.description,createdAt,createdBy:actor.id,creatorName:document.creator.displayName,workspaceName:document.workspace.name,merchantName:document.workspace.merchantName,parentId:document.parentId,documentHash,snapshotHash:snapshot.hash,context:snapshot.context,layoutVersion:layout.version,planCount:plans.length,operationCount:operations.length,findingCount:findings.length+findingRevisions.length};
       await tx.query(`INSERT INTO gh_report_editions(tenant_id,id,created_by,membership_version,request_id,request_hash,document_hash,snapshot_hash,layout_version,layout_hash,parent_id,private_document,private_summary,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,[actor.tenantId,reportId,actor.id,actor.membershipVersion,input.requestId,requestHash,documentHash,snapshot.hash,layout.version,input.expectedLayoutHash,input.parentId??null,this.secrets.seal(actor.tenantId,'edition',reportId,document),this.secrets.seal(actor.tenantId,'summary',reportId,{summary,grants}),createdAt]);
       await audit(tx,actor,'report.created','Immutable private report edition saved',reportId,{documentHash,snapshotHash:snapshot.hash,layoutHash:input.expectedLayoutHash,layoutVersion:layout.version});
       return {document,summary};
     });}catch(error){if(error&&typeof error==='object'&&'code'in error&&['40001','23505'].includes(String(error.code)))throw new HttpError(409,'REPORT_SOURCE_CHANGED','Source, access or the same saved request changed while this edition was being frozen. Retry the original request to recover any saved result.');throw error;}
   }
   async read(actor:Actor,reportId:string){await requireReportsSchema(this.db);return this.db.transaction(async tx=>{await this.member(tx,actor);return this.edition(tx,actor,reportId);});}
+  async corrections(actor:Actor,reportId:string){
+    await requireReportsSchema(this.db);return this.db.transaction(async tx=>{
+      await this.member(tx,actor);const report=await this.edition(tx,actor,reportId);
+      const notices=[];if(await hasFindingsSchema(tx)){
+        const service=findingService(tx),refs:FindingReference[]=(report.document.findingRevisions??[]).map(row=>({findingId:row.findingId,revisionId:row.id,hash:row.hash}));
+        // Legacy editions keep their exact bytes. Only an authorized separately
+        // adopted lifecycle can supply an external current correction notice.
+        for(const old of report.document.findings){
+          const found=(await tx.query<FindingRow>('SELECT * FROM gh_findings WHERE tenant_id=$1 AND origin_document_id=$2',[actor.tenantId,old.id]))[0];
+          if(!found)continue;const first=(await tx.query<RevisionRow>('SELECT * FROM gh_finding_revisions WHERE tenant_id=$1 AND finding_id=$2 AND sequence=1',[actor.tenantId,found.id]))[0];
+          if(first)refs.push({findingId:found.id,revisionId:first.id,hash:first.revision_hash});
+        }
+        for(const ref of refs){try{notices.push(...await service.correctionsIn(tx,actor,[ref]));}catch(error){if(error instanceof HttpError&&[403,404].includes(error.status))continue;throw error;}}
+      }
+      return {reportId,documentHash:report.summary.documentHash,checkedAt:new Date().toISOString(),scope:'currently_permitted_findings' as const,notices};
+    });
+  }
   async list(actor:Actor,cursor?:string):Promise<ReportList>{
     await requireReportsSchema(this.db);
     if(cursor&&!id.safeParse(cursor).success)throw new HttpError(400,'INVALID_REPORT_CURSOR','Use a saved report cursor from this workspace.');

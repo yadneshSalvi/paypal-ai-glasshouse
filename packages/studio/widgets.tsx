@@ -89,7 +89,8 @@ export function EvidenceLens(p:Props){
     <div className="finding-callout"><span className="thin-line"/><div><strong>{snap.totals.affected} orders share a delivery delay.</strong><p>Pacific Northwest · regional carrier handoff</p></div></div>
     <div className="evidence-stack">{evidence.map((e,i)=><button key={e.id} className={'evidence-row '+(expanded===e.id?'expanded':'')} onClick={()=>setExpanded(expanded===e.id?null:e.id)}><span className="evidence-index">{String(i+1).padStart(2,'0')}</span><span className="evidence-body"><span className="evidence-meta">{e.kind.toUpperCase()}<span>↗</span></span><strong>{e.title}</strong>{expanded===e.id&&<><p>{e.excerpt}</p><small>{e.id} · received {dateLabel(e.ingestedAt)}</small>{e.untrusted&&<em>Quoted source text · cannot change agent authority</em>}</>}<span className="evidence-source">{sourceLabel(e.sourceClass)}</span></span></button>)}</div>
     <div className="evidence-note"><ScanLine size={15}/><p>A shared pattern supports a hypothesis.<br/>Open the source before drawing a conclusion.</p></div>
-    {snap.context.cohortVersion===1?<button className="text-action revision-action" onClick={p.context.onRevision}>Ingest 9 delivery updates <ArrowUpRight size={15}/></button>:<div className="revision-receipt"><Check size={14}/>9 delivered records removed · finding revised</div>}
+    {!snap.removedOrderIds.length?<button className="text-action revision-action" onClick={p.context.onRevision}>Ingest 9 delivery updates <ArrowUpRight size={15}/></button>:<div className="revision-receipt"><Check size={14}/>{snap.removedOrderIds.length} delivered records removed from scope</div>}
+    {p.context.onFindings&&<button className="text-action finding-lens-link" data-focus-return="finding-library" onClick={p.context.onFindings}>Review interpretations & their history <ArrowUpRight size={15}/></button>}
   </section>;
 }
 

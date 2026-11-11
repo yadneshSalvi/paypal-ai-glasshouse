@@ -1,3 +1,5 @@
+import {recordFindingSourceChange} from '../findings/sources';
+import {hasFindingsSchema} from '../findings/schema';
 import type { Database } from '@/packages/db/client';
 import type { Actor, SeedDataset, SourceEvent } from '@/packages/domain/types';
 import { appendStateObservation, STORY_END } from '@/packages/domain/seed';
@@ -26,7 +28,7 @@ export async function projectRecoveryResult(db:Database,intent:RecoveryIntent,ob
     const refund=intent.kind==='refund';
     if(refund&&(!('amountMinor' in observation)||observation.status!=='COMPLETED'||observation.amountMinor!==command.action.amountMinor||observation.customId!==command.operationId)||
       !refund&&(!('trackingNumber' in observation)||observation.status!=='SHIPPED'||observation.trackingNumber!==command.tracking?.trackingNumber||observation.carrierName!==command.tracking?.carrierName))throw new HttpError(409,'RESULT_UNCONFIRMED','The exact approved outcome has not been independently confirmed.');
-    const dataset=await datasetFor(actor,tx);const order=dataset.orders.find(order=>order.id===intent.order_id);
+    const dataset=await datasetFor(actor,tx),before=structuredClone(dataset);const order=dataset.orders.find(order=>order.id===intent.order_id);
     if(!order||order.captureId!==observation.captureId||order.paypalOrderId!==observation.orderId)throw new HttpError(409,'RESOURCE_BINDING_CHANGED','The observed result belongs to a different payment.');
     const eventId=`paypal:${refund?'refund':'tracking'}:${observation.orderId}:${observation.id}`;
     if(dataset.events.some(event=>event.id===eventId))return;
@@ -57,7 +59,8 @@ export async function projectRecoveryResult(db:Database,intent:RecoveryIntent,ob
     // Only a receipt on the already accepted revision can advance this execution's authority.
     await tx.query("UPDATE gh_recovery_runs SET accepted_revision=$3,accepted_resources=jsonb_set(accepted_resources,ARRAY[$4]::text[],to_jsonb($5::integer)),updated_at=now() WHERE tenant_id=$1 AND plan_id=$2 AND accepted_revision=$6",
       [intent.tenant_id,intent.plan_id,revision,order.id,order.resourceVersion,priorRevision]);
-    await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent recovery receipt changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2",[intent.tenant_id,intent.plan_id]);
+    await recordFindingSourceChange(tx,actor,before,dataset,{kind:'original_recovery_receipt',reason:'An independent recovery observation changed the available actions.',sourceId:event.id,ownPlanId:intent.plan_id});
+    if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent recovery receipt changed the evidence.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2",[intent.tenant_id,intent.plan_id]);
     await audit(tx,actor,refund?'recovery.refund_verified':'recovery.tracking_verified',`${order.reference} · ${refund?'$5 refund':'fixture tracking assignment'} independently verified`,intent.id,
       {planId:intent.plan_id,providerId:observation.id,source:'sandbox',shippingSource:refund?null:'fixture_shipping',transport:'apimatic_sdk',receiptHash:observation.bodyHash});
   });
@@ -70,7 +73,7 @@ export async function projectRecoveryReview(db: Database, intent: RecoveryIntent
     const original = (await tx.query<RecoveryIntent>('SELECT * FROM gh_recovery_intents WHERE tenant_id=$1 AND id=$2', [intent.tenant_id,intent.id]))[0];
     if (!original || original.payload_hash !== digest(intent.command)) throw new HttpError(409,'ORIGINAL_RECEIPT_REQUIRED','The original recovery intent changed during its status check.');
     const actor: Actor = { tenantId:intent.tenant_id,id:intent.command.actorId,membershipVersion:intent.command.membershipVersion,role:'operator' };
-    const dataset = await datasetFor(actor,tx), order = dataset.orders.find(row => row.id === intent.order_id);
+    const dataset = await datasetFor(actor,tx), before=structuredClone(dataset), order = dataset.orders.find(row => row.id === intent.order_id);
     if (!order || order.captureId !== intent.command.owned.captureId) throw new HttpError(409,'RESOURCE_BINDING_CHANGED','The status check no longer belongs to this payment.');
     const id = `paypal:recovery-review:${order.id}:v1`;
     if (dataset.events.some(event => event.id === id)) return;
@@ -83,7 +86,8 @@ export async function projectRecoveryReview(db: Database, intent: RecoveryIntent
     await persistObservation(tx,dataset,event,new Set());
     await tx.query("UPDATE gh_recovery_runs SET accepted_revision=$3,accepted_resources=jsonb_set(accepted_resources,ARRAY[$4]::text[],to_jsonb($5::integer)),updated_at=now() WHERE tenant_id=$1 AND plan_id=$2 AND accepted_revision=$6",
       [intent.tenant_id,intent.plan_id,dataset.revision,order.id,order.resourceVersion,priorRevision]);
-    await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent status review changed available recovery actions.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2",[intent.tenant_id,intent.plan_id]);
+    await recordFindingSourceChange(tx,actor,before,dataset,{kind:'recovery_status_review',reason:'An independent recovery observation changed the available actions.',sourceId:event.id,ownPlanId:intent.plan_id});
+    if(!await hasFindingsSchema(tx))await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent status review changed available recovery actions.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2",[intent.tenant_id,intent.plan_id]);
     await audit(tx,actor,'recovery.status_reviewed',`${order.reference} · original provider result checked`,intent.id,{source:'sandbox',readOnly:true});
   });
 }

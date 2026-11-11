@@ -6,9 +6,11 @@ import type { FulfillmentEvidence } from './disputes';
 import type { TrackingCommand } from './evidence';
 
 export const recoveryOperationId=(tenantId:string,planId:string,actionId:string)=>'recovery-'+digest([tenantId,planId,actionId]).slice(0,32);
-export function exactPlanHash(plan:Pick<RecoveryPlan,'tenantId'|'id'|'version'|'branch'|'cohortVersion'|'snapshotHash'|'context'|'expiresAt'|'executionMode'>):string {
-  return digest({contractVersion:2,tenantId:plan.tenantId,id:plan.id,version:plan.version,branch:plan.branch,cohortVersion:plan.cohortVersion,
-    snapshotHash:plan.snapshotHash,context:plan.context,expiresAt:plan.expiresAt,executionMode:plan.executionMode});
+export function exactPlanHash(plan:Pick<RecoveryPlan,'tenantId'|'id'|'version'|'branch'|'cohortVersion'|'snapshotHash'|'context'|'expiresAt'|'executionMode'|'contractVersion'|'findingDependencyPolicy'|'findingDependencies'>):string {
+  const legacy={contractVersion:2,tenantId:plan.tenantId,id:plan.id,version:plan.version,branch:plan.branch,cohortVersion:plan.cohortVersion,
+    snapshotHash:plan.snapshotHash,context:plan.context,expiresAt:plan.expiresAt,executionMode:plan.executionMode};
+  // Version two hashes are a historical approval boundary and must remain exact.
+  return digest(plan.contractVersion===3?{...legacy,contractVersion:3,findingDependencyPolicy:plan.findingDependencyPolicy,findingDependencies:plan.findingDependencies}:legacy);
 }
 export function freezeAction(tenantId:string,planId:string,action:ActionRow):ActionRow {
   const operationId=recoveryOperationId(tenantId,planId,action.id);

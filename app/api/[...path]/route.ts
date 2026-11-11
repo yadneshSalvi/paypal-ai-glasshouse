@@ -3,7 +3,7 @@ import { actor, startSession,bindSessionAuthority,assertRequestCurrent } from '@
 import { body, problem, HttpError, sameOrigin } from '@/lib/server/errors';
 import { snapshotFor } from '@/lib/server/snapshots';
 import { audit, auditFor, hash, operationsFor, plansFor } from '@/lib/server/repository';
-import { approvePlan, createPlan, enqueuePlan, reviseEvidence } from '@/lib/server/plans';
+import { approvePlan, createPlan, enqueuePlan, reviseEvidence, reviewPlan } from '@/lib/server/plans';
 import { capabilities } from '@/lib/server/capabilities';
 import {agentRuntime} from '@/lib/server/agents/runtime';
 import {agentActor} from '@/lib/server/agents/security';
@@ -64,9 +64,10 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
   if(key==='evidence/revise' && method==='POST') return Response.json(await reviseEvidence(who));
   if(key==='plans' && method==='GET') return Response.json(await plansFor(who));
   if(key==='plans' && method==='POST') {
-    const input=await body<{branchId:string;budgetMinor:number;snapshotHash?:string}>(request);
-    return Response.json(await createPlan(who,input.branchId,input.budgetMinor,input.snapshotHash));
+    const input=await body<{branchId:string;budgetMinor:number;snapshotHash?:string;findingDependencies?:unknown}>(request);
+    return Response.json(await createPlan(who,input.branchId,input.budgetMinor,input.snapshotHash,input.findingDependencies));
   }
+  if(path[0]==='plans' && path[2]==='review' && method==='GET')return Response.json(await reviewPlan(who,path[1]));
   if(path[0]==='plans' && path[2]==='approve' && method==='POST') {
     const input=await body<{hash:string;fixtureAcknowledged?:boolean}>(request);
     return Response.json(await approvePlan(who,path[1],input.hash,input.fixtureAcknowledged===true));

@@ -1,3 +1,4 @@
+import type {Database} from '@/packages/db/client';
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { PaymentCore, PaymentError, ProviderError, type AuthorizationDecision, type PaymentCommand, type ProviderAdapter, type SqlPaymentStore } from '@fracture/paypal-core';
@@ -5,6 +6,7 @@ import type { Actor, Operation, OperationStatus } from '@/packages/domain/types'
 import { projectOrders } from '@/packages/domain/temporal';
 import { evaluateBranches } from '@/packages/domain/policy';
 import { digest } from '@/packages/payments/security';
+import {assertPlanFindingDependencies,assertFindingApprovalAuthority} from '../findings/dependencies';
 import { HttpError } from '../errors';
 import { audit, datasetFor, storePlan } from '../repository';
 import { commandIdentity } from '../payments/records';
@@ -118,20 +120,21 @@ export class RecoveryExecutor {
       await this.db.query('UPDATE gh_recovery_intents SET lease_owner=NULL,lease_until=NULL WHERE tenant_id=$1 AND id=$2 AND lease_owner=$3',[tenantId,operationId,owner]);
     }
   }
-  private async authorizeDomain(intent:RecoveryIntent){
-    const command=intent.command,actor=actorFor(command);
-    await recoveryMember(this.db,actor,true,command.membershipVersion);
-    const plan=await this.options.service.plan(this.db,actor,intent.plan_id);
+  private async authorizeDomain(intent:RecoveryIntent,db:Database=this.db){
+    const command=intent.command,actor=await recoveryMember(db,actorFor(command),true,command.membershipVersion);
+    const plan=await this.options.service.plan(db,actor,intent.plan_id);
     this.options.service.validateContract(plan,command.approval.hash);
-    const run=(await this.db.query<RecoveryRun>('SELECT * FROM gh_recovery_runs WHERE tenant_id=$1 AND plan_id=$2',[intent.tenant_id,intent.plan_id]))[0];
+    await assertPlanFindingDependencies(db,actor,plan);
+    await assertFindingApprovalAuthority(db,actor,plan);
+    const run=(await db.query<RecoveryRun>('SELECT * FROM gh_recovery_runs WHERE tenant_id=$1 AND plan_id=$2',[intent.tenant_id,intent.plan_id]))[0];
     if(!run||!run.fixture_acknowledged||run.plan_hash!==plan.hash||run.approved_by!==command.actorId||run.membership_version!==command.membershipVersion||
       plan.approvedBy!==command.actorId||plan.approvalMembershipVersion!==command.membershipVersion||plan.version!==command.approval.version||plan.expiresAt!==command.approval.expiresAt||
       !['approved','executing','partially_complete'].includes(plan.status)||Date.parse(plan.expiresAt)<=Date.now())throw new HttpError(403,'RECOVERY_APPROVAL_NOT_CURRENT','The exact recovery approval is no longer current.');
     const action=plan.branch.actions.find(action=>action.id===command.actionId);
     if(!action||digest(action)!==digest(command.action))throw new HttpError(409,'ACTION_CHANGED','The immutable approved action changed.');
-    const dataset=await datasetFor(actor,this.db),record=dataset.orders.find(order=>order.id===intent.order_id);
+    const dataset=await datasetFor(actor,db),record=dataset.orders.find(order=>order.id===intent.order_id);
     if(!record||dataset.revision!==run.accepted_revision||record.resourceVersion!==run.accepted_resources[intent.order_id])throw new HttpError(409,'EVIDENCE_CHANGED','New evidence outside this recovery made its unstarted actions stale.');
-    const owned=await ownedPayment(this.db,actor,intent.order_id);
+    const owned=await ownedPayment(db,actor,intent.order_id);
     if(digest(owned)!==digest(command.owned))throw new HttpError(409,'RESOURCE_GRANT_CHANGED','The original payment grant changed.');
     const knownAt=dataset.events.reduce((latest,event)=>event.ingestedAt>latest?event.ingestedAt:latest,plan.context!.knownAt);
     const current=projectOrders(dataset,{...plan.context!,knownAt,cohortVersion:dataset.revision,projectionVersion:dataset.revision}).find(order=>order.id===intent.order_id);
@@ -173,9 +176,18 @@ export class RecoveryExecutor {
     }catch(error){return deny(safeReason(error));}
   }
   private async markDispatch(intent:RecoveryIntent){
-    const rows=await this.db.query("UPDATE gh_recovery_intents SET status='submitting',updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='claimed' AND lease_until>now() AND lease_owner=$3 RETURNING id",[intent.tenant_id,intent.id,intent.lease_owner]);
-    if(!rows.length)throw new ProviderError('encode','The original dispatch claim is no longer available.','not_sent',409);
-    await this.update(intent,'submitting','Sending the original approved action.');
+    await this.db.transaction(async tx=>{
+      // This admission shares the source writer's lock. A challenge or source
+      // revision committed before it prevents an unstarted provider write.
+      await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE',[intent.tenant_id]);
+      await this.authorizeDomain(intent,tx);
+      const rows=await tx.query("UPDATE gh_recovery_intents SET status='submitting',reason=$4,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='claimed' AND lease_until>now() AND lease_owner=$3 RETURNING id",[intent.tenant_id,intent.id,intent.lease_owner,'Sending the original approved action.']);
+      if(!rows.length)throw new ProviderError('encode','The original dispatch claim is no longer available.','not_sent',409);
+      const existing=(await tx.query<{body:Operation}>('SELECT body FROM gh_operations WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[intent.tenant_id,intent.id]))[0]?.body;
+      if(!existing)throw new HttpError(409,'OPERATION_MISSING','The original operation row is unavailable.');
+      const operation:Operation={...existing,status:'submitting',reason:'Sending the original approved action.',attempts:intent.attempt,updatedAt:new Date().toISOString()};
+      await tx.query("UPDATE gh_operations SET status='submitting',body=$3::jsonb,updated_at=now() WHERE tenant_id=$1 AND id=$2",[intent.tenant_id,intent.id,JSON.stringify(operation)]);
+    });
   }
   private async update(intent:RecoveryIntent,status:OperationStatus,reason:string|null,providerId:string|null=intent.provider_id,result:Record<string,unknown>|null=null,release=false){
     await this.db.transaction(async tx=>{
