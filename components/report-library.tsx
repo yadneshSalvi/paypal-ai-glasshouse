@@ -35,7 +35,7 @@ export function ReportLibrary({workspaceId,actorId,readOnly,plans,onClose,onPrep
     try{sessionStorage.setItem(storageKey+':held:'+original.requestId,JSON.stringify(original));}catch{setError('The original request could not be retained. Recover it before continuing.');return;}
     remember(null);setCreating(false);setError('The earlier request remains held with its original identity. Check saved editions before deliberately creating a new one.');void refresh().catch(()=>{});
   };
-  return <PrivateDialog wide eyebrow="SAVED EDITIONS" title="A record worth returning to." returnFocusKey="report-library" onClose={onClose}>
+  return <PrivateDialog wide eyebrow="SAVED EDITIONS" title="A record worth returning to." contentKey={creating?'create':'library'} returnFocusKey="report-library" onClose={onClose}>
     <div className="report-library-intro"><BookOpen size={29}/><p>Freeze the evidence behind a decision. Each edition keeps its own clocks, exact native history, and selected recovery manifests.</p></div>
     {error&&<div className="workspace-message is-error" role="alert">{error}</div>}
     {saved&&<div className="report-created" role="status"><Check size={18}/><span><strong>{saved.title}</strong> is saved as a private immutable edition.</span><a className="button primary" href={'/reports/'+saved.id}>Read report<ArrowRight size={15}/></a></div>}

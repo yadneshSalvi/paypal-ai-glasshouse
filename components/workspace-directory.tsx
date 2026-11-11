@@ -61,7 +61,7 @@ export function WorkspaceDirectoryDialog({onClose,initialIdentity,onDirectory}:{
   const back=()=>{setPage('directory');setError(null);setNotice(null);setAdmin(null);setLink(null);void refresh().catch(reason=>setError(reason.message));};
   const title=page==='directory'?'A place for every story.':page==='create'?'Open a new workspace.':page==='organization'?'Bring your work together.':page==='profile'?'Your browser access.':'People, access & continuity.';
   const identity=directory?.identity??initialIdentity;
-  return <PrivateDialog wide eyebrow="PRIVATE WORKSPACES" title={title} returnFocusKey="workspace-directory" onClose={onClose}>
+  return <PrivateDialog wide eyebrow="PRIVATE WORKSPACES" title={title} contentKey={page} returnFocusKey="workspace-directory" onClose={onClose}>
     {page!=='directory'&&<button className="text-action directory-back" onClick={back}><ArrowLeft size={15}/>All workspaces</button>}
     {error&&<div className="workspace-message is-error" role="alert">{error}</div>}
     {notice&&<div className="workspace-message" role="status"><Check size={16}/>{notice}</div>}
