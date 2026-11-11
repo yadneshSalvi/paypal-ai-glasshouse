@@ -17,7 +17,8 @@
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
     "db:inspect": "tsx --env-file=.env scripts/inspect.ts",
     "payments:worker": "tsx --env-file=.env scripts/payments-worker.ts",
-    "recovery:worker": "tsx --env-file=.env scripts/recovery-worker.ts"
+    "recovery:worker": "tsx --env-file=.env scripts/recovery-worker.ts",
+    "observations:worker": "tsx --env-file=.env scripts/observations-worker.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",

@@ -92,6 +92,12 @@ export function projectOrders(dataset: SeedDataset, context: QueryContext): Snap
       const disputeId = disputeSource === 'sandbox' && typeof disputeEvent?.payload.disputeId === 'string' ? disputeEvent.payload.disputeId : null;
       const disputeDueAt = disputeSource === 'sandbox' && typeof disputeEvent?.payload.sellerResponseDueAt === 'string' ? disputeEvent.payload.sellerResponseDueAt : null;
       const disputeEvidenceHash = disputeSource === 'sandbox' && typeof disputeEvent?.payload.receiptHash === 'string' ? disputeEvent.payload.receiptHash : null;
+      const caseCapabilities = disputeSource === 'sandbox' ? disputeEvent?.payload.disputeCapabilities : undefined;
+      const disputeCapabilities = caseCapabilities && typeof caseCapabilities === 'object' &&
+        'version' in caseCapabilities && caseCapabilities.version === 1 &&
+        'mayProvideFulfillment' in caseCapabilities && typeof caseCapabilities.mayProvideFulfillment === 'boolean' &&
+        'reason' in caseCapabilities && typeof caseCapabilities.reason === 'string'
+        ? { version: 1 as const, mayProvideFulfillment: caseCapabilities.mayProvideFulfillment, reason: caseCapabilities.reason } : undefined;
       const source = (byOrder.get(order.id) ?? []).sort((a,b) => Date.parse(eventTime(a,context))-Date.parse(eventTime(b,context)) || a.id.localeCompare(b.id));
       const scenarioEvent=source.filter(event=>event.sourceClass==='fixture_shipping'&&event.payload.fixtureShipping===true&&event.payload.scenarioRevisionId)
         .sort((a,b)=>b.revision-a.revision||b.ingestedAt.localeCompare(a.ingestedAt))[0];
@@ -102,20 +108,34 @@ export function projectOrders(dataset: SeedDataset, context: QueryContext): Snap
       const disputeEvidenceId=evidenceFor(disputeInterval?.sourceEventId,'dispute');
       const resourceVersion = source.reduce((version,event) => Number.isSafeInteger(event.payload.resourceVersion) ? Math.max(version,Number(event.payload.resourceVersion)) : version,1);
       const trackingInPayPal = source.some(event => event.sourceClass === 'sandbox' && event.type === 'remediation.tracking_added' && event.payload.trackingInPayPal === true);
+      const recoveryReviewVersion = source.some(event => event.sourceClass === 'sandbox' && event.type === 'recovery.capabilities_observed' && event.payload.version === 1) ? 1 as const : undefined;
       const remedy = source.filter(event => event.dimension === 'remediation' && isStateEvent(event));
       const observedRefunds = remedy.filter(event => event.type === 'remediation.refunded');
       const observedCredits = remedy.filter(event => event.type === 'remediation.credited');
       const refundAmounts = observedRefunds.map(event => Number(event.payload.amountMinor ?? event.payload.refundMinor ?? 0));
       const creditAmounts = observedCredits.map(event => Number(event.payload.amountMinor ?? event.payload.creditMinor ?? 0));
-      const refundedMinor = observedRefunds.length ? refundAmounts.reduce((sum,value) => sum+value,0) : providerRemediation.has(order.id) ? 0 : order.refundedMinor;
+      const capacity = source.filter(event => event.sourceClass === 'sandbox' && event.type === 'payment.refund_balance_observed' && event.payload.complete === true)
+        .sort((a,b) => b.revision-a.revision)[0];
+      const refundHistoryMinor = observedRefunds.length ? refundAmounts.reduce((sum,value) => sum+value,0) : providerRemediation.has(order.id) ? 0 : order.refundedMinor;
+      const inventory = Array.isArray(capacity?.payload.refunds) ? capacity.payload.refunds.filter((value):value is {id:string;status:string;amountMinor:number} =>
+        value !== null && typeof value === 'object' && typeof value.id === 'string' && typeof value.status === 'string' && Number.isSafeInteger(value.amountMinor) && value.amountMinor > 0) : null;
+      const completedIds = new Set(inventory?.filter(refund=>refund.status==='COMPLETED').map(refund=>refund.id));
+      const consumedIds = new Set(inventory?.filter(refund=>['COMPLETED','PENDING'].includes(refund.status)).map(refund=>refund.id));
+      // A complete inventory may precede a later original receipt. Union their identities:
+      // taking the larger total loses distinct refunds; adding totals counts shared ones twice.
+      const receiptAmounts = new Map(observedRefunds.map(event=>[String(event.payload.refundId??event.payload.providerResourceId??event.id),Number(event.payload.amountMinor??event.payload.refundMinor??0)]));
+      const outsideInventory = (ids:Set<string>) => inventory ? [...receiptAmounts].reduce((sum,[id,amount])=>sum+(ids.has(id)?0:amount),0) : 0;
+      const refundedMinor = Math.max(refundHistoryMinor,capacity && Number.isSafeInteger(capacity.payload.completedMinor) ? Number(capacity.payload.completedMinor)+outsideInventory(completedIds) : 0);
+      const providerRefundConsumedMinor = capacity && Number.isSafeInteger(capacity.payload.consumedMinor) ? Math.max(refundedMinor,Number(capacity.payload.consumedMinor)+outsideInventory(consumedIds)) : undefined;
+      const providerRefundInventoryHash = capacity && typeof capacity.payload.receiptHash === 'string' ? capacity.payload.receiptHash : undefined;
       const goodwillCreditMinor = observedCredits.length ? creditAmounts.reduce((sum,value) => sum+value,0) : providerRemediation.has(order.id) ? 0 : order.goodwillCreditMinor;
-      const remaining = Math.max(0,order.amountMinor-refundedMinor);
+      const remaining = Math.max(0,order.amountMinor-(providerRefundConsumedMinor ?? refundedMinor));
       const refundableMinor = ['captured','completed'].includes(paymentState) ? providerRemediation.has(order.id) ? remaining : Math.min(order.refundableMinor,remaining) : 0;
       const promised = Date.parse(currentOrder.promisedAt);
       const lateHours = Number.isFinite(promised) ? (Date.parse(context.asOf)-promised)/3_600_000 : -1;
       const disputeOpen = disputeState !== null && !['none','resolved','closed','cancelled'].includes(disputeState);
       return { ...currentOrder, paymentSource, captureId, paypalOrderId, providerOccurredAt, resourceVersion, refundedMinor, goodwillCreditMinor, refundableMinor,
-        shipmentEvidenceId,disputeEvidenceId,
+        shipmentEvidenceId,disputeEvidenceId,disputeCapabilities,recoveryReviewVersion,providerRefundConsumedMinor,providerRefundInventoryHash,
         disputeState, disputeOpen, disputeSource, disputeId, disputeDueAt, disputeEvidenceHash, trackingInPayPal, paymentState, fulfillmentState, remediationState,
         affected: currentOrder.incidentMember && ['delayed','in_transit','shipped'].includes(fulfillmentState) && lateHours >= 0,
         lateHours, ageDays: Math.max(0,(Date.parse(context.asOf)-Date.parse(context.clockDomain === 'observed' ? order.createdAt : order.narrativeCreatedAt))/86_400_000),

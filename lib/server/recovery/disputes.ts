@@ -28,6 +28,19 @@ export interface FulfillmentEvidence {
   expectedBodyHash?: string;
 }
 export interface RestReceipt { status: number; debugId: string | null; bodyHash: string; observedAt: string }
+
+/** Proposal facts, not write authority. Dispatch still re-reads the exact case and SQL approval. */
+export function disputeCapabilities(observation: DisputeObservation) {
+  const held = (reason: string) => ({ version: 1 as const, mayProvideFulfillment: false, reason });
+  if (observation.status === 'RESOLVED') return held('PayPal reports this case as resolved.');
+  if (observation.status === 'WAITING_FOR_BUYER_RESPONSE') return held('PayPal is waiting for the buyer. The submitted evidence remains on the case.');
+  if (observation.status !== 'WAITING_FOR_SELLER_RESPONSE' || !['INQUIRY','CHARGEBACK','PRE_ARBITRATION','ARBITRATION'].includes(observation.stage)) return held('The current provider state does not request a seller evidence response.');
+  if (observation.sellerResponseDueAt && Date.parse(observation.sellerResponseDueAt) <= Date.parse(observation.observedAt)) return held('The provider response deadline had passed when this case was read.');
+  if (!observation.actions.includes('provide-evidence')) return held('PayPal does not currently permit an evidence submission.');
+  if (observation.evidence.some(item => item.source === 'SUBMITTED_BY_SELLER' && item.type === 'PROOF_OF_FULFILLMENT')) return held('Fulfillment evidence has already been submitted. A further request needs a separate review.');
+  if (!observation.evidence.some(item => item.source === 'REQUESTED_FROM_SELLER' && item.type === 'PROOF_OF_FULFILLMENT' && item.itemId === null)) return held('PayPal has not requested the supported fulfillment evidence for this case.');
+  return { version: 1 as const, mayProvideFulfillment: true, reason: 'PayPal currently requests fulfillment evidence. Revalidate the case and any provider deadline before submission.' };
+}
 type ObjectValue = Record<string, unknown>;
 
 const mismatch = (message = 'The dispute response did not establish exact owned resource evidence.') =>

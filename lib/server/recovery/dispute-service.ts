@@ -7,6 +7,8 @@ import { HttpError } from '../errors';
 import type { OrderEvidenceGateway } from '../payments/evidence';
 import { ownedPayment, recoveryMember, type OwnedPayment } from './authority';
 import type { DisputesGateway, DisputeObservation, DisputeInventory } from './disputes';
+import { disputeCapabilities } from './disputes';
+import { requireObservationAuthority, type ConnectorAuthority } from '../observations/connector';
 
 export class DisputeService {
   constructor(private readonly db: Database, private readonly disputes: Pick<DisputesGateway, 'list' | 'get'>,
@@ -54,11 +56,13 @@ export class DisputeService {
 }
 
 /** Call inside a transaction after locking the dataset. Observations never clear a different dimension. */
-export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPayment, observation: DisputeObservation, ownPlanId?: string) {
+export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPayment, observation: DisputeObservation, authority?: string|ConnectorAuthority) {
+  const ownPlanId = typeof authority === 'string' ? authority : undefined;
   if(ownPlanId){
     const original=(await tx.query<{approved_by:string}>('SELECT approved_by FROM gh_recovery_runs WHERE tenant_id=$1 AND plan_id=$2',[actor.tenantId,ownPlanId]))[0];
     if(original?.approved_by!==actor.id)throw new HttpError(409,'ORIGINAL_RECOVERY_REQUIRED','The original approved recovery does not match this observation.');
-  }else await recoveryMember(tx, actor);
+  }else if (authority && typeof authority !== 'string') await requireObservationAuthority(tx,actor,authority);
+  else await recoveryMember(tx, actor);
   if (observation.captureId !== owned.captureId || observation.grossAmountMinor !== owned.entry.amountMinor || owned.tenantId !== actor.tenantId) throw new HttpError(409, 'DISPUTE_BINDING_CONFLICT', 'The case is not bound to this owned capture.');
   const intended=(await tx.query<{capture_id:string;buyer_transaction_id:string;amount_minor:number}>('SELECT capture_id,buyer_transaction_id,amount_minor FROM gh_dispute_scenario_bindings WHERE tenant_id=$1 AND target_order_id=$2',[actor.tenantId,owned.orderId]))[0];
   if(intended&&(intended.capture_id!==observation.captureId||intended.buyer_transaction_id!==observation.buyerTransactionId||intended.amount_minor!==observation.grossAmountMinor))throw new HttpError(409,'SCENARIO_BUYER_BINDING_CONFLICT','The real provider case does not match the buyer transaction observed for this explicit scenario target.');
@@ -66,13 +70,21 @@ export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPay
   if (existing && existing.order_id !== owned.orderId) throw new HttpError(409, 'DISPUTE_BINDING_CONFLICT', 'This case is already bound to another order.');
   await tx.query('INSERT INTO gh_provider_observations(tenant_id,id,order_id,resource_id,kind,observed_at,body_hash,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) ON CONFLICT DO NOTHING',
     [actor.tenantId,`dispute-${observation.id}-${observation.bodyHash.slice(0,16)}`,owned.orderId,observation.id,'dispute',observation.observedAt,observation.bodyHash,JSON.stringify(observation)]);
-  if (existing && (existing.body.bodyHash === observation.bodyHash || Date.parse(existing.body.updatedAt) > Date.parse(observation.updatedAt))) return;
+  if (existing && Date.parse(existing.body.updatedAt) > Date.parse(observation.updatedAt)) return;
+  if (existing && Date.parse(existing.body.updatedAt) === Date.parse(observation.updatedAt) && Date.parse(existing.body.observedAt) > Date.parse(observation.observedAt)) return;
   if (existing?.body.status === 'RESOLVED' && observation.status !== 'RESOLVED' && Date.parse(observation.updatedAt) <= Date.parse(existing.body.updatedAt)) return;
-  await tx.query(`INSERT INTO gh_provider_resources(tenant_id,kind,provider_id,order_id,run_id,observed_at,body)
+  const dataset = await datasetFor(actor,tx);
+  const capabilities = disputeCapabilities(observation);
+  const baseEventId = `paypal:dispute:${observation.id}:${observation.bodyHash.slice(0,16)}:capabilities-v1:${digest(capabilities).slice(0,12)}`;
+  const eventId = existing && existing.body.bodyHash !== observation.bodyHash && dataset.events.some(event=>event.id===baseEventId)
+    ? `${baseEventId}:r${dataset.revision+1}` : baseEventId;
+  if (!existing || existing.body.bodyHash !== observation.bodyHash) await tx.query(`INSERT INTO gh_provider_resources(tenant_id,kind,provider_id,order_id,run_id,observed_at,body)
     VALUES($1,'dispute',$2,$3,$4,$5,$6::jsonb) ON CONFLICT(tenant_id,kind,provider_id)
     DO UPDATE SET version=gh_provider_resources.version+1,observed_at=excluded.observed_at,body=excluded.body`,
     [actor.tenantId,observation.id,owned.orderId,owned.runId,observation.observedAt,JSON.stringify(observation)]);
-  const dataset = await datasetFor(actor,tx);
+  else await tx.query("UPDATE gh_provider_resources SET observed_at=$3,body=$4::jsonb WHERE tenant_id=$1 AND kind='dispute' AND provider_id=$2",
+    [actor.tenantId,observation.id,observation.observedAt,JSON.stringify(observation)]);
+  if (dataset.events.some(event => event.id === eventId)) return;
   const order = dataset.orders.find(order=>order.id===owned.orderId);
   if (!order || order.captureId !== owned.captureId || order.disputeId && order.disputeId !== observation.id) throw new HttpError(409, 'DISPUTE_SET_UNSUPPORTED', 'This order has an unreviewed case relationship.');
   const revision = dataset.revision+1;
@@ -80,12 +92,13 @@ export async function projectDispute(tx: Database, actor: Actor, owned: OwnedPay
   const knowledge = new Date(Math.max(Date.now(), Date.parse(observation.observedAt))).toISOString();
   const narrativeTime = previous?.narrativeTime ?? STORY_END;
   const event: SourceEvent = {
-    id:`paypal:dispute:${observation.id}:${observation.bodyHash.slice(0,16)}`,tenantId:actor.tenantId,orderId:order.id,
+    id:eventId,tenantId:actor.tenantId,orderId:order.id,
     type:'dispute.observed',dimension:'dispute',state:observation.status.toLowerCase(),occurredAt:observation.updatedAt,
     ingestedAt:knowledge,narrativeTime,sourceClass:'sandbox',sourceLabel:'PayPal sandbox · independently read dispute',
     sourceRef:`paypal://sandbox/dispute/${observation.id}`,revision,
     payload:{disputeId:observation.id,captureId:owned.captureId,reason:observation.reason,stage:observation.stage,sellerResponseDueAt:observation.sellerResponseDueAt,
       amountMinor:observation.amountMinor,currency:observation.currency,receiptHash:observation.bodyHash,resourceVersion:order.resourceVersion+1,
+      disputeCapabilities:capabilities,
       supersedesEventId:previous?.sourceClass==='sample'?previous.id:null,clockMapping:'Actual PayPal case timestamps are retained; the case maps to this incident order on the narrative clock.'},
   };
   appendStateObservation(dataset.intervals,event);

@@ -62,3 +62,28 @@ export async function projectRecoveryResult(db:Database,intent:RecoveryIntent,ob
       {planId:intent.plan_id,providerId:observation.id,source:'sandbox',shippingSource:refund?null:'fixture_shipping',transport:'apimatic_sdk',receiptHash:observation.bodyHash});
   });
 }
+
+/** A new knowledge-time review leaves previously exported snapshots and receipts intact. */
+export async function projectRecoveryReview(db: Database, intent: RecoveryIntent, observedAt: string) {
+  await db.transaction(async tx => {
+    await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE', [intent.tenant_id]);
+    const original = (await tx.query<RecoveryIntent>('SELECT * FROM gh_recovery_intents WHERE tenant_id=$1 AND id=$2', [intent.tenant_id,intent.id]))[0];
+    if (!original || original.payload_hash !== digest(intent.command)) throw new HttpError(409,'ORIGINAL_RECEIPT_REQUIRED','The original recovery intent changed during its status check.');
+    const actor: Actor = { tenantId:intent.tenant_id,id:intent.command.actorId,membershipVersion:intent.command.membershipVersion,role:'operator' };
+    const dataset = await datasetFor(actor,tx), order = dataset.orders.find(row => row.id === intent.order_id);
+    if (!order || order.captureId !== intent.command.owned.captureId) throw new HttpError(409,'RESOURCE_BINDING_CHANGED','The status check no longer belongs to this payment.');
+    const id = `paypal:recovery-review:${order.id}:v1`;
+    if (dataset.events.some(event => event.id === id)) return;
+    const priorRevision = dataset.revision;
+    const event: SourceEvent = { id,tenantId:intent.tenant_id,orderId:order.id,type:'recovery.capabilities_observed',dimension:'remediation',state:'reviewed',
+      occurredAt:observedAt,ingestedAt:new Date(Math.max(Date.now(),Date.parse(observedAt))).toISOString(),narrativeTime:STORY_END,sourceClass:'sandbox',
+      sourceLabel:'PayPal sandbox · independent recovery review',sourceRef:`paypal://sandbox/order/${intent.command.owned.providerOrderId}`,revision:priorRevision+1,
+      payload:{version:1,operationId:intent.id,resourceVersion:order.resourceVersion+1,meaning:'New proposals exclude an already verified tracking assignment. Original receipts and case outcomes remain separate.'} };
+    dataset.events.push(event);dataset.revision++;order.resourceVersion++;
+    await persistObservation(tx,dataset,event,new Set());
+    await tx.query("UPDATE gh_recovery_runs SET accepted_revision=$3,accepted_resources=jsonb_set(accepted_resources,ARRAY[$4]::text[],to_jsonb($5::integer)),updated_at=now() WHERE tenant_id=$1 AND plan_id=$2 AND accepted_revision=$6",
+      [intent.tenant_id,intent.plan_id,dataset.revision,order.id,order.resourceVersion,priorRevision]);
+    await tx.query("UPDATE gh_plans SET status='stale',body=jsonb_set(jsonb_set(body,'{status}','\"stale\"'::jsonb),'{staleReason}','\"An independent status review changed available recovery actions.\"'::jsonb) WHERE tenant_id=$1 AND status IN ('draft','ready_for_review','approved') AND id<>$2",[intent.tenant_id,intent.plan_id]);
+    await audit(tx,actor,'recovery.status_reviewed',`${order.reference} · original provider result checked`,intent.id,{source:'sandbox',readOnly:true});
+  });
+}

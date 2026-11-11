@@ -22,6 +22,7 @@ export function evaluateBranches(snapshotOrders: readonly SnapshotOrder[], budge
           label: definition.graceHours ? 'At least 48 hours past promise on the snapshot clock' : 'Promise has passed; no grace window' },
         { key: 'dispute', passed: order.disputeOpen === false && closedDispute(order.disputeState), label: 'No open dispute' },
         { key: 'prior_remedy', passed: money(order.refundedMinor) && money(order.goodwillCreditMinor) && order.refundedMinor === 0 && order.goodwillCreditMinor === 0 &&
+          (order.providerRefundConsumedMinor === undefined || order.providerRefundConsumedMinor === 0) &&
           ['none', 'tracking_added'].includes(order.remediationState), label: 'No earlier refund or goodwill credit' },
         { key: 'balance', passed: currency === 'USD' && order.currency === 'USD' && money(order.amountMinor) && money(order.refundableMinor) &&
           order.refundableMinor >= GOODWILL_AMOUNT_MINOR && order.refundableMinor <= order.amountMinor &&
@@ -37,7 +38,8 @@ export function evaluateBranches(snapshotOrders: readonly SnapshotOrder[], budge
       const sourceClass = kind === 'tracking' ? 'fixture_shipping' : kind === 'dispute_response' ? order.disputeSource : order.paymentSource;
       const resourceId = sample ? null : kind === 'dispute_response' ? order.disputeId : kind === 'tracking' ? order.paypalOrderId : order.captureId;
       const missingTracking = kind === 'tracking' && (!order.trackingNumber || !order.carrier || !order.shipmentRef || !['delivered','delayed','in_transit','shipped'].includes(order.fulfillmentState));
-      const missingDispute = kind === 'dispute_response' && (!order.disputeId || order.disputeSource !== 'sandbox' || !order.disputeDueAt);
+      const missingDispute = kind === 'dispute_response' && (!order.disputeId || order.disputeSource !== 'sandbox' ||
+        (order.disputeCapabilities ? !order.disputeCapabilities.mayProvideFulfillment : !order.disputeDueAt));
       const reason = sample ? 'Sample payment has no verified PayPal order or capture. Provider execution is blocked.' :
         missingTracking ? 'Tracking evidence is missing or the shipment state is unknown.' :
         missingDispute ? 'A provider dispute ID, current permitted state, and verified response deadline are required.' :
@@ -55,13 +57,13 @@ export function evaluateBranches(snapshotOrders: readonly SnapshotOrder[], budge
           amountMinor: GOODWILL_AMOUNT_MINOR, graceHours: definition.graceHours, reason: 'Delay goodwill',
           amount: { currencyCode: order.currency, value: '5.00' } },
         [`evidence-payment-${order.id}`, order.shipmentEvidenceId??`evidence-shipment-${order.id}`, 'evidence-policy-goodwill-v1']);
-      action(order, 'tracking', 0, { ...common, paypalOrderId: order.paymentSource === 'sandbox' ? order.paypalOrderId : null,
+      if (!(order.recoveryReviewVersion === 1 && order.trackingInPayPal)) action(order, 'tracking', 0, { ...common, paypalOrderId: order.paymentSource === 'sandbox' ? order.paypalOrderId : null,
         captureId: order.paymentSource === 'sandbox' ? order.captureId : null, shipmentRef: order.shipmentRef,
         carrier: order.carrier, trackingNumber: order.trackingNumber,
         status: order.fulfillmentState === 'delivered' ? 'DELIVERED' : ['in_transit','delayed','shipped'].includes(order.fulfillmentState) ? 'SHIPPED' : 'UNKNOWN',
         fixtureShipping: true, notifyPayer: false },
         [order.shipmentEvidenceId??(order.fulfillmentState === 'delivered' && order.seedGroup === 'delivered_revision' ? `evidence-delivery-${order.id}-v2` : `evidence-shipment-${order.id}`)]);
-      if (order.disputeOpen) action(order, 'dispute_response', 0, { ...common,
+      if (order.disputeOpen && (!order.disputeCapabilities || order.disputeCapabilities.mayProvideFulfillment)) action(order, 'dispute_response', 0, { ...common,
         disputeId: order.disputeSource === 'sandbox' ? order.disputeId : null,
         providerDisputeHash: order.disputeSource === 'sandbox' ? order.disputeEvidenceHash ?? null : null,
         responseType: 'PROVIDE_EVIDENCE', reason: 'ITEM_NOT_RECEIVED',

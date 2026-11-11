@@ -31,6 +31,10 @@ export interface Order {
   disputeId: string | null; disputeOpen: boolean; disputeSource: SourceClass;
   disputeDueAt: string | null; disputeState: string | null;
   disputeEvidenceHash?: string | null;
+  disputeCapabilities?: { version: 1; mayProvideFulfillment: boolean; reason: string };
+  recoveryReviewVersion?: 1;
+  providerRefundConsumedMinor?: number;
+  providerRefundInventoryHash?: string;
   shipmentEvidenceId?: string; disputeEvidenceId?: string;
   incidentMember: boolean; seedGroup: 'delivered_revision' | 'disputed' | 'eligible' | 'grace' | 'context';
   resourceVersion: number; costMinor: number; supportContacts: number;

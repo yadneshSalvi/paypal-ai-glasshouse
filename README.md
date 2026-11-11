@@ -27,13 +27,14 @@ npm run db:inspect
 
 The exact sandbox review is at `/sandbox`. Financial setup additionally requires the isolated project's sandbox credentials and a persistent base64-encoded 32-byte `GLASSHOUSE_PAYMENT_KEY`. Preserve that key for the lifetime of encrypted records. The app obtains real buyer consent and a separate exact batch approval; a configured credential does not authorize a payment. Bounded workers accept explicit tenant/run or tenant/plan scope. Do not start another batch to replay an existing completed run.
 
-Vercel requires external durable PostgreSQL. Hosted scheduling, webhook delivery and deployment qualification remain pending at this checkpoint; the local filesystem fallback is never used there.
+Vercel requires external durable PostgreSQL. The authenticated notification inbox, durable read queue and **Check status** UI are implemented and covered by fixture tests and [isolated native-browser checks](docs/evidence/observations-2026-11-11.md). Actual hosted webhook delivery, scheduling and deployment qualification remain pending; the local filesystem fallback is never used there. The [observation runbook](docs/observations.md) gives the exact endpoint, merchant binding and read-only worker contract.
 
 ## Explore
 
 - **Incident room:** native Commerce River, Time Dial, Evidence Lens, Recovery Branches, Impact Map and Deadline Strip, plus editable native reports and saved undo/redo history.
 - **Source and clock details:** choose historical evidence cutoffs or return to Latest known evidence. The dial changes story time while preserving the selected knowledge cutoff.
 - **Recovery:** exact policy branches, all per-order conditions, immutable approval manifests, CSV export and independently verified operation outcomes.
+- **Check status and notifications:** durable independent reads of original actions, separate current case status, pending/held read recovery and notification health. Original receipts and earlier evidence cutoffs remain intact.
 - **Order record:** source evidence, timeline, eligibility and allowlisted PayPal receipts at the exact selected snapshot.
 - **Disputes:** observed case status and actual seller deadlines where available.
 - **History:** durable financial/audit events, separate from native layout history.
@@ -49,6 +50,6 @@ Every write checks current SQL membership, original resource ownership, immutabl
 
 ## Current limits
 
-This is a verified implementation checkpoint, not the full product release. Verified webhook ingestion/backfill, hosted durable agent jobs and scheduling, model comparisons, complete widget configuration/export, the full temporal/accessibility/performance corpus, broader commerce remedies and the bounded public judge tour remain in scope. No seller research, prevented-dispute or retained-revenue result is claimed. Provider tracking records an assignment; fulfillment fixtures supply delivery facts. Evidence submission records a seller response; current provider observations determine case status.
+This is a verified implementation checkpoint, not the full product release. Actual authenticated webhook qualification, scoped Transaction Search backfill, hosted durable agent jobs and scheduling, model comparisons, complete widget configuration/export, the full temporal/accessibility/performance corpus, broader commerce remedies and the bounded public judge tour remain in scope. No seller research, prevented-dispute or retained-revenue result is claimed. Provider tracking records an assignment; fulfillment fixtures supply delivery facts. Evidence submission records a seller response; current provider observations determine case status.
 
 The repository is private. Private plans, credentials, operational evidence, local data and the build handoff remain excluded from Git.

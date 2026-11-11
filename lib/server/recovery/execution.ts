@@ -14,7 +14,7 @@ import type { RecoveryCommand, RecoveryIntent, RecoveryRun } from './contracts';
 import type { RecoveryService } from './service';
 import { evidenceObserved, type DisputesGateway, type DisputeObservation } from './disputes';
 import type { RecoveryEvidenceGateway, CaptureCapacity } from './evidence';
-import { projectRecoveryResult } from './projection';
+import { projectRecoveryResult, projectRecoveryReview } from './projection';
 import { projectDispute } from './dispute-service';
 
 interface Options {
@@ -24,6 +24,12 @@ interface Options {
 }
 const actorFor=(command:RecoveryCommand):Actor=>({tenantId:command.owned.tenantId,id:command.actorId,role:'operator',membershipVersion:command.membershipVersion});
 const safeReason=(error:unknown)=>error instanceof HttpError||error instanceof PaymentError||error instanceof ProviderError?error.message:'The original result requires independent provider verification.';
+
+export interface RecoveryCheck {
+  operationId: string; outcome: 'verified'|'pending'|'unresolved'|'not_dispatched'|'not_completed'|'busy';
+  observedAt: string; providerId: string|null; providerStatus: string|null; bodyHash: string|null;
+  reason: string; evidenceSubmitted?: boolean; caseResolved?: boolean;
+}
 
 export class RecoveryExecutor {
   readonly core:PaymentCore;
@@ -43,6 +49,74 @@ export class RecoveryExecutor {
     const row=(await this.db.query<RecoveryIntent>('SELECT * FROM gh_recovery_intents WHERE tenant_id=$1 AND id=$2',[tenantId,id]))[0];
     if(!row||row.payload_hash!==digest(row.command)||row.command.operationId!==row.id||row.command.planId!==row.plan_id||row.command.actionId!==row.action_id||row.command.owned.tenantId!==tenantId||row.command.action.orderId!==row.order_id)throw new HttpError(409,'IMMUTABLE_INTENT_REQUIRED','The original immutable recovery intent is unavailable.');
     return row;
+  }
+  /** Intentionally separate from dispatch. This entry point has no provider write branch. */
+  async reconcileOnly(tenantId: string, operationId: string, caller?: AbortSignal): Promise<RecoveryCheck> {
+    const original = await this.intent(tenantId,operationId);
+    const result = (outcome: RecoveryCheck['outcome'], reason: string, facts: Partial<RecoveryCheck> = {}): RecoveryCheck =>
+      ({ operationId,outcome,observedAt:new Date().toISOString(),providerId:original.provider_id,providerStatus:null,bodyHash:null,reason,...facts });
+    if (original.status === 'queued' || original.status === 'claimed') return result('not_dispatched','This original action has not reached dispatch. A status check cannot send it.');
+    const owner = randomUUID();
+    const claimed = await this.db.transaction(async tx => {
+      const current = (await tx.query<RecoveryIntent>('SELECT * FROM gh_recovery_intents WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[tenantId,operationId]))[0];
+      if (!current || current.lease_until && Date.parse(String(current.lease_until)) > Date.now()) return null;
+      if (current.status === 'queued' || current.status === 'claimed') return null;
+      return (await tx.query<RecoveryIntent>("UPDATE gh_recovery_intents SET lease_owner=$3,lease_until=now()+interval '180 seconds' WHERE tenant_id=$1 AND id=$2 RETURNING *",[tenantId,operationId,owner]))[0];
+    });
+    if (!claimed) return result('busy','The original worker still owns this action. Its acknowledgement will be checked after the lease ends.');
+    const signal = caller ? AbortSignal.any([caller,AbortSignal.timeout(100_000)]) : AbortSignal.timeout(100_000);
+    try {
+      const intent = await this.intent(tenantId,operationId), command = intent.command;
+      const owned = await ownedPaymentResource(this.db,tenantId,intent.order_id);
+      if (digest(owned) !== digest(command.owned)) throw new HttpError(409,'RESOURCE_GRANT_CHANGED','The original owned payment changed; its status remains held for review.');
+      let check: RecoveryCheck;
+      let receipt: Record<string,unknown>;
+      if (intent.kind === 'refund') {
+        if (!command.payment) throw new HttpError(409,'REFUND_COMMAND_MISSING','The original immutable refund command is required.');
+        const stored = await this.options.store.get(command.payment.scope,operationId);
+        if (!stored) return result('unresolved','No original core receipt exists. This status check cannot create or send a refund.');
+        if (stored.status === 'claimed' || stored.status === 'not_sent') return result('not_dispatched','The original core record does not establish a dispatched refund. No write was attempted by this check.');
+        if (stored.status === 'refused') return result('not_completed','The original refund was refused. This status check cannot send a replacement.',{providerStatus:'REFUSED'});
+        // Never use recoverOperation here: an expired claim may be write-resumable there.
+        const operation = await this.core.reconcile(command.payment.scope,operationId,signal);
+        const refunds = operation.receipt?.resources.filter(resource => resource.kind === 'refund' && resource.money?.currency === 'USD' &&
+          resource.money.minor === command.action.amountMinor && (resource.parentId === null || resource.parentId === owned.captureId) && resource.customId === operationId) ?? [];
+        const id = refunds.length === 1 ? refunds[0].id : intent.provider_id;
+        if (!id) return result('unresolved','The original refund has no independently established identity. No refund was resent.');
+        const observation = await this.options.evidence.refund(id,owned,operationId,command.action.amountMinor,signal);
+        receipt = {...observation};
+        check = result(observation.status === 'COMPLETED' ? 'verified' : ['FAILED','CANCELLED'].includes(observation.status) ? 'not_completed' : 'pending',`PayPal reports the original refund as ${observation.status.toLowerCase()}.`,
+          {providerId:id,providerStatus:observation.status,bodyHash:observation.bodyHash,observedAt:observation.observedAt});
+        if (check.outcome === 'verified') await projectRecoveryResult(this.db,intent,observation);
+      } else if (intent.kind === 'tracking') {
+        if (!command.tracking || !intent.provider_id) return result('unresolved','The original tracking write has no established tracker identity. A status check cannot add another tracker.');
+        const observation = await this.options.evidence.tracking(owned,command.tracking,intent.provider_id,signal);
+        receipt = {...observation};
+        check = result('verified','The original tracking identity remains on its owning order. Shipping is still synthetic.',
+          {providerId:intent.provider_id,providerStatus:observation.status,bodyHash:observation.bodyHash,observedAt:observation.observedAt});
+        await projectRecoveryResult(this.db,intent,observation);
+      } else {
+        if (!command.evidence) throw new HttpError(409,'CASE_COMMAND_MISSING','The exact original case evidence is required.');
+        const observation = await this.options.disputes.get(command.evidence.disputeId,{captureId:owned.captureId,amountMinor:owned.entry.amountMinor,currency:'USD'},signal);
+        await this.projectCase(intent,observation);
+        const submitted = evidenceObserved(observation,command.evidence);
+        receipt = {bodyHash:observation.bodyHash,observedAt:observation.observedAt,status:observation.status,evidenceSubmitted:submitted,caseResolved:observation.status==='RESOLVED'};
+        check = result(submitted ? 'verified' : 'pending',submitted ? 'The original evidence is present. Submission and case resolution remain separate.' : 'This read has not confirmed the original submitted evidence. No additional evidence was sent.',
+          {providerId:observation.id,providerStatus:observation.status,bodyHash:observation.bodyHash,observedAt:observation.observedAt,evidenceSubmitted:submitted,caseResolved:observation.status==='RESOLVED'});
+      }
+      if (check.outcome === 'verified') {
+        // A completed receipt is an immutable historical record; checks live in their own outbox result.
+        if (intent.status !== 'provider_success') await this.update(intent,'provider_success',check.reason,check.providerId,receipt);
+        await projectRecoveryReview(this.db,intent,check.observedAt);
+        if (intent.status !== 'provider_success') await this.rollup(tenantId,intent.plan_id);
+      } else if (check.outcome === 'not_completed' && intent.status !== 'provider_success') {
+        await this.update(intent,'provider_failed',check.reason,check.providerId,receipt);
+        await this.rollup(tenantId,intent.plan_id);
+      }
+      return check;
+    } finally {
+      await this.db.query('UPDATE gh_recovery_intents SET lease_owner=NULL,lease_until=NULL WHERE tenant_id=$1 AND id=$2 AND lease_owner=$3',[tenantId,operationId,owner]);
+    }
   }
   private async authorizeDomain(intent:RecoveryIntent){
     const command=intent.command,actor=actorFor(command);
