@@ -1,0 +1,63 @@
+# Durable Glasshouse agents
+
+Glasshouse keeps AG Studio 3.1.0's actual Agent Framework, `createAiHarness`, `directLlmRunner`, native child sessions, and `complete_task`. A PostgreSQL journal now owns user/model turn identities, tool admission, recovery, and encrypted evidence. This source unit has isolated automated coverage; current live-model, native-browser, hosted migration, and actual Toolkit-provider qualification are separate release gates.
+
+## Roles and routing
+
+| Agent | Server-authorized work |
+|---|---|
+| Coordinator | Read incident/outcomes; delegate to Investigator, Planner, Operator, Writer, or Planning |
+| Investigator | Read scoped evidence and owned payment facts; record a sourced hypothesis; delegate to native Page/Widget/Planning |
+| Planner | Evaluate deterministic policy branches; freeze an exact proposal for human review |
+| Operator | Inspect original operation receipts and current case state; owned Toolkit reads |
+| Writer | Save a sourced incident brief from deterministic facts, findings, and actual operation receipts |
+| Native Page / Widget / Planning | Inspect and change permitted report configuration through the actual Studio tools |
+
+The model cannot approve or execute money. Operator execution integration remains a later, separately qualified unit. The existing human review sheet still owns exact approval and guarded execution. `prepare_recovery` saves one immutable proposal per model-issued call, with no approval or operation enqueue.
+
+## Turn and dispatch contract
+
+1. The server binds the native thread/run/user-message IDs to the exact actor session, membership version, agent role, and saved snapshot hash. Only Coordinator can start a user investigation. A child requires the parent's issued, claimed `delegate_to` call; its role, instructions, parameters, and native parent IDs must match.
+2. The server assembles a model request from the saved prompt, server-owned instructions, previously saved provider output, and recorded tool receipts. Browser-supplied assistant messages, tool outputs, and custom-role instructions are not authority. The current native Page/Widget/Planning schema is contextual data under the server's role allowlist.
+3. The exact request is encrypted and committed before dispatch. Each model turn permits at most one create. The installed OpenAI SDK uses `maxRetries: 0`, `background: true`, `store: true`, maximum reasoning effort, and a bounded request timeout.
+4. A returned response ID and the provider's actual `store` flag are saved before SDK postprocessing. Pending or malformed responses with a known ID can only retrieve that exact ID. A timed-out/ambiguous create without an ID remains unknown and is never automatically sent again. An exact-ID GET returning HTTP 404/410 becomes **unavailable**, distinct from failed, completed and unknown; the original identity, prior response and observed status remain saved. No request-list search, guessed ID or replacement create is used for recovery.
+5. Every dispatch and response read checks the original session, current membership and saved scope. Revocation or expiry can prevent disclosure while the received evidence remains encrypted. Resource grants used by successful Toolkit reads are checked again before model continuation or result replay.
+6. Stopping a parent also stops its active native descendants. Provider requests already in flight retain their recorded identities. No stop/resume operation resets an attempt count.
+
+The default 100-round native limit is a runaway-loop safety bound. Requests exceeding context or output limits remain explicit held/failed records. A new model turn is never manufactured to hide an incomplete response.
+
+Canonical continuation uses the installed SDK's `toResponseInputItems` to strip output-only provenance/parsed fields while preserving complete replayable output, including encrypted reasoning. Requests explicitly include `reasoning.encrypted_content` for compatibility. Current stateless/ZDR models return that field by default; the explicit include is not presented as a provider requirement. Its opaque value stays inside encrypted server documents and subsequent provider requests, never the public native response or visible history. See [OpenAI's reasoning continuation guidance](https://developers.openai.com/api/docs/guides/reasoning).
+
+## Native tools, history, and reload
+
+Every tool needs its exact model-issued call ID, name and argument hash. Domain reads/proposals run on the server. Native tools receive one execution lease. A native report mutation's deterministic identity, result, history-entry IDs, resulting history hash and layout revision commit in the **same existing Studio history CAS transaction**. A lost HTTP response reconciles that exact saved result. If no matching save exists, an ambiguous native mutation remains held; reload never executes it again.
+
+Native conversations use an encrypted, versioned `AgAiHistoryStore`. Conflicting tabs cannot overwrite a newer transcript. An uncertain save is reconciled before later observed messages are merged. Child messages come from actual native sessions and retain their native IDs; missing legacy child transcripts are disclosed rather than reconstructed as invented conversations. Private reasoning parts never render or enter the visible thread store.
+
+After reload, the rail opens the actual saved conversation. **Resume saved turn** re-enters the native loop with the original server run identity, reuses saved model/tool results, and retrieves only a known pending response. An unresolved create or unconfirmed native mutation stays held. The model-only worker can retrieve admitted model responses while the browser is absent; browser-owned native tools still require the native session to resume. This is not yet an autonomous server implementation of every planned agent activity.
+
+## Owned PayPal Toolkit reads
+
+The adapter calls the installed public `@paypal/agent-toolkit/openai` entry point at **1.11.0**. It admits exactly `get_order`, `list_disputes`, `get_dispute`, and `list_transactions` through local-order tools. The native Toolkit tool inventory must match the pinned contract.
+
+The local order must have a current immutable seed-manifest binding and active order/capture grants, and its snapshot must name those exact provider resources. A dispute GET additionally requires a pre-existing bound case. Browser-supplied merchant or arbitrary provider IDs cannot widen that set. Whole-merchant insights and every Toolkit financial write remain unavailable.
+
+The supported Axios middleware seam intercepts only the active scoped Toolkit call. It permits one OAuth POST and one exact fixed-sandbox GET, refuses redirects and extra parameters, checks the response's resource/amount/custom marker, and emits allowlisted facts plus observation time, raw-body hash and bounded coverage. No payer/contact text, credentials, or OAuth token is persisted in the model-visible receipt. The Toolkit's reporting helper can turn an error into `found: false`; independent observed wire evidence therefore decides whether a read succeeded. Failed reads never establish missing payments. Reporting absence on its single recent page is expressly incomplete and does not alter the workspace's T/K snapshot.
+
+`GLASSHOUSE_TOOLKIT_READS_ENABLED` defaults to `false`. Enabling it also requires the existing isolated sandbox configuration. Automated tests use the actual installed Toolkit with an explicit synthetic HTTP transport; those results do not prove live PayPal capability. Actual provider qualification belongs to the deployment owner. See [dependency risks](agents-dependencies.md).
+
+## Storage and migration
+
+Schema 7 adds five agent tables and two columns to `gh_threads`. Requests, responses, provider IDs, tool arguments/results, findings, briefs and new conversations use authenticated encryption with tenant/kind/record identity as associated data. Safe event metadata contains no prompt, model response or hidden reasoning.
+
+Keep `GLASSHOUSE_AGENT_KEY` stable, or use the existing `GLASSHOUSE_PAYMENT_KEY` fallback consistently. A changed key cannot decrypt prior evidence. Local encryption and provider retention are separate. The requested `store: true` is not evidence that permanent provider storage was enabled: ZDR projects return `store: false`, with background response data temporarily retained for roughly ten minutes to support polling. Glasshouse records the actual returned flag, warns about temporary storage, and preserves completed responses locally in encrypted history. A pending response can expire before completion; starting a new investigation is an explicit independent attempt. See the [OpenAI background-mode retention contract](https://developers.openai.com/api/docs/guides/background).
+
+`scripts/agents-migrate.ts` is an explicit operational entry point requiring `DATABASE_URL`, the persistent key, and `GLASSHOUSE_AGENT_MIGRATION_CONFIRM=schema7-and-private-agent-documents`. It encrypts legacy `gh_threads` and `gh_model_items`, verifies each decrypted document against its original hash before replacing plaintext, and adds database constraints preventing plaintext writes from old code. The migration is idempotent. It does not target financial tables.
+
+The deployment owner must take and verify a backup, coordinate old agent writers/in-flight turns, apply the migration, compare existing financial/history data, and qualify the new release before activation. The old plaintext-writing agent implementation is incompatible with the post-migration constraints. Do not roll back just the agent code to that writer. No source-lead command targets original or hosted storage.
+
+## Worker and release gates
+
+`GET /api/internal/agents` requires the existing cron bearer secret and `GLASSHOUSE_AGENT_WORKER_ENABLED=true`. It drains at most four eligible model turns; it never imports or invokes a financial executor. The CLI `scripts/agents-worker.ts` has the same explicit enablement guard. The current Vercel cron manifest is unchanged: adding/activating the agent cron belongs to the deployment owner after qualification.
+
+Before hosted activation: qualify one actual model-backed native Coordinator → Investigator → Page → Widget flow, Planner proposal, Operator receipt read, Writer brief, exact-ID recovery on reload, preserved native undo/redo, responsive keyboard operation, and four actual scoped Toolkit reads. Preserve failed original attempts. All unqualified outcomes remain pending in the [full remaining scope](remaining-scope.md).

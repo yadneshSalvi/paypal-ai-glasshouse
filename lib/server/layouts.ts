@@ -3,6 +3,7 @@ import type {Database} from '@/packages/db/client';
 import {HttpError} from './errors';
 import {audit,hash} from './repository';
 import {recoveryMember} from './recovery/authority';
+import type {AgentLayoutReceipt} from '@/packages/agents/contracts';
 
 function object(value:unknown):value is Record<string,unknown>{return !!value&&typeof value==='object'&&!Array.isArray(value);}
 /** Transport shape checks complement the registered native schema admission.
@@ -32,9 +33,10 @@ export async function readLayout(db:Database,actor:Actor){
   const row=(await db.query<{body:unknown;version:number}>('SELECT body,version FROM gh_layouts WHERE tenant_id=$1 AND id=$2',[actor.tenantId,'incident-room']))[0];
   return {history:row?.body??null,version:row?.version??0};
 }
-export async function saveLayout(db:Database,actor:Actor,input:{history:unknown;expectedVersion:number;label?:string}){
+export async function saveLayout(db:Database,actor:Actor,input:{history:unknown;expectedVersion:number;label?:string;agentMutation?:AgentLayoutReceipt},commitAgent?:(tx:Database,actor:Actor,receipt:AgentLayoutReceipt,history:unknown,version:number,previous:{body:unknown;version:number})=>Promise<void>){
   if(!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)throw new HttpError(409,'LAYOUT_VERSION_REQUIRED','Reload the saved investigation before saving changes from this tab.');
   const history=validateHistory(input.history),digest=hash(history);
+  if(input.agentMutation&&!commitAgent)throw new HttpError(409,'AGENT_LAYOUT_JOURNAL_REQUIRED','An agent workspace change requires its durable tool journal.');
   return db.transaction(async tx=>{
     await tx.query('SELECT actor_id FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2 FOR SHARE',[actor.tenantId,actor.id]);
     const member=await recoveryMember(tx,actor);
@@ -42,10 +44,12 @@ export async function saveLayout(db:Database,actor:Actor,input:{history:unknown;
     await tx.query("INSERT INTO gh_layouts(tenant_id,id,body,version) VALUES($1,$2,'null'::jsonb,0) ON CONFLICT DO NOTHING",[actor.tenantId,'incident-room']);
     const row=(await tx.query<{body:unknown;version:number}>('SELECT body,version FROM gh_layouts WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,'incident-room']))[0];
     // A repeated exact save can recover a response loss, but cannot overwrite a later edit.
-    if(row.version===input.expectedVersion+1&&hash(row.body)===digest)return {saved:true,version:row.version,replayed:true};
+    const acknowledge=async(version:number)=>{if(input.agentMutation)await commitAgent!(tx,actor,input.agentMutation,history,version,row);};
+    if(row.version===input.expectedVersion+1&&hash(row.body)===digest){await acknowledge(row.version);return {saved:true,version:row.version,replayed:true};}
     if(row.version!==input.expectedVersion)throw new HttpError(409,'LAYOUT_CHANGED','Another tab saved a newer investigation. Your local edits are held; export them or reload the saved workspace.');
-    if(hash(row.body)===digest)return {saved:true,version:row.version,replayed:true};
+    if(hash(row.body)===digest){await acknowledge(row.version);return {saved:true,version:row.version,replayed:true};}
     const version=row.version+1;
+    await acknowledge(version);
     await tx.query('UPDATE gh_layouts SET body=$3::jsonb,version=$4,updated_at=now() WHERE tenant_id=$1 AND id=$2',[actor.tenantId,'incident-room',JSON.stringify(history),version]);
     await audit(tx,actor,'layout.saved',typeof input.label==='string'?input.label.slice(0,100):'Investigation layout saved','incident-room',{historyHash:digest,version});
     return {saved:true,version,replayed:false};

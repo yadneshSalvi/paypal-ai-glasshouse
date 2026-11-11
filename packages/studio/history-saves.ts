@@ -1,9 +1,10 @@
 import type {AgReportHistory} from 'ag-studio';
 import type {GlasshouseRegistry} from './types';
+import type {AgentLayoutReceipt} from '../agents/contracts';
 
 export type ReportHistory=AgReportHistory<GlasshouseRegistry>;
 export interface SavedHistory {history:ReportHistory|null;version:number}
-interface SaveRequest {history:ReportHistory;expectedVersion:number;label:string}
+interface SaveRequest {history:ReportHistory;expectedVersion:number;label:string;agentMutation?:AgentLayoutReceipt}
 
 /** One ordered writer for manual, native and agent changes. An uncertain write
  * holds later changes until the owner explicitly retries the same document. */
@@ -16,13 +17,13 @@ export class HistorySaves {
   constructor(version:number,private readonly write:(request:SaveRequest)=>Promise<{version:number}>,private readonly saved:(history:ReportHistory,version:number)=>void){this.version=version;}
   admit(value:boolean){this.admitted=value;}
   dispose(){this.stopped=true;this.admitted=false;}
-  save(history:ReportHistory,label:string):Promise<void>{
+  save(history:ReportHistory,label:string,agentMutation?:AgentLayoutReceipt):Promise<void>{
     // Native history objects may subsequently change; bind this save to its own value.
     const copy=structuredClone(history);
     const task=this.chain.then(async()=>{
       if(this.stopped||!this.admitted)throw new Error('Your saved workspace is preserved. Saving waits for its complete history to be restored.');
       if(this.uncertain)throw new Error('The previous workspace save is unresolved. Retry that save before recording another change.');
-      const request={history:copy,expectedVersion:this.version,label};
+      const request={history:copy,expectedVersion:this.version,label,agentMutation};
       this.uncertain=request;
       const result=await this.write(request);
       this.version=result.version;this.uncertain=null;this.saved(copy,result.version);

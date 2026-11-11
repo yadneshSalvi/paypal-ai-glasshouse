@@ -8,6 +8,11 @@
     "node": "22.x"
   },
   "packageManager": "npm@10.9.8",
+  "overrides": {
+    "@paypal/agent-toolkit": {
+      "mathjs": "15.2.0"
+    }
+  },
   "scripts": {
     "dev": "next dev --port 4103",
     "build": "next build",
@@ -23,8 +28,11 @@
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",
     "@fracture/paypal-core": "file:vendor/fracture-paypal-core-0.2.7.tgz",
+    "@paypal/agent-toolkit": "1.11.0",
     "ag-studio": "3.1.0",
     "ag-studio-react": "3.1.0",
+    "ajv": "8.20.0",
+    "axios": "1.21.1",
     "lucide-react": "0.577.0",
     "next": "16.4.6",
     "openai": "7.55.0",

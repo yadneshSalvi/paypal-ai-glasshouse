@@ -1,5 +1,3 @@
-import type { AgLlmRequest } from 'ag-studio';
-import type { AgentRunEvent } from '@/packages/domain/types';
 import { database } from '@/packages/db/client';
 import { actor, startSession } from '@/lib/server/auth';
 import { body, problem, HttpError, sameOrigin } from '@/lib/server/errors';
@@ -7,7 +5,9 @@ import { snapshotFor } from '@/lib/server/snapshots';
 import { audit, auditFor, hash, operationsFor, plansFor } from '@/lib/server/repository';
 import { approvePlan, createPlan, enqueuePlan, reviseEvidence } from '@/lib/server/plans';
 import { capabilities } from '@/lib/server/capabilities';
-import { modelTurn } from '@/lib/server/model';
+import {agentRuntime} from '@/lib/server/agents/runtime';
+import {agentActor} from '@/lib/server/agents/security';
+import type {AgentLayoutReceipt} from '@/packages/agents/contracts';
 import { paymentsRuntime } from '@/lib/server/payments/runtime';
 import { currentMember } from '@/lib/server/payments/records';
 import { recoveryRuntime } from '@/lib/server/recovery/runtime';
@@ -89,51 +89,13 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
   if(key==='layout') {
     if(method==='GET'){const saved=await readLayout(db,who);return Response.json(url.searchParams.get('envelope')==='1'?saved:saved.history);}
     if(method==='POST') {
-      const input=await body<{history:unknown;expectedVersion:number;label?:string}>(request);
-      return Response.json(await saveLayout(db,who,input));
+      const input=await body<{history:unknown;expectedVersion:number;label?:string;agentMutation?:AgentLayoutReceipt}>(request);
+      const agents=input.agentMutation?await agentRuntime():null;
+      return Response.json(await saveLayout(db,agents?await agentActor(request):who,input,agents?(...args)=>agents.tools.commitLayout(...args):undefined));
     }
   }
-  if(path[0]==='threads') {
-    if(method==='GET' && !path[1]) return Response.json((await db.query<{body:{summary:unknown}}>('SELECT body FROM gh_threads WHERE tenant_id=$1 ORDER BY updated_at DESC LIMIT 100',[who.tenantId])).map(r=>r.body.summary));
-    if(method==='GET') return Response.json((await db.query<{body:unknown}>('SELECT body FROM gh_threads WHERE tenant_id=$1 AND id=$2',[who.tenantId,path[1]]))[0]?.body ?? null);
-    if(method==='POST') {
-      const input=await body<{summary:{id?:string;threadId?:string};messages:unknown[]}>(request);
-      const id=input.summary?.id || input.summary?.threadId || path[1];
-      if(!id || !Array.isArray(input.messages)) throw new HttpError(400,'INVALID_THREAD','The conversation could not be saved.');
-      await db.query('INSERT INTO gh_threads(tenant_id,id,body) VALUES($1,$2,$3::jsonb) ON CONFLICT(tenant_id,id) DO UPDATE SET body=excluded.body,updated_at=now()',[who.tenantId,id,JSON.stringify(input)]);
-      return Response.json({saved:true});
-    }
-    if(method==='DELETE') {await db.query('DELETE FROM gh_threads WHERE tenant_id=$1 AND id=$2',[who.tenantId,path[1]]);return Response.json({deleted:true});}
-  }
-  if(key==='ai/turn' && method==='POST') return Response.json(await modelTurn(who,await body<AgLlmRequest>(request),request.signal));
-  if(key==='agent/events' && method==='GET') return Response.json((await db.query<{body:AgentRunEvent}>('SELECT body FROM gh_agent_events WHERE tenant_id=$1 ORDER BY sequence DESC LIMIT 100',[who.tenantId])).map(r=>r.body));
-  if(key==='agent/events' && method==='POST') {
-    const input=await body<AgentRunEvent>(request);
-    if(!['Studio','application'].includes(input.transportKind) || !input.runId || !input.eventId) throw new HttpError(400,'INVALID_EVENT','Client telemetry cannot assert a provider result.');
-    await db.query('INSERT INTO gh_agent_events(tenant_id,event_id,run_id,source_context_hash,body) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING',[who.tenantId,input.eventId,input.runId,input.sourceContextHash,JSON.stringify(input)]);
-    return Response.json({recorded:true});
-  }
-  if(key==='agent/tool' && method==='POST') {
-    const input=await body<{name:string;args?:Record<string,unknown>;context?:{asOf?:string;knownAt?:string;snapshotHash?:string}}>(request);
-    if(input.name==='execute_refund' || input.name==='execute_plan') {
-      await audit(db,{...who,role:'investigator'},'authority.denied','Investigator execution request denied',null,{tool:input.name});
-      throw new HttpError(403,'INVESTIGATOR_READ_ONLY','The Investigator can inspect evidence and propose a plan. Exact human approval is required before the Operator can execute.');
-    }
-    const query=new URLSearchParams();
-    if(input.context?.asOf)query.set('asOf',input.context.asOf);
-    if(input.context?.knownAt)query.set('knownAt',input.context.knownAt);
-    const snapshot=await snapshotFor(who,query);
-    if(input.context?.snapshotHash&&snapshot.hash!==input.context.snapshotHash)throw new HttpError(409,'AGENT_CONTEXT_CHANGED','The investigation context changed. Read the current snapshot and start this tool again.');
-    if(input.name==='read_incident') return Response.json({incidentId:'carrier-delay-pnw',snapshotHash:snapshot.hash,context:snapshot.context,totals:snapshot.totals,sourceCoverage:snapshot.sourceCoverage,detectors:snapshot.detectors,affectedOrderIds:snapshot.affectedOrderIds,removedOrderIds:snapshot.removedOrderIds});
-    if(input.name==='read_evidence') return Response.json({snapshotHash:snapshot.hash,evidence:snapshot.evidence.slice(0,40)});
-    if(input.name==='evaluate_recovery') return Response.json({snapshotHash:snapshot.hash,branches:snapshot.branches.map(b=>({id:b.id,policyId:b.policyId,eligibleCount:b.eligibleCount,refundTotalMinor:b.refundTotalMinor,trackingCount:b.trackingCount,disputeCount:b.disputeCount,exclusionCounts:b.exclusionCounts,budgetMinor:b.budgetMinor})),approvalRequired:true});
-    if(input.name==='prepare_recovery') return Response.json(await createPlan(who,String(input.args?.branchId||'targeted'),Number(input.args?.budgetMinor)||30_000,input.context?.snapshotHash));
-    if(input.name==='boundary_check') {
-      await audit(db,{...who,role:'investigator'},'authority.denied','Investigator role boundary verified',null,{action:'financial_execution',result:'denied'});
-      return Response.json({allowed:false,role:'investigator',reason:'Read-only evidence access. Route a proposal to Planner. Execution needs an exact human-approved manifest.'});
-    }
-    throw new HttpError(404,'TOOL_UNAVAILABLE','This tool is not in the allowed investigation scope.');
-  }
+  if(path[0]==='threads'||key==='ai/turn'||key==='agent/tool'||key==='agent/events'&&method==='POST')throw new HttpError(410,'DURABLE_AGENT_ROUTE_REQUIRED','Reload Glasshouse to use the server-authorized durable investigation runtime.');
+  if(key==='agent/events'&&method==='GET')return Response.json(process.env.GLASSHOUSE_AGENT_KEY||process.env.GLASSHOUSE_PAYMENT_KEY?await (await agentRuntime()).journal.events(await agentActor(request)):[]);
   if(key==='manifest' && method==='GET') {
     const plans=await plansFor(who);const plan=plans.find(p=>p.id===url.searchParams.get('planId'));
     if(!plan) throw new HttpError(404,'PLAN_NOT_FOUND','Choose a saved recovery manifest.');

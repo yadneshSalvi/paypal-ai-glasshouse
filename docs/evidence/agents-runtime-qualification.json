@@ -1,0 +1,81 @@
+{
+  "recordedAt": "2026-11-11T11:45:45.660Z",
+  "scope": "Durable native-agent source unit on an isolated local database",
+  "releaseStatus": "Awaiting live model, native browser, actual Toolkit-provider and hosted qualification",
+  "schemaVersion": 7,
+  "nativeFramework": "AG Studio 3.1.0 createAiHarness and directLlmRunner",
+  "toolkit": "@paypal/agent-toolkit 1.11.0 public OpenAI entry point",
+  "transportEvidence": "Actual installed SDK/framework/package with explicit synthetic model and PayPal HTTP transport in automated tests",
+  "tests": {
+    "fullApplication": {
+      "passed": 133,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 101284.171
+    },
+    "isolatedPostgresAgents": {
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 104376.341417
+    },
+    "latestStorageRegressionEmbedded": {
+      "passed": 3,
+      "failed": 0
+    },
+    "latestStorageRegressionPostgres": {
+      "passed": 3,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "optimizedProductionBuild": "passed"
+  },
+  "coveredContracts": [
+    "Immutable native user, model, tool and parent-child identity",
+    "At most one model create and exact known-ID retrieval",
+    "Ambiguous creates and native mutations never automatically repeat",
+    "Actual provider store flag captured before SDK postprocessing",
+    "Exact-ID 404 expiry remains unavailable with original encrypted evidence",
+    "Current actor session, membership, snapshot and resource grant checks",
+    "Revocation races preserve private evidence while refusing disclosure",
+    "Canonical server instructions, role tools and recorded tool results",
+    "Deterministic sourced finding, proposal and brief artifacts",
+    "Atomic native mutation receipt and existing Studio history CAS",
+    "Encrypted legacy migration, plaintext-write rejection and thread CAS",
+    "Actual native runner and exact child complete_task summary",
+    "Installed Toolkit four-read contract, ownership, redaction and transport bounds",
+    "SDK-normalized stateless continuation preserves encrypted reasoning privately and strips output-only fields"
+  ],
+  "localReadiness": {
+    "freshIsolatedMigration": "passed; zero legacy documents on target, legacy migration tested separately",
+    "incidentPage": 200,
+    "unauthenticatedAgentStatus": 401,
+    "sourceLeadActualModelRequests": 0,
+    "sourceLeadActualPayPalRequests": 0
+  },
+  "dependencyAudit": {
+    "affectedPackages": 11,
+    "high": 10,
+    "moderate": 1,
+    "auditClean": false,
+    "ledger": "../agents-dependencies.md"
+  },
+  "sharedCore": {
+    "version": "0.2.7",
+    "archiveSha256": "a2ccc98af5da871e3c057bcdc142c303d0d1d2f2fa9a9a42324d566177fa1061",
+    "changed": false
+  },
+  "remainingGates": [
+    "Actual model-backed Coordinator, Investigator, Page, Widget, Planner, Operator and Writer browser workflows",
+    "Actual native rendered chart, reload recovery, child transcript and undo/redo acceptance",
+    "Current mobile, keyboard, zoom and reduced-motion acceptance",
+    "Four actual owned-resource PayPal Toolkit reads",
+    "Root backup, legacy private-document migration, original-data comparison and hosted activation",
+    "Complete product delivery ledger in ../remaining-scope.md"
+  ],
+  "originalFinancialActionsReplayed": false,
+  "deployedByThisUnit": false,
+  "fullProductComplete": false
+}

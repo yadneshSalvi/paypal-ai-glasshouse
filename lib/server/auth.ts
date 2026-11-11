@@ -4,8 +4,14 @@ import { database } from '@/packages/db/client';
 import { HttpError, sameOrigin } from './errors';
 import { ensurePaymentsSchema } from './payments/schema';
 
-const COOKIE = 'glasshouse_session';
+const COOKIE = process.env.GLASSHOUSE_SESSION_COOKIE&&/^[a-z][a-z0-9_]{0,60}$/.test(process.env.GLASSHOUSE_SESSION_COOKIE)?process.env.GLASSHOUSE_SESSION_COOKIE:'glasshouse_session';
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
+/** Agent jobs retain the exact authenticated session hash, never the cookie token. */
+export function authenticatedSessionHash(request:Request){
+  const token=request.headers.get('cookie')?.split(';').map(part=>part.trim()).find(part=>part.startsWith(COOKIE+'='))?.slice(COOKIE.length+1);
+  if(!token||!/^[a-f0-9]{64}$/.test(token))throw new HttpError(401,'SESSION_REQUIRED','Start an investigation session to continue.');
+  return digest(token);
+}
 export async function actor(request: Request): Promise<Actor> {
   const token = request.headers.get('cookie')?.split(';').map(p => p.trim()).find(p => p.startsWith(COOKIE + '='))?.slice(COOKIE.length + 1);
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, 'SESSION_REQUIRED', 'Start an investigation session to continue.');

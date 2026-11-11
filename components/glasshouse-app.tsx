@@ -104,7 +104,7 @@ export function GlasshouseApp({initialView}:{initialView:string}){
   const bridge=useMemo<StudioBridge>(()=>({
     getSnapshot:()=>snapRef.current!,onTime:time=>void changeSnapshot(time,snapRef.current?.context.knownAt),onOrder:setOrderId,onBranch:setBranchId,onRevision:()=>void revise(),
     onWidgetReady(id,hash,_total,selected){if(id==='river'&&hash===snapRef.current?.hash)setSelectedCount(selected);},
-    onEvent:e=>setEvents(old=>[e,...old].slice(0,100)),onApi:setStudioApi,onHistory:setStudioHistory,onError:e=>notify(e,'error'),
+    onEvent:e=>setEvents(old=>old.some(row=>row.eventId===e.eventId)?old:[e,...old].slice(0,100)),onApi:setStudioApi,onHistory:setStudioHistory,onError:e=>notify(e,'error'),
   }),[changeSnapshot,notify,busy]);
   const onCommitted=useCallback((hash:string)=>setCommitted(hash),[]);
   const saveLayout=async()=>{if(!studioApi||!historyVerified.current){notify('The saved workspace is preserved while its history is being checked.','error');return;}try{if(!historyActions.current)throw new Error('The workspace save controls are not ready.');await historyActions.current.save();notify('Investigation layout and undo history saved.','good');await refreshRecords();}catch(e){notify((e as Error).message,'error');}};
@@ -140,7 +140,7 @@ export function GlasshouseApp({initialView}:{initialView:string}){
       {view==='history'&&<HistoryView audit={audit} plans={plans} events={events} studioHistory={studioHistory} onRefresh={()=>void refreshRecords()} onPlan={setSelectedPlan} onRestore={()=>{navigate('incident');notify('Your latest durable report and undo history are active.');}}/>}
       <footer className="app-footer"><span className="footer-wordmark">glasshouse</span><p>See clearly. Act carefully.</p><button onClick={()=>setHelpOpen(true)}>A field guide to Glasshouse<ArrowUpRight size={12}/></button><span>Built with AG Studio & PayPal</span></footer>
     </main>
-    <AgentRail harness={harness} open={agentOpen} onClose={()=>setAgentOpen(false)} snapshot={snapshot} events={events} prompt={agentPrompt} clearPrompt={()=>setAgentPrompt(null)} aiAvailable={bundle.session.capabilities.ai.available}/>
+    <AgentRail harness={harness} open={agentOpen} onClose={()=>setAgentOpen(false)} snapshot={snapshot} events={events} prompt={agentPrompt} clearPrompt={()=>setAgentPrompt(null)} aiAvailable={bundle.session.capabilities.ai.available} onReviewPlan={id=>{void api<RecoveryPlan[]>('plans').then(rows=>{setPlans(rows);const plan=rows.find(row=>row.id===id);if(plan)setSelectedPlan(plan);else notify('This exact proposal is no longer available.','error');}).catch(error=>notify(error.message,'error'));}}/>
     {notice&&<div className={'toast '+notice.tone} role="status">{notice.tone==='error'?<TriangleAlert size={17}/>:notice.tone==='good'?<Check size={17}/>:<Activity size={17}/>}<span>{notice.text}</span><button onClick={()=>setNotice(null)} aria-label="Dismiss notification"><X size={14}/></button></div>}
     {searchOpen&&<SearchDialog snapshot={snapshot} onClose={()=>setSearchOpen(false)} onOrder={id=>{setOrderId(id);setSearchOpen(false);}}/>}
     {sourceOpen&&<SourceDialog snapshot={snapshot} capabilities={bundle.session.capabilities} actor={bundle.session.actor} onClose={()=>setSourceOpen(false)} onKnowledge={known=>{void changeSnapshot(snapshot.context.asOf,known);setSourceOpen(false);}}/>}

@@ -12,6 +12,7 @@ import {instrumentMinimumHeight,readableLayout,workspaceHeight} from './layout';
 import {inspectHistoryRestore,type HistoryRestoreStatus} from './history';
 import {SnapshotTransactions,widgetsAtSnapshot} from './snapshot-transactions';
 import {HistorySaves,type ReportHistory} from './history-saves';
+import type {AgentLayoutReceipt} from '../agents/contracts';
 
 interface Props {
   snapshot:Snapshot; license:string; bridge:StudioBridge; editable:boolean;
@@ -35,15 +36,16 @@ export default function StudioWorkspace(props:Props){
   const acknowledgements=useRef(new Map<string,string>());
   const transactionDone=useRef(true);
   const saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const agentMutation=useRef(false);
   const host=useRef<HTMLDivElement>(null);
   const transactions=useRef<SnapshotTransactions|null>(null);
   const reportReady=useRef(false);
   const historyRestored=useRef(false);
   const saves=useRef<HistorySaves|null>(null);
   saves.current??=new HistorySaves(props.historyVersion,input=>api<{version:number}>('layout',input),(history,version)=>current.current.onSaved(history,version));
-  const persist=async(history:ReportHistory,label:string)=>{
+  const persist=async(history:ReportHistory,label:string,receipt?:AgentLayoutReceipt)=>{
     if(saveTimer.current){clearTimeout(saveTimer.current);saveTimer.current=null;}
-    try{await saves.current!.save(history,label);current.current.onSaveError(null);}
+    try{await saves.current!.save(history,label,receipt);current.current.onSaveError(null);}
     catch(error){const message=error instanceof Error?error.message:'The workspace save could not be confirmed.';current.current.onSaveError(message);throw error;}
   };
   const [historyStatus,setHistoryStatus]=useState<HistoryRestoreStatus>({state:'checking',savedUndo:props.history?.undo.length??0,savedRedo:props.history?.redo.length??0,undo:0,redo:0,issues:[]});
@@ -80,7 +82,7 @@ export default function StudioWorkspace(props:Props){
   const ai=useMemo(()=>({api:studioApi}:AgAiHarnessSetupParams)=>{
     if(harnessApiRef.current!==studioApi){harnessRef.current?.dispose?.();harnessRef.current=null;harnessApiRef.current=studioApi;}
     if(!harnessRef.current){
-      harnessRef.current=buildHarness(studioApi as AgStudioApi<GlasshouseRegistry>,bridge,(history,label)=>{void persist(history,label).catch(()=>{});});
+      harnessRef.current=buildHarness(studioApi as AgStudioApi<GlasshouseRegistry>,bridge,{save:persist,mutation:active=>{agentMutation.current=active;if(active&&saveTimer.current){clearTimeout(saveTimer.current);saveTimer.current=null;}}});
       const harness=harnessRef.current;
       queueMicrotask(()=>current.current.onHarness(harness));
     }
@@ -153,7 +155,7 @@ export default function StudioWorkspace(props:Props){
         setLayoutState(e.state as AgReportState<GlasshouseRegistry>);
         const history=apiRef.current.getHistory();bridge.onHistory(history);
         setHistoryStatus(previous=>({...previous,undo:history.undo.length,redo:history.redo.length}));
-        if(!e.durable||!historyRestored.current)return;
+        if(!e.durable||!historyRestored.current||agentMutation.current)return;
         if(saveTimer.current)clearTimeout(saveTimer.current);
         saveTimer.current=setTimeout(()=>{void persist(history,e.change?.source.type==='ai'?'Agent workspace edit':'Workspace edited').catch(()=>{});},700);
       }}
