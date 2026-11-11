@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-11T17:17:00Z",
+  "scope": "Native browser qualification of private Sample workspaces and immutable reports",
+  "sourceCommit": "aaea25aa8c20d45817053e8344924477aa48e4fe",
+  "functionalSourceCommit": "e5211d9fee129e776b5d7bc0af1e9c3b046d077c",
+  "focusRuntime": {
+    "buildId": "1pwxdZWLq2A9sfWdgOGPt",
+    "sourceFiles": 260,
+    "buildFiles": 455,
+    "dependencyFiles": 46199,
+    "inventorySha256": "67f02dcbc55897f87de1b8bd466ed43099916da6c3e667a703195e72b66ccff4",
+    "sourceSha256": "99dc4f205917b76ccaa5e6b82438c8cf130648f2a1a0a0924cade20c39a83d1b",
+    "buildSha256": "d8674643e4f42444d6d5c395732a0aa62566b6566a94bd7a51e9d411892dce79",
+    "dependencySha256": "ac2e4f2028a1451fbb43e991aad9ae79b4a6ecf406fa9b5292e913b350c10d8b",
+    "sharedInodes": 0,
+    "externalLinks": 0
+  },
+  "sourcePatchSha256": "f9f93e0ec7756c1c337eb9be9eba68295abbd712a051c70939cc93f6d1867f57",
+  "checks": {
+    "nativeOrganizationAndWorkspace": true,
+    "originalWorkspaceCookieValueRestored": true,
+    "originalServerAccessExpiryPreserved": true,
+    "browserCookieMaxAgePrecisionNote": "Browser cookie expiry differed by less than one second due to Max-Age rounding; the existing cookie value and displayed server deadline were preserved. Browser-cookie exact-expiry equality is not claimed.",
+    "workspaceLayoutsIsolated": true,
+    "nativeHistoryEntries": 2,
+    "staleTabHeld": true,
+    "viewerReadsAndDisabledWrites": true,
+    "invitationSingleAcceptance": true,
+    "invitationRevokedDenied": true,
+    "membershipRevokedReportDenied": true,
+    "existingOwnerInvitationNoDowngrade": true,
+    "lastWorkspaceOwnerChangeDenied": true,
+    "lastOrganizationOwnerChangeDenied": true,
+    "originalJudgeRoleControlsDisabled": true,
+    "archiveKeepsReportsReadableAndHoldsWrites": true,
+    "restoreActiveWorkspace": true,
+    "firstEditionAffected": 63,
+    "linkedEditionAffected": 54,
+    "earlierExportsUnchanged": true,
+    "nativeActionSearchForLastOrder": true,
+    "independentHistories": true,
+    "viewportWidths": [
+      1280,
+      390,
+      360
+    ],
+    "horizontalPageOverflow": false,
+    "reducedMotion": true,
+    "consoleWarningsAndErrorsOnCorrectedRuntime": 0
+  },
+  "exports": {
+    "reportId": "report-991c9962-d21f-43fa-b314-8f2b6d5e5c68",
+    "documentHash": "83dbdf267531932a5b36472c6aa5a2d5181c5ed13696880019e9df7a23707621",
+    "linkedReportId": "report-d58dbe18-01e7-4dd9-bbee-8c96e2927ada",
+    "linkedDocumentHash": "3058aab7004b7f1ad78bcdd831d9f091cf2a2e41d7c662881abfc03aab62ef6e",
+    "checks": [
+      "600 orders",
+      "63 affected then linked54",
+      "114 unique action and operation IDs",
+      "47 eligible refunds,16 excluded",
+      "$235 proposal/$300cap",
+      "no approval/operation",
+      "2 native undo entries",
+      "fixed T/K",
+      "old/linked immutable and parent-linked"
+    ],
+    "files": [
+      {
+        "name": "glasshouse-report-991c9962-d21f-43fa-b314-8f2b6d5e5c68.json",
+        "bytes": 8619611,
+        "sha256": "449127a1a7bcf6176eefa1867fc1190d510404b1674da9c3b14362c07d577021",
+        "repeatBytesEqual": true
+      },
+      {
+        "name": "glasshouse-report-991c9962-d21f-43fa-b314-8f2b6d5e5c68-A4.pdf",
+        "bytes": 345941,
+        "sha256": "f50ac9a13178f21d394ff27c81093f7c0ef41dd4364abd5d85583b4e2009a7b2",
+        "repeatBytesEqual": true,
+        "pages": 21,
+        "embeddedJsonEqual": true,
+        "allActionAndOperationIdsVisible": true
+      },
+      {
+        "name": "glasshouse-report-991c9962-d21f-43fa-b314-8f2b6d5e5c68-LETTER.pdf",
+        "bytes": 345642,
+        "sha256": "f43f675a1e5e68ee1e3b97e411fe8c45143c5d46006e44871050049fee3a2b53",
+        "repeatBytesEqual": true,
+        "pages": 21,
+        "embeddedJsonEqual": true,
+        "allActionAndOperationIdsVisible": true
+      }
+    ]
+  },
+  "pdfVisualReview": {
+    "a4Pages": 21,
+    "letterPages": 21,
+    "allPagesRenderedAndContactSheetsInspected": true,
+    "embeddedJsonExact": true,
+    "all114ActionAnd114OperationIdsPresent": true,
+    "pdfUaClaimed": false
+  },
+  "focusCorrection": {
+    "observedFailure": "Changing dialog screens or disabling a saving control left focus on BODY. The report skip link had no dedicated focus-only styling.",
+    "fixed": "Retain active inputs, focus the heading on a screen change or lost focus, restore the opening button on Close/Escape, and make the report skip link appear on keyboard focus and target a focusable main region.",
+    "verified": [
+      "Directory to profile and back",
+      "Display name async save and restoration",
+      "Input retains focus while typing",
+      "Report library create/back transitions",
+      "Enter, Close, Escape return to originating control",
+      "Report skip link focuses main",
+      "Desktop and 390/360px dialogs",
+      "Reload retains immutable earlier report"
+    ],
+    "strictTypecheck": "pass",
+    "independentProductionBuild": "pass"
+  },
+  "dataIntegrity": {
+    "isolatedBaselineTables": 50,
+    "isolatedBaselineRows": 16503,
+    "priorRowsChanged": 0,
+    "financialAndModelTablesKeptEmpty": 5,
+    "currentQaRows": 49416,
+    "onlyNewNativeSampleScopeMutated": true,
+    "actualProviderCalls": 0,
+    "hostedOrOriginalStorageMutations": 0
+  },
+  "priorRegressionEvidence": {
+    "sourceCommit": "e5211d9fee129e776b5d7bc0af1e9c3b046d077c",
+    "unitTests": 188,
+    "postgresChecks": 38,
+    "httpChecks": 25,
+    "rerunAfterUiOnlyCorrection": false
+  },
+  "limitations": [
+    "Actual identity verification and real merchant onboarding remain separate full-plan work.",
+    "Archive holds with pending financial work and revocation during response were covered by the source lead\u2019s isolated HTTP/PostgreSQL tests, not reproduced as a new browser payment/model operation.",
+    "Hosted additive migrations and hosted native verification remain pending.",
+    "No claim of complete project delivery or measured research outcomes."
+  ]
+}
