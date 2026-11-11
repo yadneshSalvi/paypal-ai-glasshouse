@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-11T17:38:52.390836+00:00",
+  "passed": true,
+  "baseCommit": "d0ccd2129b57a1b75f860a4e0c9ff96d91d0ec8d",
+  "patchSha256": "cf92cbb6acae00f381137a5303ace8aafecd14d96423ec951d644a78f2df7e1c",
+  "changedFiles": [
+    "components/report-reader.tsx",
+    "components/workspace-directory.tsx",
+    "app/reports.css"
+  ],
+  "buildId": "QDPSq947Z6BjbYUQiUhgv",
+  "qualification": {
+    "typescript": "passed",
+    "independentProductionBuild": "passed",
+    "nativeInAppBrowser": true,
+    "jsonKeyboardFocusAfterDownload": "Full JSON button",
+    "pdfKeyboardFocusAfterDownload": "Download PDF button",
+    "tabOrderPreserved": true,
+    "dialogEscapeFocusReturn": true,
+    "jsonBytesUnchanged": true,
+    "pdfBytesUnchanged": true,
+    "consoleWarningsOrErrors": 0
+  },
+  "requestFeedback": {
+    "recoveryNoticeOnlyWhenPendingAndNotBusy": true,
+    "durableRequestIdentityAndRecoveryLogicUnchanged": true
+  },
+  "independentDependencyFiles": 46177,
+  "sharedDependencyFileInodes": 0,
+  "externalDependencySymlinks": 0,
+  "paymentOrModelCalls": 0,
+  "limitations": [
+    "UI-only correction; prior domain/PostgreSQL qualification remains separate and was not rerun without domain changes.",
+    "Hosted promotion is separately qualified by the integration owner."
+  ]
+}

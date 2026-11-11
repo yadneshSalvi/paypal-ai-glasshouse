@@ -82,3 +82,6 @@
 @media print{.edition-topbar,.edition-download-bar,.edition-download-status,.edition-contents,.edition-table-tools,.edition-table-pages,.edition-footer>a{display:none!important}.edition-main{padding:0;max-width:none}.edition-app{background:white;color:#17372f}.edition-section{break-before:page}.edition-cover{break-after:page}.edition-section-heading{break-after:avoid}.edition-table-scroll{overflow:visible}.edition-details:not([open]){display:none}.edition-error{display:none}.edition-app a:after{content:none}}
 
 .edition-app .skip-link{position:fixed;top:12px;left:16px;z-index:1000;transform:translateY(-200%);padding:12px 18px;border:1px solid #254f3c;border-radius:7px;background:#f7f5ee;color:#17372f;box-shadow:0 4px 18px #17372f26}.edition-app .skip-link:focus{transform:translateY(0);outline:3px solid #254f3c;outline-offset:3px}
+
+/* Keep an export trigger in the keyboard sequence while its request is held. */
+.edition-download-bar button[aria-disabled="true"]{opacity:.55;cursor:progress}

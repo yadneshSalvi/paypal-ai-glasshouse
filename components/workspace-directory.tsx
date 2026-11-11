@@ -65,7 +65,7 @@ export function WorkspaceDirectoryDialog({onClose,initialIdentity,onDirectory}:{
     {page!=='directory'&&<button className="text-action directory-back" onClick={back}><ArrowLeft size={15}/>All workspaces</button>}
     {error&&<div className="workspace-message is-error" role="alert">{error}</div>}
     {notice&&<div className="workspace-message" role="status"><Check size={16}/>{notice}</div>}
-    {pending&&<div className="workspace-pending" role="status"><strong>An earlier request needs its saved result.</strong><p>Retrying keeps the original request identity. A later workspace selection will never be replaced.</p><button className="button" disabled={busy} onClick={retry}><RefreshCw size={14}/>Recover original request</button><button className="button" disabled={busy} onClick={holdOriginal}>Keep request held · return to directory</button></div>}
+    {pending&&!busy&&<div className="workspace-pending" role="status"><strong>An earlier request needs its saved result.</strong><p>Retrying keeps the original request identity. A later workspace selection will never be replaced.</p><button className="button" disabled={busy} onClick={retry}><RefreshCw size={14}/>Recover original request</button><button className="button" disabled={busy} onClick={holdOriginal}>Keep request held · return to directory</button></div>}
     {busy&&<div className="workspace-working" role="status"><LoaderCircle className="spin" size={15}/>Saving and checking current access…</div>}
     {!directory&&!error&&<div className="directory-loading"><LoaderCircle className="spin"/><p>Opening your private workspace directory…</p></div>}
     {directory&&page==='directory'&&<>
