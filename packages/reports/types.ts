@@ -1,5 +1,5 @@
 import type {AuditEvent,Operation,QueryContext,RecoveryPlan,Snapshot} from '../domain/types';
-import type {FindingReference,FindingRevision} from '../findings/types';
+import type {FindingCorrection,FindingReference,FindingRevision} from '../findings/types';
 import type {AgentFinding} from '../agents/contracts';
 import type {ReportHistory} from '../studio/history-saves';
 
@@ -29,5 +29,9 @@ export interface ReportDocument {
   coverage:{snapshotOrders:number;snapshotEvidence:number;snapshotTransitions:number;nativePages:number;nativeWidgets:number;undoEntries:number;redoEntries:number;fullSnapshotInJson:true;staticInstruments:'whole_admitted_snapshot';customMappings:'preserved_in_native_history';agentNarratives:'creator_owned_findings_for_exact_snapshot'|'explicitly_shared_exact_finding_versions';sharing:'current_workspace_members_only';limitations:string[]};
 }
 export interface SavedReport {summary:ReportSummary;document:ReportDocument}
+/** Live, authorized metadata beside an edition; never part of ReportDocument. */
+export interface ReportFindingCorrection extends FindingCorrection {
+  savedManifests:{id:string;hash:string;status:RecoveryPlan['status']}[]|null;
+}
 export interface ReportList {reports:ReportSummary[];hasMore:boolean;nextCursor:string|null}
 export interface PdfRepresentation {bytes:Buffer;hash:string;pages:number;rendererVersion:string;paper:ReportPaper}

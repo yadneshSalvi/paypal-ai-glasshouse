@@ -5,9 +5,9 @@ import type {Snapshot,RecoveryPlan} from '../packages/domain/types';
 import type {FindingRevision,FindingDetail} from '../packages/findings/types';
 import type {SavedReport} from '../packages/reports/types';
 const dbUrl=new URL(process.env.DATABASE_URL||'');
-if(!['127.0.0.1','localhost'].includes(dbUrl.hostname)||!/^\/gh_findings_stage9_[a-f0-9]{12}$/.test(dbUrl.pathname)||!/^ghfind9_[a-f0-9]{12}$/.test(dbUrl.username)||process.env.GLASSHOUSE_FINDING_ISOLATED_QA!==dbUrl.pathname.slice(1)||process.env.PORT!=='4541')throw new Error('Dedicated finding qualification database and port4541 required.');
+if(!['127.0.0.1','localhost'].includes(dbUrl.hostname)||!/^\/gh_findings_stage10_[a-f0-9]{12}$/.test(dbUrl.pathname)||!/^ghfind10_[a-f0-9]{12}$/.test(dbUrl.username)||process.env.GLASSHOUSE_FINDING_ISOLATED_QA!==dbUrl.pathname.slice(1)||process.env.PORT!=='4545')throw new Error('Dedicated finding qualification database and port4545 required.');
 for(const name of ['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_API_KEY','PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET'])if(process.env[name])throw new Error('No provider or model credentials are permitted.');
-const base='http://localhost:4541',folder='.qualification/http-'+new Date().toISOString().replaceAll(':','-'),cookieName=process.env.GLASSHOUSE_SESSION_COOKIE!,checks:{name:string;status:'passed';details?:unknown}[]=[];let cookie='',context='';
+const base='http://localhost:4545',folder='.qualification/http-'+new Date().toISOString().replaceAll(':','-'),cookieName=process.env.GLASSHOUSE_SESSION_COOKIE!,checks:{name:string;status:'passed';details?:unknown}[]=[];let cookie='',context='';
 await mkdir(folder,{recursive:true});const digest=(value:string|Buffer)=>createHash('sha256').update(value).digest('hex'),check=(name:string,value:unknown,details?:unknown)=>{assert(value,name);checks.push({name,status:'passed',details});};
 const fetchLocal=async(path:string,body?:unknown)=>{
   const response=await fetch(base+'/api/'+path,{method:body===undefined?'GET':'POST',headers:{origin:base,...(cookie?{cookie}:{}),...(context?{'X-Glasshouse-Context':context}:{}),...(body===undefined?{}:{'content-type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});

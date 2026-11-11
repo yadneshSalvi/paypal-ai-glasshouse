@@ -1,9 +1,8 @@
 'use client';
 import {useCallback,useEffect,useId,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,Check,ChevronDown,Clock3,Download,FileJson2,FileText,GitBranch,Layers3,Leaf,LoaderCircle,LockKeyhole,RefreshCw,Search,ShieldCheck} from 'lucide-react';
-import type {ReportDocument,ReportPaper,SavedReport} from '@/packages/reports/types';
+import type {ReportDocument,ReportPaper,SavedReport,ReportFindingCorrection} from '@/packages/reports/types';
 import {findingStateLabel} from './finding-library';
-import type {FindingCorrection} from '@/packages/findings/types';
 import type {WorkspaceBootstrap} from '@/packages/workspaces/types';
 import {reportInstruments,reportMoney,reportSource,reportTime} from '@/packages/reports/semantics';
 import {api,ApiError,downloadApi,workspaceApi} from '@/lib/client';
@@ -24,6 +23,22 @@ function EvidenceTable({caption,columns,rows,pageSize=20}:{caption:string;column
 }
 function SectionHeading({number,title,children}:{number:string;title:string;children?:React.ReactNode}){return <header className="edition-section-heading"><span>{number}</span><div><h2>{title}</h2>{children&&<p>{children}</p>}</div></header>;}
 function Fingerprint({label,value}:{label:string;value:string}){return <div className="edition-fingerprint"><span>{label}</span><code>{value}</code></div>;}
+export function ReportCorrection({notice}:{notice:ReportFindingCorrection}){
+  const comparison=notice.comparison;
+  return <article>
+    <strong>{notice.state==='superseded'?'Later review exists':findingStateLabel[notice.state]}</strong><p>{notice.reason}</p>
+    {comparison&&<>
+      <p><strong>Saved finding → current permitted finding.</strong> Review {comparison.from.sequence} (source cohort v{comparison.from.cohortVersion}) → review {comparison.to.sequence} (source cohort v{comparison.to.cohortVersion}).</p>
+      <p>{comparison.beforeCount} → {comparison.afterCount} affected · {comparison.removedOrderIds.length} removed · {comparison.addedOrderIds.length} added. These counts compare the exact finding version included in this edition with the currently permitted version.</p>
+      <details><summary>Inspect the compared versions and order IDs</summary><p>Saved finding revision</p><code>{comparison.from.revisionId}</code><code>{comparison.from.hash}</code><p>Current permitted finding revision</p><code>{comparison.to.revisionId}</code><code>{comparison.to.hash}</code>
+        {!!comparison.removedOrderIds.length&&<><p>Removed from the affected scope</p><ul>{comparison.removedOrderIds.map(id=><li key={id}><code>{id}</code></li>)}</ul></>}
+        {!!comparison.addedOrderIds.length&&<><p>Added to the affected scope</p><ul>{comparison.addedOrderIds.map(id=><li key={id}><code>{id}</code></li>)}</ul></>}
+      </details>
+      {!!notice.savedManifests?.length&&<details><summary>{notice.savedManifests.length} related saved manifests currently held</summary><p>These exact manifests are included in this edition. Their current status is shown here; this is not a count of manifests changed by the latest review.</p><ul>{notice.savedManifests.map(plan=><li key={plan.id}>{plan.status}<code>{plan.id}</code><code>{plan.hash}</code></li>)}</ul></details>}
+    </>}
+    <a href={'/?finding='+encodeURIComponent(notice.findingId)}>Open permitted finding history<ArrowRight size={14}/></a>
+  </article>;
+}
 function InventoryChart({document:d}:{document:ReportDocument}){
   const id=useId(),rows=reportInstruments(d).inventory,colors=['#254F3C','#76966B','#BBD198','#6F8F85','#D1AD7C','#7B6C56'];
   let offset=0;const total=rows.reduce((sum,row)=>sum+row.value,0);
@@ -53,12 +68,12 @@ function EditionBody({report}:{report:SavedReport}){
 }
 export function ReportReader({reportId}:{reportId:string}){
   const [report,setReport]=useState<SavedReport|null>(null),[workspace,setWorkspace]=useState<WorkspaceBootstrap|null>(null),[error,setError]=useState<string|null>(null),[loading,setLoading]=useState(true),[directory,setDirectory]=useState(false),[downloading,setDownloading]=useState<string|null>(null),[paper,setPaper]=useState<ReportPaper>('A4');
-  const [corrections,setCorrections]=useState<{checkedAt:string;notices:FindingCorrection[]}|null>(null),[correctionError,setCorrectionError]=useState<string|null>(null),[checkingCorrections,setCheckingCorrections]=useState(false);
+  const [corrections,setCorrections]=useState<{checkedAt:string;notices:ReportFindingCorrection[]}|null>(null),[correctionError,setCorrectionError]=useState<string|null>(null),[checkingCorrections,setCheckingCorrections]=useState(false);
   const contextState=useSyncExternalStore(workspaceScope.subscribe,workspaceScope.snapshot,workspaceScope.snapshot),lock=useRef(false);
   useEffect(connectWorkspaceSignals,[]);
   const load=useCallback(async()=>{setLoading(true);setError(null);setReport(null);try{const access=await workspaceApi<WorkspaceBootstrap>('bootstrap',{});admitWorkspace(access.identity.contextId,access.workspace.id);setWorkspace(access);setReport(await api<SavedReport>('reports/'+encodeURIComponent(reportId)));}catch(reason){setError(reason instanceof Error?reason.message:'This private report could not open.');}finally{setLoading(false);}},[reportId]);
   useEffect(()=>{void load();},[load]);
-  const readCorrections=useCallback(async()=>{if(!report)return;setCheckingCorrections(true);setCorrectionError(null);try{setCorrections(await api<{checkedAt:string;notices:FindingCorrection[]}>('reports/'+encodeURIComponent(reportId)+'/corrections'));}catch(error){setCorrections(null);setCorrectionError(error instanceof Error?error.message:'The current correction notices could not be checked.');}finally{setCheckingCorrections(false);}},[report,reportId]);
+  const readCorrections=useCallback(async()=>{if(!report)return;setCheckingCorrections(true);setCorrectionError(null);try{setCorrections(await api<{checkedAt:string;notices:ReportFindingCorrection[]}>('reports/'+encodeURIComponent(reportId)+'/corrections'));}catch(error){setCorrections(null);setCorrectionError(error instanceof Error?error.message:'The current correction notices could not be checked.');}finally{setCheckingCorrections(false);}},[report,reportId]);
   useEffect(()=>{if(!contextState.held)void readCorrections();else setCorrections(null);},[readCorrections,contextState.held]);
   const download=async(format:'json'|'pdf')=>{if(lock.current)return;lock.current=true;setDownloading(format);setError(null);try{await downloadApi('reports/'+encodeURIComponent(reportId)+'/'+format+(format==='pdf'?'?paper='+paper:''),'glasshouse-'+reportId+(format==='pdf'?'-'+paper:'')+'.'+format);}catch(reason){if(reason instanceof ApiError&&['REPORT_RESOURCE_ACCESS_CHANGED','REPORT_UNVERIFIED'].includes(reason.code))setReport(null);setError(reason instanceof Error?reason.message:'The download could not finish. The readable report is preserved.');}finally{lock.current=false;setDownloading(null);}};
   const held=contextState.held;
@@ -69,7 +84,7 @@ export function ReportReader({reportId}:{reportId:string}){
       {held?<div className="edition-access-held" role="alert"><LockKeyhole size={34}/><h1>This report’s access changed.</h1><p>{contextState.reason}</p><button className="button primary" onClick={event=>{event.currentTarget.focus({preventScroll:true});setDirectory(true);}}>Choose current workspace<ArrowRight size={15}/></button></div>:loading?<div className="edition-loading"><LoaderCircle size={31} className="spin"/><h1>Opening the saved evidence.</h1><p>Checking current workspace access and the exact edition.</p></div>:report&&<>
         <div className="edition-download-bar"><div><Check size={16}/><span>Saved edition · {report.summary.documentHash.slice(0,12)}</span></div><div><label className="edition-paper"><span>Paper</span><select aria-label="PDF paper size" value={paper} onChange={event=>setPaper(event.target.value as ReportPaper)} disabled={!!downloading}><option value="A4">A4</option><option value="LETTER">US Letter</option></select></label><button className="button" onClick={()=>void download('json')} aria-disabled={!!downloading}>{downloading==='json'?<LoaderCircle size={15} className="spin"/>:<FileJson2 size={15}/>}Full JSON</button><button className="button primary" onClick={()=>void download('pdf')} aria-disabled={!!downloading}>{downloading==='pdf'?<LoaderCircle size={15} className="spin"/>:<Download size={15}/>}Download PDF</button></div></div>
         {downloading&&<p className="edition-download-status" role="status">{downloading==='pdf'?'Preparing the exact local PDF. The saved report and JSON remain available.':'Reading the complete immutable edition.'}</p>}
-        {(checkingCorrections||correctionError||!!corrections?.notices.length)&&<aside className="edition-correction-notices" aria-label="Current correction notices"><h2>A later review belongs beside the record.</h2><p>This live notice is separate from the saved edition. Its original JSON and PDF remain byte for byte unchanged. Only currently permitted findings can appear here.</p>{checkingCorrections&&<p role="status">Checking current finding reviews…</p>}{correctionError&&<div role="alert"><p>{correctionError}</p><button className="button" onClick={()=>void readCorrections()}><RefreshCw size={14}/>Retry current notices</button></div>}{corrections?.notices.map(notice=><article key={notice.findingId+notice.revisionId}><strong>{notice.state==='superseded'?'Later review exists':findingStateLabel[notice.state]}</strong><p>{notice.reason}</p>{notice.delta&&<p>{notice.delta.beforeCount} → {notice.delta.afterCount} affected · {notice.delta.removedOrderIds.length} removed · {notice.delta.staleDependentPlanIds.length} affected manifests</p>}<a href={'/?finding='+encodeURIComponent(notice.findingId)}>Open permitted finding history<ArrowRight size={14}/></a></article>)}</aside>}
+        {(checkingCorrections||correctionError||!!corrections?.notices.length)&&<aside className="edition-correction-notices" aria-label="Current correction notices"><h2>A later review belongs beside the record.</h2><p>This live notice is separate from the saved edition. Its original JSON and PDF remain byte for byte unchanged. Only currently permitted findings can appear here.</p>{checkingCorrections&&<p role="status">Checking current finding reviews…</p>}{correctionError&&<div role="alert"><p>{correctionError}</p><button className="button" onClick={()=>void readCorrections()}><RefreshCw size={14}/>Retry current notices</button></div>}{corrections?.notices.map(notice=><ReportCorrection key={notice.findingId+notice.revisionId} notice={notice}/>)}</aside>}
         <EditionBody report={report}/><footer className="edition-footer"><Leaf size={18}/><p>Clear sources. Exact decisions. A record that remains.</p><a href="#edition-title">Back to the beginning</a></footer>
       </>}
     </main>

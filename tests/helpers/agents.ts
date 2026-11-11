@@ -10,7 +10,7 @@ for(const name of ['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_API_KEY','PAYPAL_CL
 if(process.env.GLASSHOUSE_AGENTS_TEST_PG==='true'){
   const url=new URL(process.env.DATABASE_URL??'');
   const legacy=/^\/gh_agents_stage5_[a-f0-9]{12}$/.test(url.pathname)&&/^ghas5_[a-f0-9]{12}$/.test(url.username)&&process.env.GLASSHOUSE_AGENT_ISOLATED_QA===url.pathname.slice(1);
-  const finding=/^\/gh_findings_stage9_[a-f0-9]{12}$/.test(url.pathname)&&/^ghfind9_[a-f0-9]{12}$/.test(url.username)&&process.env.GLASSHOUSE_FINDING_ISOLATED_QA===url.pathname.slice(1)&&process.env.PORT==='4541';
+  const finding=/^\/gh_findings_stage10_[a-f0-9]{12}$/.test(url.pathname)&&/^ghfind10_[a-f0-9]{12}$/.test(url.username)&&process.env.GLASSHOUSE_FINDING_ISOLATED_QA===url.pathname.slice(1)&&process.env.PORT==='4545';
   if(!['localhost','127.0.0.1'].includes(url.hostname)||!legacy&&!finding)throw new Error('Agent tests refuse a database without the exact isolated qualification identity.');
 }else if(process.env.DATABASE_URL)throw new Error('Agent unit tests refuse an inherited database connection.');
 

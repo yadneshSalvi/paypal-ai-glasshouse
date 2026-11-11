@@ -39,6 +39,13 @@ export interface FindingDetail {
 export interface FindingCorrection {
   findingId:string;revisionId:string;revisionHash:string;currentRevisionId:string|null;
   reason:string;createdAt:string;state:FindingState|'superseded';delta:FindingDelta|null;
+  comparison:FindingScopeComparison|null;
+}
+export interface FindingScopeComparison {
+  basis:'referenced_revision_to_current_permitted_revision';
+  from:FindingReference&{sequence:number;cohortVersion:number;snapshotHash:string};
+  to:FindingReference&{sequence:number;cohortVersion:number;snapshotHash:string};
+  beforeCount:number;afterCount:number;removedOrderIds:string[];addedOrderIds:string[];
 }
 export interface LegacyFinding {
   documentId:string;documentHash:string;title:string;createdAt:string;snapshotHash:string;cohortRevision:number;

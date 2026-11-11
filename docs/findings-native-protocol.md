@@ -2,33 +2,44 @@
 
 This protocol belongs to the schema 10 source unit. The source lead's PostgreSQL, HTTP, DOM and PDF checks are local evidence; they do not claim a native browser pass, an actual model/provider call or a real merchant review. Keep failures and corrected attempts separately. The complete later product scope remains in [the delivery ledger](remaining-scope.md).
 
-## Isolated candidate
+## Repair candidate and retained first pass
 
-Use **http://localhost:4541**. The server binds to loopback, and the existing request-origin guard expects the localhost name. The candidate has its own dependency tree, build, cookie, restricted PostgreSQL database and stable local encryption keys in:
+The first root native pass on frozen source `06fc001b28cba7f6295ea1f7dcec7711446ec9cf` passed the complete seven-review lifecycle, exact source/draft IDs, source-only action holds, same-request recovery after a completed response was lost, private-version denial and unchanged old/new JSON/PDF bytes. Its **visual qualification failed**: a dark inner surface inherited paper-theme text, the dialog stayed 950 px wide on phones, two action origins lost focus, and the saved-edition notice used an unlabelled latest-review delta. That evidence remains valid for what was observed. This candidate has not passed the second root native review and is not deployed.
 
-`glasshouse/.artifacts/finding-work-4541`
+Use **http://localhost:4545**. The server binds to loopback; the existing origin guard requires the localhost name. The candidate has its own dependencies, build, restricted PostgreSQL database, cookie and newly generated stable local keys in:
 
-If the lead-owned listener ends at handoff, start the frozen candidate from that directory in a root-owned terminal:
+`glasshouse/.artifacts/findings-native-fix-4545`
+
+If its listener ends at handoff, start the frozen candidate from that directory in a root-owned terminal:
 
 ```sh
 node scripts/findings-qa.mjs start .qualification/isolated.env
 ```
 
-This reuses the existing `.next-findings-stage9` build and stable database/session keys. Verify the 4541 listener's working directory against the freeze; restarting requires no build, migration or reseed.
+This reuses `.next-findings-stage10` and the candidate's stable database/session keys. Verify the listener's working directory and `.qualification/findings-native-fix-freeze.json`. Restarting needs no build, migration, reset or reseed. The frozen 4541 source/build/server and its completed native tenant remain protected, along with ports 4507, 4518, 4525, 4536 and 4537. Never import any prior cookie, access file or browser profile. The isolated launcher clears provider/model credentials.
 
-The private `.qualification/findings-freeze.json` identifies the final source/build/runtime. `.qualification/http-fixture.json` points to a retained HTTP journey; its authenticated access file is private and must not be printed or imported into the browser. The independently smoke-tested browser setup is recorded as `browser-fixture-smoke.json`. Neither is the native review session.
-
-Do not use protected ports 4507, 4518, 4525, 4536 or 4537, original data, hosted data or any other application's runtime. The isolated launcher clears model/provider credentials. Its Sample actions can show blocked prerequisites; those are not financial receipts.
-
-1. Open the candidate in the native in-app browser and enter its fresh Sample incident room. Its source scope must be **63**. Do not import a cookie or another fixture's access file.
-2. After that browser admission, run this command from the isolated candidate directory:
+1. Open 4545 in the native in-app browser. Its distinct cookie creates a fresh Sample incident room at 63 affected orders. Normal admission is the only access setup.
+2. Prepare only the explicitly synthetic states needed for this repair review:
 
    ```sh
-   node scripts/findings-qa.mjs browser-fixture .qualification/isolated.env
+   node scripts/findings-qa.mjs browser-fix-fixture .qualification/isolated.env
    ```
 
-   If more than one fresh Sample session is waiting, append the exact tenant ID of this browser session. The guard requires a new, unpopulated Sample workspace and refuses one with existing findings or operations. It does not overwrite a layout that the browser already saved.
-3. Retain the generated `.qualification/browser-fixture.json`, then reload. Prepare this fixture immediately before the source-correction journey so its drafts remain within their normal approval window. It identifies one explicitly synthetic, shared supported finding, its exact reference, two unapproved drafts and an immutable 63-order report. Its setup decisions are disclosed synthetic fixtures. The browser user's subsequent reviews are attributable browser actions, not seller research.
+   If multiple fresh sessions are waiting, append this browser's exact tenant ID. The helper refuses populated findings, operations, manifests or reports and never overwrites a previously saved layout. It does not extend session expiry. A refused or partially prepared fixture is retained; use a new normal Sample admission for another attempt.
+3. Keep `.qualification/native-fix-fixtures/<tenant-id>.json` and reload. The helper prepares shared support review2 at 63, two unapproved drafts and one immutable old report, then a source correction review3, a narrower revision4 and shared support5 at 54. All setup reasons explicitly identify a synthetic fixture. They are **prepared state**, not root-observed human decisions. No challenge, retraction, new financial manifest, provider resource, operation or model turn is seeded. This five-review fixture is intentionally separate from root's completed seven-review 4541 tenant.
+
+## Focused second native acceptance
+
+1. Inspect the Findings library, current reviewed detail, all decision forms, citation picker, source comparison, expanded citation identities, timeline, notices and footer. Verify the coherent cream/ink surface, including untrusted-source warnings and long hashes. Citation search must announce **Search citation sources**.
+2. Repeat at desktop, **390 px**, **360 px**, actual **200% browser zoom**, and reduced motion. Dialog and document widths must fit. Inspect ordinary vertical scrolling, wrapping of long IDs/actions and citation pagination. Check sibling **Saved reports** and **Workspace directory** dialogs too. The automated headless widths include 720 and 320 CSS pixels; these do not establish native browser zoom or screen-reader acceptance.
+3. In the timeline, open source-change review3. Verify the nine exact removed IDs and two stale draft IDs from the fixture file. Open the source-only draft. Its text must say that no interpreted finding was selected and separately identify its historical source snapshot and stale hold. Existing approval/dispatch guards remain active. The manifest should initially focus its heading. Refresh its review; during and after the read, focus must stay on the control unless the user deliberately moves. Close the linked manifest and verify return to the exact still-mounted finding control.
+4. On a current recovery branch, prepare a new exact manifest as a native action only if needed for focus acceptance. Preparing is not approval. Its pending control stays focusable and duplicate activation is held. Success opens the new manifest heading; an error preserves the origin or deliberate new focus. Closing the dialog or changing workspace while a request is pending must prevent a late response from reopening it. Keep any new manifest; do not reset the fixture.
+5. Open **Saved reports → Before the delivery correction**. The separate live notice must explicitly compare saved review2/cohort v1 with permitted review5/cohort v2: **63 → 54**, nine removed, zero added, and two related saved manifests currently held. Its expanded identities must match the exact endpoints and included manifests. It must not describe a latest support review's 54→54 delta as the edition comparison. Original JSON/PDF remain unchanged. Private-current suppression and immutable bytes already passed focused PostgreSQL regression and the retained first root pass; any additional native check uses a new isolated fixture.
+6. Record this repair pass independently from the first lifecycle pass and from automated DOM/headless/PG evidence. The completed 4541 tenant is read-only evidence. Actual models/providers, original/hosted data comparison, backup/migration and deployment remain root-owned gates.
+
+## Retained complete lifecycle protocol
+
+The following is the broader schema10 checklist retained for later qualification. It does **not** need to be repeated to accept these presentation repairs, and must never reseed the completed 4541 tenant. If a new complete lifecycle run is deliberately requested, admit another fresh 4545 Sample session and use `browser-fixture` instead of `browser-fix-fixture`; that older helper stops at shared review2/63, two drafts and the old edition. Its `.qualification/browser-fixture.json` supplies that separate run's identities.
 
 ## Source correction and exact history
 
@@ -37,7 +48,7 @@ Do not use protected ports 4507, 4518, 4525, 4536 or 4537, original data, hosted
 3. Return to the incident room. In the native **Evidence Lens**, choose **Ingest 9 delivery updates**. The actual result must show 63 → 54. Open the revised finding through the evidence rail's **Review interpretations & their history** link or the header.
 4. Verify the source-created review is **Revised**, private until explicitly shared, with interpretation review still required. The source delta must list all nine exact IDs, `fernwood-order-0001` through `fernwood-order-0009`, derived from the recorded before/after scope. It must also list both exact draft IDs from `browser-fixture.json`, including the source-only draft. Open an order and return with Escape; the finding and focus should remain recoverable.
 5. Inspect the updated source citation and its relationship to the earlier carrier finding. Check event time T, knowledge cutoff K, source hashes, denominator, current/earlier badges and unchanged earlier 63-order version. The earlier interpretation must remain readable and downloadable at its original scope.
-6. Open each affected draft. The current dependency review must be invalid and approval/dispatch must be held. Earlier completed receipts, if any are separately tested, remain visible; a changed interpretation must not repeat or undo them.
+6. Open each affected draft. The finding-bound draft must report an invalid interpretation dependency. The source-only draft must distinguish its empty interpretation list from its stale historical source binding. Approval/dispatch must be held for both. Earlier completed receipts, if any are separately tested, remain visible; a changed interpretation must not repeat or undo them.
 7. Close the finding detail after observing the full persisted correction. The **63 → 54** lower-third may now appear and name the affected-plan count. It must not appear merely from a cohort number, before a complete persisted correction is read, or for a source update that does not meet that trigger. Dismiss it and reload; the source/finding history remains the evidence.
 
 ## Human decisions, sharing and new work

@@ -13,6 +13,7 @@ import {AgentSecrets} from '../agents/security';
 import {FindingSecrets} from './crypto';
 import {requireFindingsSchema} from './schema';
 import {cite,currentFindingSnapshot,findingFacts,sameSource,sourceFingerprint} from './facts';
+import {compareFindingScopes} from '@/packages/findings/comparison';
 
 const id=z.string().min(1).max(180).regex(/^[A-Za-z0-9_:-]+$/),fingerprint=z.string().regex(/^[a-f0-9]{64}$/);
 const text=(min:number,max:number)=>z.string().trim().min(min).max(max).refine(value=>!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value));
@@ -194,7 +195,7 @@ export class FindingService {
       let later:FindingRevision|null=null;try{later=(await this.permitted(tx,actor,ref.findingId,finding.current_revision_id)).revision;}catch(error){if(!(error instanceof HttpError&&error.status===404))throw error;}
       // A later private interpretation is never a correction-notice payload.
       // Shared readers can see only the status of their already shared version.
-      corrections.push({findingId:ref.findingId,revisionId:revision.id,revisionHash:revision.hash,currentRevisionId:later?.id??null,reason:later?.reason??'A later review or source change superseded this shared version. Its creator has not shared the later interpretation.',createdAt:later?.createdAt??revision.createdAt,state:later?.state??'superseded',delta:later?.delta??null});
+      corrections.push({findingId:ref.findingId,revisionId:revision.id,revisionHash:revision.hash,currentRevisionId:later?.id??null,reason:later?.reason??'A later review or source change superseded this shared version. Its creator has not shared the later interpretation.',createdAt:later?.createdAt??revision.createdAt,state:later?.state??'superseded',delta:later?.delta??null,comparison:later?compareFindingScopes(revision,later):null});
     }void dataset;return corrections;
   }
 }

@@ -3,7 +3,7 @@ import {z} from 'zod';
 import type {Database} from '@/packages/db/client';
 import type {Actor,AuditEvent,Operation,QueryContext,RecoveryPlan,SeedDataset,Snapshot} from '@/packages/domain/types';
 import type {AgentFinding} from '@/packages/agents/contracts';
-import type {ReportDocument,ReportGrant,ReportList,ReportPaper,ReportRequest,ReportSummary,SavedReport,PdfRepresentation} from '@/packages/reports/types';
+import type {ReportDocument,ReportGrant,ReportList,ReportPaper,ReportRequest,ReportSummary,SavedReport,PdfRepresentation,ReportFindingCorrection} from '@/packages/reports/types';
 import type {ReportHistory} from '@/packages/studio/history-saves';
 import type {SeedManifest,SeedManifestEntry} from '@/packages/payments/types';
 import type {DisputeObservation} from '../recovery/disputes';
@@ -176,7 +176,17 @@ export class ReportService {
         }
         for(const ref of refs){try{notices.push(...await service.correctionsIn(tx,actor,[ref]));}catch(error){if(error instanceof HttpError&&[403,404].includes(error.status))continue;throw error;}}
       }
-      return {reportId,documentHash:report.summary.documentHash,checkedAt:new Date().toISOString(),scope:'currently_permitted_findings' as const,notices};
+      const savedPlans=report.document.plans,currentPlans=notices.some(notice=>notice.comparison)&&savedPlans.length?await tx.query<{id:string;hash:string;status:RecoveryPlan['status']}>('SELECT id,plan_hash AS hash,status FROM gh_plans WHERE tenant_id=$1 AND id=ANY($2::text[])',[actor.tenantId,savedPlans.map(plan=>plan.id)]):[];
+      for(const current of currentPlans)if(savedPlans.find(plan=>plan.id===current.id)?.hash!==current.hash)throw bad('A current manifest does not match the exact identity saved in this edition.');
+      const currentById=new Map(currentPlans.map(plan=>[plan.id,plan]));
+      const qualified:ReportFindingCorrection[]=notices.map(notice=>{
+        if(!notice.comparison)return {...notice,savedManifests:null};
+        const changed=new Set([...notice.comparison.removedOrderIds,...notice.comparison.addedOrderIds]);
+        const savedManifests=savedPlans.filter(plan=>plan.findingDependencies?.some(ref=>ref.findingId===notice.findingId)||!plan.findingDependencies?.length&&plan.branch.actions.some(action=>changed.has(action.orderId)))
+          .map(plan=>currentById.get(plan.id)).filter((plan):plan is NonNullable<typeof plan>=>!!plan&&['stale','expired'].includes(plan.status));
+        return {...notice,savedManifests};
+      });
+      return {reportId,documentHash:report.summary.documentHash,checkedAt:new Date().toISOString(),scope:'currently_permitted_findings' as const,notices:qualified};
     });
   }
   async list(actor:Actor,cursor?:string):Promise<ReportList>{

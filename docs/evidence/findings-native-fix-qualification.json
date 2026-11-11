@@ -1,0 +1,237 @@
+{
+  "unit": "Schema10 native presentation, source copy, edition comparison and focus repairs",
+  "status": "Repair implementation and focused automated qualification passed; second root native acceptance and deployment remain pending",
+  "qualifiedAt": "2026-11-11T22:39:18.626524+00:00",
+  "baseCommit": "06fc001b28cba7f6295ea1f7dcec7711446ec9cf",
+  "protectedMainHead": "d83451d74157d4eb53006e9b404fe079a990c20e",
+  "deployedSourceUnchanged": "a182422",
+  "applicationSourceSha256": "8c6a49c426115d8a6c9603b366f0d156df37db4eabf2e633d94413b63c7f9e08",
+  "environment": {
+    "sourceCopy": ".artifacts/findings-native-fix-4545",
+    "origin": "http://localhost:4545",
+    "port": 4545,
+    "database": "gh_findings_stage10_bdd79b793065",
+    "role": "ghfind10_bdd79b793065",
+    "privileges": {
+      "rolsuper": false,
+      "rolcreatedb": false,
+      "rolcreaterole": false,
+      "rolreplication": false,
+      "rolinherit": false
+    },
+    "schemaVersions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "tables": 63,
+    "distinctCookie": true,
+    "newEncryptionAndSessionKeys": true,
+    "retainedAuthorityImported": false,
+    "providerAndModelCredentials": "cleared before imports",
+    "privateEnvironmentPermissions": "0600"
+  },
+  "repairs": [
+    "Explicit finding-dialog paper surface and scoped text, code, warning, form, notice, footer and focus colors; no dark inner surface beneath paper text.",
+    "Viewport clamps shared by private dialogs, mobile header min-content/wrapping correction, long ID and section/action reflow.",
+    "Empty interpreted-finding selection is distinct from a stale historical source binding; server guards unchanged.",
+    "Live report notices compare exact saved and currently permitted endpoints, identify only related included held manifests, and suppress private current metadata without modifying report documents.",
+    "Shared initial/lost/return-focus ownership, pending prepare/refresh origins, duplicate locks, resource/workspace/unmount response guards, and linked-plan return continuity.",
+    "Citation source search has an explicit accessible name."
+  ],
+  "previousRootNativePass": {
+    "source": "06fc001b28cba7f6295ea1f7dcec7711446ec9cf",
+    "evidence": ".artifacts/findings-root-native-v1/REVIEW.md, observations.json, final-verification.json",
+    "lifecycle": "passed seven reviews",
+    "exports": "six before/after files byte-identical",
+    "recovery": "completed HTTP200 retraction response lost, exact original request recovered, one DB command",
+    "privacy": "viewer read only shared reviews2/6, private7 read/export404",
+    "visual": "FAILED; retained as first-pass evidence",
+    "originalExpiry": "unchanged; no override retained",
+    "rerunOrMutatedHere": false
+  },
+  "tests": [
+    {
+      "kind": "DOM with full application CSS cascade and asynchronous dialog boundaries",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "log": "dom-native-fix-03.log",
+      "sha256": "43398a9524499f5189627bf2002238ff2cd14b4eb8f94b446c160f831c0dde66"
+    },
+    {
+      "kind": "focused real PostgreSQL seven-review endpoint/private/export regression",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "log": "pg-native-fix-05.log",
+      "sha256": "7909bfabfe73e8390711220e7cc5f223b5e55a37cc4dd5ab6d25fd5b30c95b6b",
+      "coverage": [
+        "63\u219254 across later review6 whose own delta is54\u219254",
+        "nine exact order exclusions",
+        "two included manifests; extra unsaved manifest excluded",
+        "private intermediate and current revisions omitted for viewer",
+        "source-only stale approval and queue held",
+        "original encrypted edition, JSON, cached A4/Letter bytes unchanged",
+        "zero financial operations, provider resources or model turns"
+      ]
+    },
+    {
+      "kind": "disposable headless Chrome production layout and focus",
+      "checks": 57,
+      "pass": 57,
+      "fail": 0,
+      "measurements": 50,
+      "pageErrors": 0,
+      "log": "layout-03.log",
+      "observations": "layout-2026-11-11T22-29-36-876Z/observations.json",
+      "sha256": "e1c6f9ff40343f60c0ff9a60979831d4cbf3d01786cf2b95875c44e0970fc9fc",
+      "widthsCssPixels": [
+        1440,
+        720,
+        390,
+        360,
+        320
+      ],
+      "browser": "Google Chrome157.0.8103.39, separate disposable profile",
+      "fonts": "external fonts blocked; local fallback fonts measured",
+      "actual200PercentBrowserZoomClaimed": false,
+      "nativeAcceptanceClaimed": false,
+      "screenshotsVisuallyInspected": [
+        "finding-current-review-1440.png",
+        "finding-current-review-360.png",
+        "finding-revise-form-360.png"
+      ]
+    }
+  ],
+  "strictTypeScript": {
+    "result": "passed",
+    "log": "typecheck-04.log",
+    "sha256": "eb59d1b781ba36ad63c81155c71cf4600c6dd98cff9c2b3eca73eff4b01bfd69",
+    "sameStrictCompilerOptions": true,
+    "generatedReferencesExcludedFromCommit": true
+  },
+  "build": {
+    "id": "0-Z9E3aVEr99nX8IzjSXD",
+    "files": 459,
+    "sha256": "508bd4d3a1d8e7d1050ef8e2bafa3a9f238885b3be301461f6967b48953befe4",
+    "directory": ".next-findings-stage10",
+    "result": "passed",
+    "log": "build-02.log"
+  },
+  "dependencies": {
+    "files": 46177,
+    "bytes": 761526872,
+    "manifestCanonicalSha256": "8127c05f874c0ee35889d5aae07a68f2ca87a4a13dbfa80e109433cfdd6e6972",
+    "manifestFileSha256": "047a1268c894fcf3f3741f3f03e9b25763a8098ad4abe95a796843afc94b2e64",
+    "frozenBaselineFilesCompared": 46177,
+    "independentDirectory": true,
+    "packageLockSha256": "c73b96dbb3896b42bc17c6b707f499467bb23b272dc18bfd2b31cdc0db06f270",
+    "pinsChanged": false
+  },
+  "fixtureBoundary": {
+    "mode": "browser-fix-fixture",
+    "admission": "Fresh normal Sample admission first; separate cookie and database. Never import or reseed prior access.",
+    "preparedStates": [
+      "shared supported review2 at63",
+      "two unapproved drafts",
+      "immutable old63 report",
+      "source correction review3",
+      "narrower revision4",
+      "shared support5 at54"
+    ],
+    "rootObservedSetup": false,
+    "retainedAutomatedFixture": "fernwood-401ec9e7-72d4-48a8-80ad-8f7b48d4f325",
+    "rootFixture": "Not yet admitted. Root opens a fresh Sample session then invokes guarded helper.",
+    "allRetainedDatabaseCounts": {
+      "findings": 2,
+      "revisions": 10,
+      "reports": 2,
+      "plans": 4,
+      "operations": 0,
+      "provider_resources": 0,
+      "model_turns": 0
+    },
+    "authorityOrRecordsFrom4541Copied": false
+  },
+  "retainedFailures": [
+    {
+      "files": [
+        "typecheck-01.log"
+      ],
+      "resolution": "Fixed a missing JSX brace; subsequent strict checks and build pass."
+    },
+    {
+      "files": [
+        "dom-native-fix-01.log"
+      ],
+      "resolution": "A nested-dialog return exposed same-commit parent focus competition; retained failed/killed attempt, bounded DOM assertions, and shared pending-return coordination. Final9/9 pass."
+    },
+    {
+      "files": [
+        "pg-native-fix-01.log",
+        "pg-native-fix-02.log",
+        "pg-native-fix-03.log",
+        "pg-native-fix-04.log"
+      ],
+      "resolution": "Corrected expected existing queue denial, final audit table/column names and CLI argument order; no server guard was weakened. Final focused PG case passes."
+    },
+    {
+      "files": [
+        "layout-01.log"
+      ],
+      "resolution": "The 127.0.0.1 request origin was correctly denied; the harness now uses the configured localhost origin."
+    },
+    {
+      "files": [
+        "layout-02.log",
+        "layout-document-01.log"
+      ],
+      "resolution": "Real layout found inherited hash/warning colors and underlying header minimum-content overflow. Corrected scoped colors and mobile grid/wrapping; final57/57 pass."
+    },
+    {
+      "files": [
+        "protected-source-build-attempt-01.json"
+      ],
+      "resolution": "Read-only hash audit initially compared generated references with commit defaults. It now respects the frozen manifest's two declared stage9 overrides; all protected source and build files match."
+    }
+  ],
+  "protected": {
+    "mainClean": true,
+    "frozen4541SourceFilesChecked": 289,
+    "frozen4541SourceUnchanged": true,
+    "frozen4541BuildFilesChecked": 459,
+    "frozen4541BuildUnchanged": true,
+    "protectedPorts": [
+      4507,
+      4518,
+      4525,
+      4536,
+      4537,
+      4541
+    ],
+    "originalOrHostedDatabaseAccessed": false,
+    "originalOrHostedDataMutated": false,
+    "financialActions": 0,
+    "actualProviderCalls": 0,
+    "actualModelCalls": 0,
+    "sharedCoreChanged": false,
+    "dependencyPinsChanged": false,
+    "pushPerformed": false,
+    "deployed": false
+  },
+  "rootRemaining": [
+    "Second native contrast/reflow/focus/copy acceptance on fresh4545 authority, including actual200%zoom/reduced motion/keyboard and sibling dialogs.",
+    "Preserve earlier full lifecycle/export/privacy/recovery proof; do not reset its completed4541 tenant.",
+    "Root-owned actual model/provider, backup/additive migration, original-data comparison and hosted acceptance before release."
+  ],
+  "fullProductLedger": "docs/remaining-scope.md",
+  "nativeProtocol": "docs/findings-native-protocol.md"
+}

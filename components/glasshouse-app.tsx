@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
+import {useCallback,useEffect,useId,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import dynamic from 'next/dynamic';
 import type {AgStudioApi,AgAiHarness,AgReportHistory} from 'ag-studio';
 import {Activity,ArrowDown,ArrowDownToLine,ArrowLeft,ArrowRight,ArrowUpRight,BookOpen,Check,CheckCheck,ChevronDown,ChevronRight,CircleHelp,Clock3,Command,Copy,Download,ExternalLink,FileClock,FileText,Filter,GitBranch,History,Layers3,Leaf,LoaderCircle,LockKeyhole,Menu,MoreHorizontal,PanelRightClose,Plus,RefreshCw,RotateCcw,Search,Settings2,ShieldCheck,Sparkles,Truck,TriangleAlert,Undo2,Redo2,Workflow,X} from 'lucide-react';
@@ -20,6 +20,7 @@ import {OrderRecord} from './order-record';
 import type {OrderDetail} from '@/packages/domain/order-detail';
 import {ObservationHealth,ReceiptStatus} from './observation-status';
 import {ReportingStatus} from './reporting-status';
+import {useDialogFocus,useDialogRequestBoundary} from './dialog-focus';
 
 const StudioWorkspace=dynamic(()=>import('@/packages/studio/workspace'),{ssr:false,loading:()=> <div className="studio-loading"><LoaderCircle size={24}/><span>Preparing your instruments…</span></div>});
 type View='overview'|'incident'|'recovery'|'disputes'|'history';
@@ -135,7 +136,7 @@ export function GlasshouseApp({initialView}:{initialView:string}){
   };
   const saveLayout=async()=>{if(writeHeld){notify('This workspace is read-only.','info');return;}if(!studioApi||!historyVerified.current){notify('The saved workspace is preserved while its history is being checked.','error');return;}try{if(!historyActions.current)throw new Error('The workspace save controls are not ready.');await historyActions.current.save();notify('Investigation layout and undo history saved.','good');await refreshRecords();}catch(e){notify((e as Error).message,'error');}};
   const newPlan=async(branch:string,budgetMinor:number,findingDependencies:FindingReference[]=[])=>{
-    const plan=await api<RecoveryPlan>('plans',{branchId:branch,budgetMinor,snapshotHash:snapRef.current?.hash,findingDependencies});setSelectedPlan(plan);setBranchId(null);await refreshRecords();return plan;
+    return api<RecoveryPlan>('plans',{branchId:branch,budgetMinor,snapshotHash:snapRef.current?.hash,findingDependencies});
   };
   const approve=async(plan:RecoveryPlan,fixtureAcknowledged:boolean)=>{
     const approved=await api<RecoveryPlan>(`plans/${plan.id}/approve`,{hash:plan.hash,fixtureAcknowledged});setSelectedPlan(approved);await refreshRecords();notify(approved.executionMode==='sample'?'Rehearsal manifest approved. Provider action requirements can now be inspected.':'Exact sandbox manifest approved.','good');return approved;
@@ -177,7 +178,7 @@ export function GlasshouseApp({initialView}:{initialView:string}){
     </main>
     <AgentRail onFindings={()=>setFindingsOpen('')} harness={harness} open={agentOpen} onClose={()=>setAgentOpen(false)} snapshot={snapshot} events={events} prompt={agentPrompt} clearPrompt={()=>setAgentPrompt(null)} aiAvailable={bundle.session.capabilities.ai.available&&!writeHeld} onReviewPlan={id=>{void api<RecoveryPlan[]>('plans').then(rows=>{setPlans(rows);const plan=rows.find(row=>row.id===id);if(plan)setSelectedPlan(plan);else notify('This exact proposal is no longer available.','error');}).catch(error=>notify(error.message,'error'));}}/>
     {notice&&<div className={'toast '+notice.tone} role="status">{notice.tone==='error'?<TriangleAlert size={17}/>:notice.tone==='good'?<Check size={17}/>:<Activity size={17}/>}<span>{notice.text}</span><button onClick={()=>setNotice(null)} aria-label="Dismiss notification"><X size={14}/></button></div>}
-    {findingsOpen!==null&&!contextState.held&&<FindingLibrary key={bundle.session.actor.tenantId+':'+bundle.session.actor.id} workspaceId={bundle.session.actor.tenantId} actorId={bundle.session.actor.id} snapshot={snapshot} readOnly={writeHeld} initialFindingId={findingsOpen||undefined} onClose={()=>setFindingsOpen(null)} onChanged={refreshRecords} onOrder={setOrderId} onCorrection={onFindingCorrection} onPlan={id=>{void api<{plan:RecoveryPlan}>('plans/'+id+'/review').then(result=>{setSelectedPlan(result.plan);setFindingsOpen(null);}).catch(error=>notify(error.message,'error'));}}/>}
+    {findingsOpen!==null&&!contextState.held&&<FindingLibrary key={bundle.session.actor.tenantId+':'+bundle.session.actor.id} workspaceId={bundle.session.actor.tenantId} actorId={bundle.session.actor.id} snapshot={snapshot} readOnly={writeHeld} initialFindingId={findingsOpen||undefined} onClose={()=>setFindingsOpen(null)} onChanged={refreshRecords} onOrder={setOrderId} onCorrection={onFindingCorrection} onPlan={(id,current)=>{void api<{plan:RecoveryPlan}>('plans/'+id+'/review').then(result=>{if(current())setSelectedPlan(result.plan);}).catch(error=>{if(current())notify(error.message,'error');});}}/>}
     {correctionMoment&&findingsOpen===null&&!contextState.held&&<div className="finding-correction-moment" role="status"><strong>63 → 54</strong><div><p>The sources changed the scope.</p><small>All nine removed IDs are preserved in the finding. {correctionMoment.stalePlanIds.length} affected plans need a new review.</small></div><button className="icon-button" aria-label="Dismiss source correction" onClick={()=>setCorrectionMoment(null)}><X size={17}/></button></div>}
     {reportsOpen&&!contextState.held&&<ReportLibrary workspaceId={bundle.session.actor.tenantId} actorId={bundle.session.actor.id} readOnly={writeHeld} plans={plans} onClose={()=>setReportsOpen(false)} onPrepare={prepareEdition}/>}
     {workspaceOpen&&<WorkspaceDirectoryDialog initialIdentity={bundle.session.workspace.identity} onDirectory={updateDirectory} onClose={()=>setWorkspaceOpen(false)}/>}
@@ -185,7 +186,7 @@ export function GlasshouseApp({initialView}:{initialView:string}){
     {sourceOpen&&!contextState.held&&<SourceDialog snapshot={snapshot} capabilities={bundle.session.capabilities} actor={bundle.session.actor} onClose={()=>setSourceOpen(false)} onKnowledge={known=>{void changeSnapshot(snapshot.context.asOf,known);setSourceOpen(false);}}/>}
     {helpOpen&&<HelpDialog onClose={()=>setHelpOpen(false)} onBegin={()=>{setHelpOpen(false);navigate('incident');}}/>}
     {orderId&&!contextState.held&&<OrderDrawer id={orderId} snapshot={snapshot} onClose={()=>setOrderId(null)}/>}
-    {branchId&&!contextState.held&&<BranchDialog readOnly={writeHeld} branch={snapshot.branches.find(b=>b.id===branchId)!} snapshot={snapshot} onClose={()=>setBranchId(null)} onPrepare={newPlan} onOrder={setOrderId}/>}
+    {branchId&&!contextState.held&&<BranchDialog key={branchId+':'+snapshot.hash} readOnly={writeHeld} branch={snapshot.branches.find(b=>b.id===branchId)!} snapshot={snapshot} onClose={()=>setBranchId(null)} onPrepare={newPlan} onPrepared={plan=>{setPlans(rows=>[plan,...rows.filter(row=>row.id!==plan.id)]);setSelectedPlan(plan);setBranchId(null);void refreshRecords().catch(error=>notify(error.message,'error'));}} onOrder={setOrderId}/>}
     {selectedPlan&&!contextState.held&&<PlanDialog canAuthorize={!writeHeld&&['owner','operator','judge'].includes(bundle.session.actor.role)} key={selectedPlan.id+':'+selectedPlan.hash} plan={selectedPlan} operations={operations.filter(o=>o.planId===selectedPlan.id)} onClose={()=>setSelectedPlan(null)} onApprove={approve} onExecute={execute} onOrder={setOrderId} onRefresh={refreshRecords} onLatestEvidence={async()=>{await changeSnapshot(snapRef.current?.context.asOf);await refreshRecords();notify('The investigation now uses the latest independently observed evidence. The saved manifest is unchanged.','good');}}/>}
   </div>;
 }
@@ -213,41 +214,16 @@ function HistoryView({audit,plans,events,studioHistory,onRefresh,onPlan,onRestor
 
 function Empty({icon:Icon,title,text}:{icon:typeof Activity;title:string;text:string}){return <div className="empty-state"><Icon size={27}/><h3>{title}</h3><p>{text}</p></div>;}
 
-function useModalFocus(dialog:React.RefObject<HTMLDialogElement|null>,returnFocusKey?:string){
-  const trigger=useRef<HTMLElement|null>(null);
-  useLayoutEffect(()=>{
-    const d=dialog.current;
-    if(!d)return;
-    if(!trigger.current&&document.activeElement instanceof HTMLElement)trigger.current=document.activeElement;
-    d.showModal();
-    return()=>{
-      d.close();
-      queueMicrotask(()=>{
-        if(d.isConnected&&d.open)return;
-        const original=trigger.current;
-        const key=original?.dataset.focusReturn??returnFocusKey;
-        const openDialogs=Array.from(document.querySelectorAll<HTMLDialogElement>('dialog[open]')).filter(value=>value.getClientRects().length>0);
-        const canFocus=(value:HTMLElement|null):value is HTMLElement=>!!value&&value!==document.body&&value.isConnected&&value.getClientRects().length>0&&
-          getComputedStyle(value).visibility!=='hidden'&&!value.matches(':disabled')&&(!openDialogs.length||openDialogs.some(parent=>parent.contains(value)));
-        const fallback=key?Array.from(document.querySelectorAll<HTMLElement>(`[data-focus-return="${CSS.escape(key)}"]`)).find(canFocus):null;
-        const target=canFocus(original)?original:fallback;
-        target?.focus({preventScroll:true});
-      });
-    };
-  },[dialog,returnFocusKey]);
-}
-
-function Modal({title,eyebrow,onClose,children,wide=false,returnFocusKey}:{title:string;eyebrow:string;onClose():void;children:React.ReactNode;wide?:boolean;returnFocusKey?:string}){
-  const dialog=useRef<HTMLDialogElement>(null);
-  const titleId=useId();
-  useModalFocus(dialog,returnFocusKey);
-  return <dialog ref={dialog} aria-labelledby={titleId} className={'modal '+(wide?'wide':'')} onCancel={e=>{e.preventDefault();onClose();}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}><div className="modal-content"><header className="modal-heading"><div><span className="eyebrow">{eyebrow}</span><h2 id={titleId}>{title}</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20}/></button></header>{children}</div></dialog>;
+export function Modal({title,eyebrow,onClose,children,wide=false,returnFocusKey,contentKey,initialFocus='heading'}:{title:string;eyebrow:string;onClose():void;children:React.ReactNode;wide?:boolean;returnFocusKey?:string;contentKey?:string;initialFocus?:'heading'|'native'}){
+  const dialog=useRef<HTMLDialogElement>(null),heading=useRef<HTMLHeadingElement>(null),titleId=useId();
+  useDialogFocus(dialog,{heading,returnFocusKey,contentKey,initialFocus});
+  return <dialog ref={dialog} aria-labelledby={titleId} className={'modal '+(wide?'wide':'')} onCancel={e=>{e.preventDefault();onClose();}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}><div className="modal-content"><header className="modal-heading"><div><span className="eyebrow">{eyebrow}</span><h2 ref={heading} tabIndex={-1} id={titleId}>{title}</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20}/></button></header>{children}</div></dialog>;
 }
 
 function SearchDialog({snapshot,onClose,onOrder}:{snapshot:Snapshot;onClose():void;onOrder(id:string):void}){
   const [query,setQuery]=useState('');
   const results=snapshot.orders.filter(o=>[o.reference,o.customerAlias,o.region,o.product,o.id].some(v=>v.toLowerCase().includes(query.toLowerCase()))).slice(0,12);
-  return <Modal eyebrow="FIND THE RECORD" title="A fact is never far away." onClose={onClose}><label className="search-box"><Search size={19}/><input autoFocus aria-label="Search orders, customer aliases or regions" placeholder="Order, customer alias or region…" value={query} onChange={e=>setQuery(e.target.value)}/><kbd>ESC</kbd></label><div className="search-results">{results.map(o=><button key={o.id} onClick={()=>onOrder(o.id)}><span className="order-mini-icon"><FileText size={16}/></span><span><strong>{o.reference}</strong><small>{o.customerAlias} · {o.region}</small></span><span>{money(o.amountMinor)}</span><ArrowUpRight size={14}/></button>)}{!results.length&&<Empty icon={Search} title="No matching records." text="Try an order reference, an alias or a region from this snapshot."/>}</div><p className="modal-footnote">Search is scoped to this workspace and the current time.</p></Modal>;
+  return <Modal initialFocus="native" eyebrow="FIND THE RECORD" title="A fact is never far away." onClose={onClose}><label className="search-box"><Search size={19}/><input autoFocus aria-label="Search orders, customer aliases or regions" placeholder="Order, customer alias or region…" value={query} onChange={e=>setQuery(e.target.value)}/><kbd>ESC</kbd></label><div className="search-results">{results.map(o=><button key={o.id} onClick={()=>onOrder(o.id)}><span className="order-mini-icon"><FileText size={16}/></span><span><strong>{o.reference}</strong><small>{o.customerAlias} · {o.region}</small></span><span>{money(o.amountMinor)}</span><ArrowUpRight size={14}/></button>)}{!results.length&&<Empty icon={Search} title="No matching records." text="Try an order reference, an alias or a region from this snapshot."/>}</div><p className="modal-footnote">Search is scoped to this workspace and the current time.</p></Modal>;
 }
 
 function SourceDialog({snapshot,capabilities,actor,onClose,onKnowledge}:{snapshot:Snapshot;capabilities:Capabilities;actor:Actor;onClose():void;onKnowledge(k?:string):void}){
@@ -260,7 +236,7 @@ function OrderDrawer({id,snapshot,onClose}:{id:string;snapshot:Snapshot;onClose(
   const [detail,setDetail]=useState<OrderDetail|null>(null);
   const [error,setError]=useState<string|null>(null),[retry,setRetry]=useState(0);
   const dialog=useRef<HTMLDialogElement>(null),titleId=useId();
-  useModalFocus(dialog,'order-'+id);
+  useDialogFocus(dialog,{returnFocusKey:'order-'+id,initialFocus:'native'});
   useEffect(()=>{
     const controller=new AbortController();let active=true;setDetail(null);setError(null);
     void api<OrderDetail>('orders/'+encodeURIComponent(id)+'?snapshotHash='+encodeURIComponent(snapshot.hash),undefined,undefined,controller.signal)
@@ -281,22 +257,25 @@ function OrderDrawer({id,snapshot,onClose}:{id:string;snapshot:Snapshot;onClose(
   </dialog>;
 }
 
-function BranchDialog({branch,snapshot,onClose,onPrepare,onOrder,readOnly}:{readOnly:boolean;branch:RecoveryBranch;snapshot:Snapshot;onClose():void;onPrepare(b:string,budget:number,findings?:FindingReference[]):Promise<RecoveryPlan>;onOrder(id:string):void}){
+export function BranchDialog({branch,snapshot,onClose,onPrepare,onPrepared,onOrder,readOnly}:{readOnly:boolean;branch:RecoveryBranch;snapshot:Snapshot;onClose():void;onPrepare(b:string,budget:number,findings?:FindingReference[]):Promise<RecoveryPlan>;onPrepared(plan:RecoveryPlan):void;onOrder(id:string):void}){
   const [cap,setCap]=useState('300');const [selectedFindings,setSelectedFindings]=useState<FindingReference[]>([]);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);const [tab,setTab]=useState('actions');
+  const lock=useRef<object|null>(null),begin=useDialogRequestBoundary((branch?.id??'')+':'+snapshot.hash);
+  useEffect(()=>{lock.current=null;setBusy(false);setError(null);},[branch?.id,snapshot.hash]);
   if(!branch)return null;
   const capMinor=Math.round(Number(cap)*100);const within=Number.isFinite(capMinor)&&capMinor>=branch.refundTotalMinor;
-  const prepare=async()=>{setBusy(true);setError(null);try{await onPrepare(branch.id,capMinor,selectedFindings);}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
-  return <Modal eyebrow={`PROPOSED RECOVERY · SOURCE COHORT v${snapshot.context.cohortVersion}`} title={branch.id==='targeted'?'A targeted gesture.':'A broader gesture.'} returnFocusKey={'branch-'+branch.id} onClose={onClose} wide><div className="review-intro"><div><span className="eyebrow">PROPOSED REFUND TOTAL</span><strong>{money(branch.refundTotalMinor)}</strong><span>{branch.eligibleCount} refunds × $5.00 USD</span></div><div><span className="eyebrow">COMPANION ACTIONS</span><strong>{branch.trackingCount+branch.disputeCount}</strong><span>{branch.trackingCount} tracking · {branch.disputeCount} dispute responses</span></div><label className="budget-input">Refund cap<span>$<input type="number" min="0" max="1000" step="5" value={cap} onChange={e=>setCap(e.target.value)}/><em>USD</em></span><small className={within?'mint-text':'rose-text'}>{within?money(capMinor-branch.refundTotalMinor)+' below cap':'This branch exceeds the cap'}</small></label></div><div className="review-source-note"><ShieldCheck size={17}/><p>This is a proposed manifest. Source labels and provider requirements are preserved for every action. Preparing it does not approve or execute money.</p></div><FindingSelector value={selectedFindings} onChange={setSelectedFindings} disabled={readOnly||busy}/><div className="drawer-tabs"><button className={tab==='actions'?'active':''} onClick={()=>setTab('actions')}>Exact actions ({branch.actions.length})</button><button className={tab==='eligibility'?'active':''} onClick={()=>setTab('eligibility')}>Policy conditions ({branch.rows.length})</button></div>{tab==='actions'?<ActionTable actions={branch.actions} onOrder={onOrder}/>:<EligibilityTable branch={branch} snapshot={snapshot} onOrder={onOrder}/>}{error&&<div className="inline-error">{error}</div>}<div className="modal-actions"><span>{branch.policyId} · expires 30 minutes after preparation</span><button className="button primary" disabled={readOnly||!within||busy} onClick={prepare}>{busy?<LoaderCircle className="spin" size={15}/>:<FileText size={15}/>}Prepare exact manifest<ArrowRight size={14}/></button></div></Modal>;
+  const prepare=async()=>{if(lock.current||readOnly||!within)return;const current=begin();if(!current())return;const request={};lock.current=request;setBusy(true);setError(null);try{const plan=await onPrepare(branch.id,capMinor,selectedFindings);if(current()&&lock.current===request)onPrepared(plan);}catch(e){if(current()&&lock.current===request)setError((e as Error).message);}finally{if(lock.current===request){lock.current=null;if(current())setBusy(false);}}};
+  return <Modal eyebrow={`PROPOSED RECOVERY · SOURCE COHORT v${snapshot.context.cohortVersion}`} title={branch.id==='targeted'?'A targeted gesture.':'A broader gesture.'} returnFocusKey={'branch-'+branch.id} onClose={onClose} wide><div className="review-intro"><div><span className="eyebrow">PROPOSED REFUND TOTAL</span><strong>{money(branch.refundTotalMinor)}</strong><span>{branch.eligibleCount} refunds × $5.00 USD</span></div><div><span className="eyebrow">COMPANION ACTIONS</span><strong>{branch.trackingCount+branch.disputeCount}</strong><span>{branch.trackingCount} tracking · {branch.disputeCount} dispute responses</span></div><label className="budget-input">Refund cap<span>$<input type="number" min="0" max="1000" step="5" value={cap} onChange={e=>setCap(e.target.value)}/><em>USD</em></span><small className={within?'mint-text':'rose-text'}>{within?money(capMinor-branch.refundTotalMinor)+' below cap':'This branch exceeds the cap'}</small></label></div><div className="review-source-note"><ShieldCheck size={17}/><p>This is a proposed manifest. Source labels and provider requirements are preserved for every action. Preparing it does not approve or execute money.</p></div><FindingSelector value={selectedFindings} onChange={setSelectedFindings} disabled={readOnly||busy}/><div className="drawer-tabs"><button className={tab==='actions'?'active':''} onClick={()=>setTab('actions')}>Exact actions ({branch.actions.length})</button><button className={tab==='eligibility'?'active':''} onClick={()=>setTab('eligibility')}>Policy conditions ({branch.rows.length})</button></div>{tab==='actions'?<ActionTable actions={branch.actions} onOrder={onOrder}/>:<EligibilityTable branch={branch} snapshot={snapshot} onOrder={onOrder}/>}{error&&<div className="inline-error">{error}</div>}<div className="modal-actions"><span>{branch.policyId} · expires 30 minutes after preparation</span><button className="button primary" disabled={readOnly||!within} aria-disabled={busy||undefined} onClick={prepare}>{busy?<LoaderCircle className="spin" size={15}/>:<FileText size={15}/>}Prepare exact manifest<ArrowRight size={14}/></button></div></Modal>;
 }
 
-function PlanDialog({plan:initialPlan,operations,onClose,onApprove,onExecute,onOrder,onRefresh,onLatestEvidence,canAuthorize}:{canAuthorize:boolean;plan:RecoveryPlan;operations:Operation[];onClose():void;onApprove(p:RecoveryPlan,fixtureAcknowledged:boolean):Promise<RecoveryPlan>;onExecute(p:RecoveryPlan):Promise<void>;onOrder(id:string):void;onRefresh():Promise<void>;onLatestEvidence():Promise<void>}){
+export function PlanDialog({plan:initialPlan,operations,onClose,onApprove,onExecute,onOrder,onRefresh,onLatestEvidence,canAuthorize}:{canAuthorize:boolean;plan:RecoveryPlan;operations:Operation[];onClose():void;onApprove(p:RecoveryPlan,fixtureAcknowledged:boolean):Promise<RecoveryPlan>;onExecute(p:RecoveryPlan):Promise<void>;onOrder(id:string):void;onRefresh():Promise<void>;onLatestEvidence():Promise<void>}){
   const [ack,setAck]=useState(false),[fixtureAck,setFixtureAck]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
   const [review,setReview]=useState<{plan:RecoveryPlan;dependencies:PlanDependencyReview}|null>(null),[checking,setChecking]=useState(true);
-  const loadReview=useCallback(async()=>{setChecking(true);setError(null);try{const value=await api<{plan:RecoveryPlan;dependencies:PlanDependencyReview}>('plans/'+initialPlan.id+'/review');setReview(value);return value;}catch(error){setReview(null);setError(error instanceof Error?error.message:'The current dependency review could not complete.');throw error;}finally{setChecking(false);}},[initialPlan.id,initialPlan.hash,initialPlan.status]);
-  useEffect(()=>{void loadReview().catch(()=>{});},[loadReview]);
+  const begin=useDialogRequestBoundary(initialPlan.id+':'+initialPlan.hash),readGeneration=useRef(0),reading=useRef<number|null>(null),actionLock=useRef(false);
+  const loadReview=useCallback(async()=>{const current=begin(),generation=++readGeneration.current;if(!current())return;reading.current=generation;setChecking(true);setError(null);try{const value=await api<{plan:RecoveryPlan;dependencies:PlanDependencyReview}>('plans/'+initialPlan.id+'/review');if(current()&&generation===readGeneration.current)setReview(value);return value;}catch(error){if(current()&&generation===readGeneration.current){setReview(null);setError(error instanceof Error?error.message:'The current dependency review could not complete.');}throw error;}finally{if(current()&&generation===readGeneration.current){reading.current=null;setChecking(false);}}},[begin,initialPlan.id,initialPlan.hash,initialPlan.status]);
+  useEffect(()=>{void loadReview().catch(()=>{});return()=>{readGeneration.current++;};},[loadReview]);
   const plan=review?.plan??initialPlan,currentDependencies=!!review?.dependencies.valid&&!checking;
 
-  const run=async(kind:'approve'|'execute')=>{setBusy(true);setError(null);try{kind==='approve'?await onApprove(plan,fixtureAck):await onExecute(plan);}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
+  const run=async(kind:'approve'|'execute')=>{if(actionLock.current||!canAuthorize||!currentDependencies)return;const current=begin();if(!current())return;actionLock.current=true;setBusy(true);setError(null);try{kind==='approve'?await onApprove(plan,fixtureAck):await onExecute(plan);}catch(e){if(current())setError((e as Error).message);}finally{actionLock.current=false;if(current())setBusy(false);}};
   const stale=['stale','expired'].includes(plan.status),sandbox=plan.executionMode==='sandbox';
   const verified=operations.filter(operation=>operation.status==='provider_success').length;
   const held=operations.filter(operation=>['blocked','provider_failed','unknown_outcome'].includes(operation.status)).length;
@@ -307,7 +286,15 @@ function PlanDialog({plan:initialPlan,operations,onClose,onApprove,onExecute,onO
     <div className="manifest-identity"><span>MANIFEST HASH</span><code>{plan.hash}</code><a href={scopedApiUrl('manifest?planId='+encodeURIComponent(plan.id))} download><Download size={14}/>Export CSV</a></div>
     {operations.length>0&&<div className="recovery-progress" role="status" aria-live="polite"><div><strong>{verified} of {plan.branch.actions.length} verified</strong><span>{money(verifiedMinor)} refunded · {held} need attention</span></div><progress max={plan.branch.actions.length} value={verified} aria-label="Independently verified recovery actions"/><p>Progress is saved. An uncertain response is reconciled from the original operation. Evidence submission and tracking do not imply delivery or a resolved dispute.</p></div>}
     {sandbox&&operations.length>0&&<ReceiptStatus planId={plan.id} operations={operations} onRefresh={onRefresh} onLatestEvidence={onLatestEvidence}/>}
-    <section className="finding-dependency-review"><h3><ShieldCheck size={16}/>Current finding dependency review</h3>{checking?<p role="status"><LoaderCircle className="spin" size={15}/>Checking current membership, exact versions and source facts…</p>:<><p>{review?.dependencies.valid?(plan.contractVersion===3?'The exact selected versions and current source dependencies verify.':'This earlier manifest retains its original approval contract.'):review?.dependencies.reason??'The current review has not completed.'}</p>{plan.findingDependencies?.length?<ul>{plan.findingDependencies.map(ref=><li key={ref.findingId}>{ref.findingId}<code>{ref.revisionId} · {ref.hash}</code></li>)}</ul>:<p>No interpreted finding was selected; the exact source snapshot remains bound.</p>}<button className="button" onClick={()=>void loadReview().catch(()=>{})}><RefreshCw size={14}/>Refresh current review</button></>}</section>
+    <section className="finding-dependency-review" aria-busy={checking}>
+      <h3><ShieldCheck size={16}/>Current finding dependency review</h3>
+      {checking?<p role="status"><LoaderCircle className="spin" size={15}/>Checking current membership and exact selected finding versions…</p>:<>
+        <p>{!review?'The current review has not completed.':!review.dependencies.valid?review.dependencies.reason:plan.contractVersion!==3?'This earlier manifest retains its original approval contract.':plan.findingDependencies?.length?'The exact selected finding versions remain shared, supported and current for their source scope.':'No interpreted finding was selected; there are no interpretation dependencies to verify.'}</p>
+        {!!plan.findingDependencies?.length&&<ul>{plan.findingDependencies.map(ref=><li key={ref.findingId}>{ref.findingId}<code>{ref.revisionId} · {ref.hash}</code></li>)}</ul>}
+      </>}
+      <div className="finding-source-binding"><p><strong>Stored source binding</strong> · cohort v{plan.cohortVersion}</p><code>{plan.snapshotHash}</code><p>{stale?'This is the historical source snapshot. This manifest is '+plan.status+' and new approval is held. Review current sources before preparing a new manifest.':'This manifest retains its exact source snapshot. Source and action eligibility are checked separately when approving or starting new work.'}</p></div>
+      <button className="button" aria-disabled={checking||undefined} onClick={()=>{if(reading.current===null)void loadReview().catch(()=>{});}}><RefreshCw size={14}/>Refresh current review</button>
+    </section>
     <ActionTable actions={plan.branch.actions} operations={operations} onOrder={onOrder}/>
     <div className="manifest-clock"><Clock3 size={13}/><span>Prepared {dateLabel(plan.createdAt)} · approval expires {dateLabel(plan.expiresAt)} UTC</span></div>
     {plan.status==='ready_for_review'&&<>
@@ -315,7 +302,7 @@ function PlanDialog({plan:initialPlan,operations,onClose,onApprove,onExecute,onO
       {sandbox&&<label className="approval-ack"><input type="checkbox" checked={fixtureAck} onChange={e=>setFixtureAck(e.target.checked)}/><span>I reviewed the exact tracking fields and dispute statements. Shipping is <strong>synthetic sandbox evidence</strong>; these submissions make no claim that physical goods were shipped or delivered. Buyer tracking notifications are disabled.</span></label>}
     </>}
     {error&&<div className="inline-error" role="alert">{error}</div>}
-    <div className="modal-actions"><span><LockKeyhole size={13}/>Approval binds to this exact hash, evidence and cohort.</span>{plan.status==='ready_for_review'?<button className="button primary" disabled={!canAuthorize||!currentDependencies||!ack||sandbox&&!fixtureAck||busy} onClick={()=>run('approve')}>{busy?<LoaderCircle className="spin" size={15}/>:<ShieldCheck size={15}/>}Approve {sandbox?'exact manifest':'rehearsal'}</button>:plan.status==='approved'?<button className="button primary" disabled={!canAuthorize||!currentDependencies||busy} onClick={()=>run('execute')}>{busy?<LoaderCircle className="spin" size={15}/>:<Workflow size={15}/>} {sandbox?'Start approved recovery':'Check rehearsal requirements'}</button>:<button className="button" onClick={onClose}>Return to recovery<ArrowRight size={14}/></button>}</div>
+    <div className="modal-actions"><span><LockKeyhole size={13}/>Approval binds to this exact hash, evidence and cohort.</span>{plan.status==='ready_for_review'?<button className="button primary" disabled={!canAuthorize||!currentDependencies||!ack||sandbox&&!fixtureAck} aria-disabled={busy||undefined} onClick={()=>run('approve')}>{busy?<LoaderCircle className="spin" size={15}/>:<ShieldCheck size={15}/>}Approve {sandbox?'exact manifest':'rehearsal'}</button>:plan.status==='approved'?<button className="button primary" disabled={!canAuthorize||!currentDependencies} aria-disabled={busy||undefined} onClick={()=>run('execute')}>{busy?<LoaderCircle className="spin" size={15}/>:<Workflow size={15}/>} {sandbox?'Start approved recovery':'Check rehearsal requirements'}</button>:<button className="button" onClick={onClose}>Return to recovery<ArrowRight size={14}/></button>}</div>
   </Modal>;
 }
 
