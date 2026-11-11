@@ -12,6 +12,7 @@ import { paymentsRuntime } from '@/lib/server/payments/runtime';
 import { currentMember } from '@/lib/server/payments/records';
 import { recoveryRuntime } from '@/lib/server/recovery/runtime';
 import { orderDetailFor } from '@/lib/server/order-detail';
+import {readLayout,saveLayout} from '@/lib/server/layouts';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -86,13 +87,10 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
   }
   if(path[0]==='orders' && path[1] && path.length===2 && method==='GET') return Response.json(await orderDetailFor(who,path[1],url.searchParams.get('snapshotHash')??''));
   if(key==='layout') {
-    if(method==='GET') return Response.json((await db.query<{body:unknown}>('SELECT body FROM gh_layouts WHERE tenant_id=$1 AND id=$2',[who.tenantId,'incident-room']))[0]?.body ?? null);
+    if(method==='GET'){const saved=await readLayout(db,who);return Response.json(url.searchParams.get('envelope')==='1'?saved:saved.history);}
     if(method==='POST') {
-      const input=await body<{history:unknown;label?:string}>(request);
-      if(!input.history || typeof input.history!=='object') throw new HttpError(400,'INVALID_LAYOUT','The saved report must contain its layout and history.');
-      await db.query('INSERT INTO gh_layouts(tenant_id,id,body) VALUES($1,$2,$3::jsonb) ON CONFLICT(tenant_id,id) DO UPDATE SET body=excluded.body,version=gh_layouts.version+1,updated_at=now()',[who.tenantId,'incident-room',JSON.stringify(input.history)]);
-      await audit(db,who,'layout.saved',input.label?.slice(0,100)||'Investigation layout saved','incident-room',{historyHash:hash(input.history)});
-      return Response.json({saved:true});
+      const input=await body<{history:unknown;expectedVersion:number;label?:string}>(request);
+      return Response.json(await saveLayout(db,who,input));
     }
   }
   if(path[0]==='threads') {

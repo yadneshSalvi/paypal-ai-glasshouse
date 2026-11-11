@@ -29,7 +29,7 @@ const history:AgAiHistoryStore={
   addEventListener(){},removeEventListener(){},
 };
 
-export function buildHarness(studioApi:AgStudioApi<GlasshouseRegistry>,bridge:StudioBridge):AgAiHarness{
+export function buildHarness(studioApi:AgStudioApi<GlasshouseRegistry>,bridge:StudioBridge,saveHistory:(history:ReturnType<typeof studioApi.getHistory>,label:string)=>void):AgAiHarness{
   const studio=studioApi.getAiTools();
   const context=()=>({asOf:bridge.getSnapshot().context.asOf,knownAt:bridge.getSnapshot().context.knownAt,snapshotHash:bridge.getSnapshot().hash});
   const makeRead=(name:string,description:string)=>studioApi.defineAiTool({name,description,params:s=>s.object({}),async execute(_args,ctx){try{return ctx.success('Server-authorized result',await api('agent/tool',{name,context:context()},undefined,ctx.signal));}catch(e){return ctx.error(e instanceof Error?e.message:'Tool failed');}}});
@@ -57,10 +57,10 @@ export function buildHarness(studioApi:AgStudioApi<GlasshouseRegistry>,bridge:St
       directLlmRunner({...builtIn.planning,adapter,maxTurns:10}),
     ],
     promptStarters:[{label:'Why these orders?',prompt:'Investigate why these orders are affected. Inspect the evidence and have the Widget agent add a useful regional comparison to the workspace.'},{label:'Compare recovery',prompt:'Compare the recovery branches under a $300 refund cap and explain every exclusion.'}],
-    observers:[{onEvent(event){recordEvent(event,bridge,studioApi);}}],
+    observers:[{onEvent(event){recordEvent(event,bridge,studioApi,saveHistory);}}],
   }));
 }
-function recordEvent(event:AgAiTelemetryEvent,bridge:StudioBridge,studioApi:AgStudioApi<GlasshouseRegistry>){
+function recordEvent(event:AgAiTelemetryEvent,bridge:StudioBridge,studioApi:AgStudioApi<GlasshouseRegistry>,saveHistory:(history:ReturnType<typeof studioApi.getHistory>,label:string)=>void){
   if(!['run_started','run_finished','tool_execution_started','tool_execution_finished'].includes(event.type))return;
   const tool='name' in event?event.name??null:null;
   const status=event.type==='tool_execution_finished'?(event.ok?'success':'error'):event.type==='run_finished'?(event.status==='ok'?'success':'error'):'running';
@@ -68,5 +68,5 @@ function recordEvent(event:AgAiTelemetryEvent,bridge:StudioBridge,studioApi:AgSt
   const receipt:AgentRunEvent={eventId:crypto.randomUUID(),runId:event.trace.runId,parentRunId:event.trace.parentRunId??null,agentId:event.trace.agentId,eventType:event.type,toolName:tool,transportKind:'Studio',inputHash:'client-telemetry',redactedResultRef:'toolCallId' in event?event.toolCallId??null:null,resultStatus:status,sourceContextHash:bridge.getSnapshot().hash,timestamp:new Date(event.timestamp).toISOString(),summary};
   bridge.onEvent(receipt);
   void api('agent/events',receipt).catch(()=>{});
-  if(event.type==='tool_execution_finished'&&event.ok){const h=studioApi.getHistory();bridge.onHistory(h);void api('layout',{history:h,label:`${event.trace.agentId}: ${event.name}`}).catch(()=>{});}
+  if(event.type==='tool_execution_finished'&&event.ok){const h=studioApi.getHistory();bridge.onHistory(h);saveHistory(h,`${event.trace.agentId}: ${event.name}`);}
 }

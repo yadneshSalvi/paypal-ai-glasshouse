@@ -6,6 +6,7 @@ import {Activity,ArrowDown,ArrowDownToLine,ArrowLeft,ArrowRight,ArrowUpRight,Boo
 import type {Actor,Snapshot,RecoveryPlan,Operation,AuditEvent,AgentRunEvent,RecoveryBranch,ActionRow} from '@/packages/domain/types';
 import type {GlasshouseRegistry,StudioBridge} from '@/packages/studio/types';
 import type {HistoryRestoreStatus} from '@/packages/studio/history';
+import type {SavedHistory} from '@/packages/studio/history-saves';
 import {api,dateLabel,money,sourceLabel} from '@/lib/client';
 import {AgentRail} from './agent-rail';
 import {OrderRecord} from './order-record';
@@ -19,12 +20,12 @@ type CapabilityProof={available:boolean;reason:string};
 type Capabilities={studio:{available:boolean;version:string;widgets:number};storage:{available:boolean;type:string};ai:{available:boolean;model:string};paypal:{available:boolean;isolated:boolean;reason:string};refunds:CapabilityProof;tracking:CapabilityProof;disputes:CapabilityProof;webhooks:CapabilityProof};
 type Bootstrap={actor:Actor;snapshot:Snapshot;capabilities:Capabilities;studioLicense:string};
 type AuditRow=AuditEvent & {sequence:number};
-type Bundle={session:Bootstrap;history:AgReportHistory<GlasshouseRegistry>|null;plans:RecoveryPlan[];operations:Operation[];audit:AuditRow[];events:AgentRunEvent[]};
+type Bundle={session:Bootstrap;history:AgReportHistory<GlasshouseRegistry>|null;historyVersion:number;plans:RecoveryPlan[];operations:Operation[];audit:AuditRow[];events:AgentRunEvent[]};
 let initialLoad:Promise<Bundle>|null=null;
 async function loadWorkspace():Promise<Bundle>{
   const session=await api<Bootstrap>('session',{});
-  const [history,plans,operations,audit,events]=await Promise.all([api<AgReportHistory<GlasshouseRegistry>|null>('layout'),api<RecoveryPlan[]>('plans'),api<Operation[]>('operations'),api<AuditRow[]>('history'),api<AgentRunEvent[]>('agent/events')]);
-  return {session,history,plans,operations,audit,events};
+  const [saved,plans,operations,audit,events]=await Promise.all([api<SavedHistory>('layout?envelope=1'),api<RecoveryPlan[]>('plans'),api<Operation[]>('operations'),api<AuditRow[]>('history'),api<AgentRunEvent[]>('agent/events')]);
+  return {session,history:saved.history,historyVersion:saved.version,plans,operations,audit,events};
 }
 const nav:[View,string,typeof Activity][]=[['overview','Overview',Activity],['incident','Incident room',Layers3],['recovery','Recovery',GitBranch],['disputes','Disputes',ShieldCheck],['history','History',FileClock]];
 
@@ -45,6 +46,8 @@ export function GlasshouseApp({initialView}:{initialView:string}){
   const [studioHistory,setStudioHistory]=useState<AgReportHistory<GlasshouseRegistry>|null>(null);
   const [historyStatus,setHistoryStatus]=useState<HistoryRestoreStatus|null>(null);
   const historyVerified=useRef(false);
+  const historyActions=useRef<{save():Promise<void>;retry():Promise<void>}|null>(null);
+  const [historySaveError,setHistorySaveError]=useState<string|null>(null);
   const [editable,setEditable]=useState(false);
   const [snapshotBusy,setSnapshotBusy]=useState(false);
   const [committed,setCommitted]=useState<string|null>(null);
@@ -101,10 +104,10 @@ export function GlasshouseApp({initialView}:{initialView:string}){
   const bridge=useMemo<StudioBridge>(()=>({
     getSnapshot:()=>snapRef.current!,onTime:time=>void changeSnapshot(time,snapRef.current?.context.knownAt),onOrder:setOrderId,onBranch:setBranchId,onRevision:()=>void revise(),
     onWidgetReady(id,hash,_total,selected){if(id==='river'&&hash===snapRef.current?.hash)setSelectedCount(selected);},
-    onEvent:e=>setEvents(old=>[e,...old].slice(0,100)),onApi:setStudioApi,onHistory:history=>{setStudioHistory(history);if(historyVerified.current)setBundle(previous=>previous?{...previous,history}:previous);},onError:e=>notify(e,'error'),
+    onEvent:e=>setEvents(old=>[e,...old].slice(0,100)),onApi:setStudioApi,onHistory:setStudioHistory,onError:e=>notify(e,'error'),
   }),[changeSnapshot,notify,busy]);
   const onCommitted=useCallback((hash:string)=>setCommitted(hash),[]);
-  const saveLayout=async()=>{if(!studioApi||!historyVerified.current){notify('The saved workspace is preserved while its history is being checked.','error');return;}try{await api('layout',{history:studioApi.getHistory(),label:'Investigation saved by reviewer'});notify('Investigation layout and undo history saved.','good');await refreshRecords();}catch(e){notify((e as Error).message,'error');}};
+  const saveLayout=async()=>{if(!studioApi||!historyVerified.current){notify('The saved workspace is preserved while its history is being checked.','error');return;}try{if(!historyActions.current)throw new Error('The workspace save controls are not ready.');await historyActions.current.save();notify('Investigation layout and undo history saved.','good');await refreshRecords();}catch(e){notify((e as Error).message,'error');}};
   const newPlan=async(branch:string,budgetMinor:number)=>{
     const plan=await api<RecoveryPlan>('plans',{branchId:branch,budgetMinor,snapshotHash:snapRef.current?.hash});setSelectedPlan(plan);setBranchId(null);await refreshRecords();return plan;
   };
@@ -127,7 +130,8 @@ export function GlasshouseApp({initialView}:{initialView:string}){
         <div className="incident-banner"><span className="incident-icon"><Activity size={18}/></span><div><div className="incident-kicker"><span>ACTIVE SIGNAL</span><i/>CARRIER DELAY · PACIFIC NORTHWEST</div><h2>{snapshot.totals.affected} orders. One shared delay.</h2><p>{snapshot.context.cohortVersion===1?'A carrier handoff pattern needs a closer look. Start with the evidence.':'Nine new delivery records changed the story. The remaining cohort needs a response.'}</p></div><div className="incident-banner-right"><span className="severity-pill"><i/>INVESTIGATING</span><button onClick={()=>ask('Investigate why these orders are affected. Cite the source evidence, test alternative explanations, and have the Widget agent add a useful regional comparison.')}>Why these orders?<ArrowUpRight size={16}/></button></div></div>
         <div className="workspace-toolbar"><div className="workspace-label"><Layers3 size={15}/><strong>Your investigation</strong><span className="cohort-pill">{selectedCount??snapshot.totals.orders} in selection</span><button className="icon-button" aria-label="Clear all shared selections" onClick={()=>{if(studioApi){const state=studioApi.getState();studioApi.setState({...state,pages:state.pages.map(p=>({...p,crossFilter:undefined}))});}notify('Shared selection cleared.');}}><Filter size={13}/></button></div><div><span className={'snapshot-indicator '+(snapshotBusy||committed!==snapshot.hash?'updating':'')}><i/>{snapshotBusy||committed!==snapshot.hash?'Joining snapshot':'Snapshot aligned'}</span><button className="toolbar-button" aria-label="Undo layout change" title="Undo layout change" disabled={historyStatus?.state!=='restored'||!studioHistory?.undo.length} onClick={()=>studioApi?.undo()}><Undo2 size={14}/><span>Undo</span></button><button className="toolbar-button" aria-label="Redo layout change" title="Redo layout change" disabled={historyStatus?.state!=='restored'||!studioHistory?.redo.length} onClick={()=>studioApi?.redo()}><Redo2 size={14}/><span>Redo</span></button><button className={'toolbar-button '+(editable?'active':'')} aria-label={editable?'Finish editing the workspace':'Customize the workspace'} aria-pressed={editable} onClick={()=>setEditable(!editable)}><Settings2 size={14}/><span>{editable?'Finish editing':'Customize'}</span></button><button className="toolbar-button" aria-label="Save workspace and history" disabled={historyStatus?.state!=='restored'} onClick={saveLayout}><CheckCheck size={14}/><span>Save</span></button></div></div>
         <div className={'workspace-history-status '+(historyStatus?.state==='unavailable'?'is-unavailable':'')} role="status"><History size={14}/>{historyStatus?.state==='restored'?`${studioHistory?.undo.length??0} changes to undo · ${studioHistory?.redo.length??0} to redo · workspace history restored`:historyStatus?.state==='unavailable'?`Your saved workspace is preserved. ${historyStatus.savedUndo+historyStatus.savedRedo} history entries could not be restored; saving is held.`:'Checking saved workspace history…'}</div>
-        <StudioWorkspace snapshot={snapshot} license={bundle.session.studioLicense} bridge={bridge} editable={editable} history={bundle.history} onHarness={setHarness} onCommitted={onCommitted} onHistoryStatus={status=>{historyVerified.current=status.state==='restored';setHistoryStatus(status);}}/>
+        {historySaveError&&<div className="workspace-save-recovery" role="alert"><div><strong>Your workspace changes are held.</strong><p>{historySaveError}</p></div><div><button className="button" onClick={()=>void historyActions.current?.retry().catch(error=>notify(error.message,'error'))}>Retry original save</button><button className="button" onClick={()=>{if(!studioApi)return;const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(studioApi.getHistory(),null,2)],{type:'application/json'}));link.href=url;link.download='glasshouse-local-workspace.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Export local changes</button><button className="button" onClick={()=>location.reload()}>Reload saved workspace</button></div></div>}
+        <StudioWorkspace snapshot={snapshot} license={bundle.session.studioLicense} bridge={bridge} editable={editable} history={bundle.history} historyVersion={bundle.historyVersion} onSaveReady={actions=>{historyActions.current=actions;}} onSaved={(history,historyVersion)=>setBundle(previous=>previous?{...previous,history,historyVersion}:previous)} onSaveError={setHistorySaveError} onHarness={setHarness} onCommitted={onCommitted} onHistoryStatus={status=>{historyVerified.current=status.state==='restored';setHistoryStatus(status);}}/>
         <div className="workspace-foot"><span><ShieldCheck size={12}/>All six instruments share one immutable snapshot.</span><code title={snapshot.hash}>{snapshot.hash.slice(0,12)}</code><button onClick={()=>setSourceOpen(true)}>Source & clock details<ArrowUpRight size={12}/></button></div>
       </div>
       {view==='overview'&&<Overview snapshot={snapshot} onIncident={()=>navigate('incident')} onSources={()=>setSourceOpen(true)}/>}

@@ -11,10 +11,15 @@ import {api} from '@/lib/client';
 import {instrumentMinimumHeight,readableLayout,workspaceHeight} from './layout';
 import {inspectHistoryRestore,type HistoryRestoreStatus} from './history';
 import {SnapshotTransactions,widgetsAtSnapshot} from './snapshot-transactions';
+import {HistorySaves,type ReportHistory} from './history-saves';
 
 interface Props {
   snapshot:Snapshot; license:string; bridge:StudioBridge; editable:boolean;
   history:AgReportHistory<GlasshouseRegistry>|null;
+  historyVersion:number;
+  onSaveReady(actions:{save():Promise<void>;retry():Promise<void>}):void;
+  onSaved(history:ReportHistory,version:number):void;
+  onSaveError(message:string|null):void;
   onHarness(harness:AgAiHarness):void;
   onCommitted(hash:string):void;
   onHistoryStatus(status:HistoryRestoreStatus):void;
@@ -34,6 +39,13 @@ export default function StudioWorkspace(props:Props){
   const transactions=useRef<SnapshotTransactions|null>(null);
   const reportReady=useRef(false);
   const historyRestored=useRef(false);
+  const saves=useRef<HistorySaves|null>(null);
+  saves.current??=new HistorySaves(props.historyVersion,input=>api<{version:number}>('layout',input),(history,version)=>current.current.onSaved(history,version));
+  const persist=async(history:ReportHistory,label:string)=>{
+    if(saveTimer.current){clearTimeout(saveTimer.current);saveTimer.current=null;}
+    try{await saves.current!.save(history,label);current.current.onSaveError(null);}
+    catch(error){const message=error instanceof Error?error.message:'The workspace save could not be confirmed.';current.current.onSaveError(message);throw error;}
+  };
   const [historyStatus,setHistoryStatus]=useState<HistoryRestoreStatus>({state:'checking',savedUndo:props.history?.undo.length??0,savedRedo:props.history?.redo.length??0,undo:0,redo:0,issues:[]});
   const [width,setWidth]=useState(1440);
   const [layoutState,setLayoutState]=useState<AgReportState<GlasshouseRegistry>>(()=>props.history?.current??initialState);
@@ -68,7 +80,7 @@ export default function StudioWorkspace(props:Props){
   const ai=useMemo(()=>({api:studioApi}:AgAiHarnessSetupParams)=>{
     if(harnessApiRef.current!==studioApi){harnessRef.current?.dispose?.();harnessRef.current=null;harnessApiRef.current=studioApi;}
     if(!harnessRef.current){
-      harnessRef.current=buildHarness(studioApi as AgStudioApi<GlasshouseRegistry>,bridge);
+      harnessRef.current=buildHarness(studioApi as AgStudioApi<GlasshouseRegistry>,bridge,(history,label)=>{void persist(history,label).catch(()=>{});});
       const harness=harnessRef.current;
       queueMicrotask(()=>current.current.onHarness(harness));
     }
@@ -102,7 +114,7 @@ export default function StudioWorkspace(props:Props){
     void transactions.current.request(props.snapshot);
   },[props.snapshot,ready]);
 
-  useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);harnessRef.current?.dispose?.();harnessRef.current=null;harnessApiRef.current=null;},[]);
+  useEffect(()=>{saves.current?.admit(historyRestored.current);return()=>{if(saveTimer.current)clearTimeout(saveTimer.current);saves.current?.admit(false);harnessRef.current?.dispose?.();harnessRef.current=null;harnessApiRef.current=null;};},[]);
   const height=workspaceHeight(layoutState,Math.max(320,width-(props.editable?340:0)));
   return <div ref={host} style={{height,'--glasshouse-studio-height':`${height}px`} as CSSProperties} className={'studio-host '+(props.editable?'is-editable':'')} data-snapshot={applied.current.hash} data-ready={!pending} data-history-status={historyStatus.state} data-history-diagnostics={JSON.stringify(historyStatus)} aria-busy={pending}>
     <NativeStudio
@@ -125,6 +137,8 @@ export default function StudioWorkspace(props:Props){
           reportReady.current=true;setReady(true);
           const status=inspectHistoryRestore(studioApi,current.current.history);
           historyRestored.current=status.state==='restored';
+          saves.current!.admit(historyRestored.current);
+          current.current.onSaveReady({save:()=>persist(studioApi.getHistory(),'Investigation saved by reviewer'),retry:async()=>{try{await saves.current!.retry();current.current.onSaveError(null);}catch(error){current.current.onSaveError(error instanceof Error?error.message:'The saved workspace is still unresolved.');throw error;}}});
           setHistoryStatus(status);current.current.onHistoryStatus(status);
           bridge.onHistory(studioApi.getHistory());
           setLayoutState(studioApi.getState());
@@ -141,9 +155,9 @@ export default function StudioWorkspace(props:Props){
         setHistoryStatus(previous=>({...previous,undo:history.undo.length,redo:history.redo.length}));
         if(!e.durable||!historyRestored.current)return;
         if(saveTimer.current)clearTimeout(saveTimer.current);
-        saveTimer.current=setTimeout(()=>{void api('layout',{history,label:e.change?.source.type==='ai'?'Agent workspace edit':'Workspace edited'}).catch(err=>bridge.onError(err.message));},700);
+        saveTimer.current=setTimeout(()=>{void persist(history,e.change?.source.type==='ai'?'Agent workspace edit':'Workspace edited').catch(()=>{});},700);
       }}
-      onErrorRaised={e=>{if(e.fatal){setError(e.errorDetails.join(' '));bridge.onError('Studio could not restore this report.');}}}
+      onErrorRaised={e=>{if(e.fatal){historyRestored.current=false;saves.current!.admit(false);if(saveTimer.current)clearTimeout(saveTimer.current);setError(e.errorDetails.join(' '));bridge.onError('Studio could not restore this report.');}}}
     />
     {pending&&<div className="snapshot-barrier" role="status"><div className="snapshot-spinner"><LoaderCircle size={24}/></div><span className="eyebrow">ONE MOMENT. ONE SHARED TRUTH.</span><h3>{error?'Snapshot held for review.':ready?'Reconstructing the evidence.':'Opening your incident room.'}</h3><p>{error||'All six instruments are joining the same time and knowledge cutoff.'}</p><div className="barrier-instruments"><span>River</span><span>Clock</span><span>Evidence</span><span>Recovery</span><span>Regions</span><span>Cases</span></div>{error&&<button className="button" onClick={()=>location.reload()}>Reload saved workspace</button>}</div>}
   </div>;

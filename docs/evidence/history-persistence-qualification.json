@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-11",
+  "unit": "Workspace history admission and ordered persistence",
+  "fullRegressionTestsBeforeFinalRedoReferenceFix": 100,
+  "finalFocusedTests": 8,
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "nativeBrowser": {
+    "isolatedPostgres": true,
+    "providerCredentials": "blank",
+    "duplicateInstrumentAndSave": true,
+    "reloadUndoAndRedo": true,
+    "staleTabRejected": true,
+    "newerSavedHistoryPreserved": true,
+    "originalSaveRetry": true,
+    "localDraftExportBytes": 26063,
+    "localDraftExportSha256": "497067e8ece2e736fcada4bfd9cb8941e178574d25c92a101eb6d6597d477d87",
+    "mobileClientWidth": 390,
+    "mobileScrollWidth": 390,
+    "reloadClearedConflict": true
+  },
+  "failuresRetained": [
+    "Initial QA save rejected because the PostgreSQL adapter serialized a JSON-null parameter as SQL NULL. The placeholder now uses a constant JSON null literal.",
+    "A valid redo selection was initially rejected against the current report widget enum. Its exact widget reference is now checked against the historical page; other schema failures remain failures."
+  ],
+  "providerCalls": 0,
+  "originalWorkspacesModified": false,
+  "limitations": [
+    "Native browser QA used a synthetic isolated workspace. Hosted qualification is separate.",
+    "Historical report normalization is not silently accepted; any differing current state or stack entry holds saving."
+  ]
+}
