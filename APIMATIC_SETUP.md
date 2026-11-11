@@ -41,6 +41,6 @@ PY
 
 The skills will be available on the next Codex turn. If they do not appear, start a new Codex session in this directory. Begin a TypeScript integration with `$typescript-integrate-paypal` and `$typescript-getting-started`; corresponding Python and .NET skills are also installed.
 
-The installed TypeScript entry point currently references APIMatic's generated SDK at `context-plugins/paypal-typescript-sdk`, whose package name is `paypal` and which is built from source. Read that skill before adding a runtime SDK; no application package or runtime SDK has been installed yet.
+The installed TypeScript entry point currently references APIMatic's generated SDK at `context-plugins/paypal-typescript-sdk`, whose package name is `paypal` and which is built from source. The application now pins that generated SDK at version 2.29.0 and immutable core 0.2.7. See [the implementation evidence](docs/apimatic/integration.md) for actual skill usage, contract decisions and validation.
 
 For the **Best Use of APIMatic** award, actually use the context while building the PayPal integration and document the usage in the submission. Installation alone does not demonstrate use. The optional [one-month Basic subscription claim](https://docs.google.com/forms/d/e/1FAIpQLScc2oCgAFACm7d6H3R4mgzv-O34DdyVnLIBNiwmUNggr_-hhA/viewform) requires a project/repository URL and evidence of plugin usage, so no claim has been submitted during setup.

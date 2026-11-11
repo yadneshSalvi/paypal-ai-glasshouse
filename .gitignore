@@ -1,5 +1,7 @@
 # Local planning and credentials
 /plans/
+/paypal-plan.md
+/docs/BUILD_HANDOFF.md
 .env
 .env.*
 !.env.example
@@ -29,3 +31,8 @@ test-results/
 .private/
 .setup-evidence/
 artifacts/private/
+
+# Retain older supplied core archives locally; ship only the installed release.
+/vendor/*
+!/vendor/fracture-paypal-core-0.2.7.tgz
+!/vendor/README.md

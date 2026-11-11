@@ -1,0 +1,44 @@
+{
+  "name": "glasshouse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A temporal commerce incident room with evidence-backed recovery.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@10.9.8",
+  "scripts": {
+    "dev": "next dev --port 4103",
+    "build": "next build",
+    "start": "next start --port 4103",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "db:seed": "tsx --env-file=.env scripts/seed.ts",
+    "db:inspect": "tsx --env-file=.env scripts/inspect.ts",
+    "payments:worker": "tsx --env-file=.env scripts/payments-worker.ts",
+    "recovery:worker": "tsx --env-file=.env scripts/recovery-worker.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "@fracture/paypal-core": "file:vendor/fracture-paypal-core-0.2.7.tgz",
+    "ag-studio": "3.1.0",
+    "ag-studio-react": "3.1.0",
+    "lucide-react": "0.577.0",
+    "next": "16.4.6",
+    "openai": "7.55.0",
+    "paypal": "github:context-plugins/paypal-typescript-sdk#5d0df8a8817e5fdf2e2cd48e68f790ea4730aab2",
+    "postgres": "4.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
