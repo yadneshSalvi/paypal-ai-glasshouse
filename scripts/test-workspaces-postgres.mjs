@@ -1,0 +1,9 @@
+import {readFile} from 'node:fs/promises';
+import {parseEnv} from 'node:util';
+import {spawnSync} from 'node:child_process';
+const filename=process.argv[2]||'.setup-evidence/organization-export-stage6/isolated.env';
+const values=parseEnv(await readFile(filename,'utf8')),url=new URL(values.DATABASE_URL||'');
+if(!['localhost','127.0.0.1'].includes(url.hostname)||!/^\/gh_agents_stage5_[a-f0-9]{12}$/.test(url.pathname)||!/^ghas5_[a-f0-9]{12}$/.test(url.username)||values.GLASSHOUSE_AGENT_ISOLATED_QA!==url.pathname.slice(1)||values.GLASSHOUSE_WORKSPACE_ISOLATED_QA!=='true'||values.PORT!=='4525')throw new Error('Dedicated workspace qualification database and port4525 required.');
+for(const name of ['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_API_KEY','PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET'])if(values[name])throw new Error('Workspace tests require blank provider credentials before importing application code.');
+const env={...process.env,...values,OPENAI_API_KEY:'',GEMINI_API_KEY:'',GOOGLE_API_KEY:'',PAYPAL_CLIENT_ID:'',PAYPAL_CLIENT_SECRET:'',PAYPAL_PROJECT_ISOLATED:'false',GLASSHOUSE_AGENTS_TEST_PG:'true'};
+const run=spawnSync(process.execPath,['--import','tsx','--test','tests/workspaces.test.ts'],{env,stdio:'inherit'});process.exit(run.status??1);

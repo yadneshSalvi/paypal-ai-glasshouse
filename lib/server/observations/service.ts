@@ -7,6 +7,7 @@ import { digest, type PaymentSecrets } from '@/packages/payments/security';
 import { HttpError } from '../errors';
 import { audit } from '../repository';
 import { recoveryMember } from '../recovery/authority';
+import {assertWorkspaceRequestWrite} from '../workspaces/authority';
 import { requireConnector, type ObservationConnector } from './connector';
 import { MAX_WEBHOOK_BYTES, parseWebhook, SIGNATURE_HEADERS, validSignatureHeaders, type WebhookHint } from './webhook';
 
@@ -70,6 +71,7 @@ export class ObservationService {
 
   async enqueueStatus(actor: Actor, planId: string, operationId?: string) {
     return this.db.transaction(async tx => {
+      await assertWorkspaceRequestWrite(tx,actor);
       await recoveryMember(tx,actor);
       const plan = (await tx.query<{id:string}>('SELECT id FROM gh_plans WHERE tenant_id=$1 AND id=$2',[actor.tenantId,planId]))[0];
       if (!plan) throw new HttpError(404,'PLAN_NOT_FOUND','This workspace has no such saved recovery.');
@@ -115,6 +117,7 @@ export class ObservationService {
 
   async retryHeld(actor: Actor) {
     return this.db.transaction(async tx => {
+      await assertWorkspaceRequestWrite(tx,actor);
       await recoveryMember(tx,actor);
       const rows = await tx.query(`UPDATE gh_observation_jobs SET state='queued',attempts=0,next_attempt_at=now(),created_at=now(),updated_at=now(),
         lease_owner=NULL,lease_until=NULL,last_error=NULL WHERE tenant_id=$1 AND state='attention' RETURNING id`,[actor.tenantId]);

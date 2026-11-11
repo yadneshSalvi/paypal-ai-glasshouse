@@ -3,6 +3,7 @@ import type { Actor } from '@/packages/domain/types';
 import { recoveryMember } from './recovery/authority';
 import { ensureObservationSchema } from './observations/schema';
 import { configuredConnector } from './observations/connector';
+import {workspaceProviderAvailable} from './workspaces/authority';
 
 export async function capabilities(actor:Actor,connection?:Database,configuration:Record<string,string|undefined>=process.env) {
   const db=connection??await database();
@@ -16,7 +17,8 @@ export async function capabilities(actor:Actor,connection?:Database,configuratio
     ) GROUP BY kind`,[actor.tenantId]);
   const facts=(kind:string)=>proof.find(row=>row.kind===kind);
   const isolated=configuration.PAYPAL_PROJECT_ISOLATED==='true';
-  const configured=isolated&&Boolean(configuration.PAYPAL_CLIENT_ID&&configuration.PAYPAL_CLIENT_SECRET);
+  const providerAvailable=await workspaceProviderAvailable(db,actor.tenantId);
+  const configured=providerAvailable&&isolated&&Boolean(configuration.PAYPAL_CLIENT_ID&&configuration.PAYPAL_CLIENT_SECRET);
   await ensureObservationSchema(db);
   let webhookBinding:ReturnType<typeof configuredConnector>=null;
   try{webhookBinding=configuredConnector(configuration);}catch{/* Incomplete connection setup is a visible capability gap. */}
@@ -34,7 +36,7 @@ export async function capabilities(actor:Actor,connection?:Database,configuratio
     storage: { available:true, type:configuration.DATABASE_URL?'Postgres':'Local embedded Postgres' },
     ai: { available:Boolean(configuration.OPENAI_API_KEY),model:configuration.OPENAI_MODEL||'gpt-6.1-sol',transport:'OpenAI' },
     paypal: { available:configured&&(facts('capture')?.count??0)>0,configured,environment:'sandbox',isolated,
-      reason:(facts('capture')?.count??0)>0?`${facts('capture')!.count} owned captures independently verified`:configured?'Configured; no owned captures verified yet':'Project sandbox connection is being verified' },
+      reason:!providerAvailable?'This Sample workspace has no qualified merchant connection':(facts('capture')?.count??0)>0?`${facts('capture')!.count} owned captures independently verified`:configured?'Configured; no owned captures verified yet':'Project sandbox connection is being verified' },
     refunds:observed('refund','refunds'),tracking:observed('tracking','tracking assignments'),disputes:observed('dispute','seller evidence submissions'),
     webhooks:{available:webhookCount>0,configured:webhookBinding?.tenantId===actor.tenantId,verifiedCount:webhookCount,
       observedAt:webhookProof?.observed_at?new Date(webhookProof.observed_at).toISOString():null,

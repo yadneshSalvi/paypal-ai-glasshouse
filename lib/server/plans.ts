@@ -8,10 +8,20 @@ import { snapshotFor } from './snapshots';
 import { HttpError } from './errors';
 import { exactPlanHash, freezeAction } from './recovery/contracts';
 import { recoveryRuntime } from './recovery/runtime';
+import type {Database} from '@/packages/db/client';
+import type {Role} from '@/packages/domain/types';
+import {recoveryMember} from './recovery/authority';
+import {assertWorkspaceContext,assertWorkspaceWritable} from './workspaces/authority';
+
+async function currentWriter(tx:Database,actor:Actor,roles:Role[]){
+  await assertWorkspaceContext(tx,actor,true);await assertWorkspaceWritable(tx,actor.tenantId);
+  const current=await recoveryMember(tx,actor);requireRole(current,roles);return current;
+}
 
 export async function reviseEvidence(actor: Actor) {
   const db = await database();
   return db.transaction(async tx => {
+    await currentWriter(tx,actor,['owner','operator','judge','investigator']);
     await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [actor.tenantId]);
     await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE', [actor.tenantId]);
     const old = await datasetFor(actor, tx);
@@ -43,7 +53,12 @@ export async function createPlan(actor: Actor, branchId: string, budgetMinor: nu
     expiresAt:new Date(now.getTime()+30*60_000).toISOString(),staleReason:null,approvedBy:null,approvedAt:null,executionMode,contractVersion:2,context:snapshot.context };
   plan.hash=exactPlanHash(plan);
   const db = await database();
-  await db.transaction(async tx=>{ await storePlan(tx,plan); await audit(tx,actor,'plan.created',`${branch.eligibleCount} proposed refunds · $${(branch.refundTotalMinor/100).toFixed(2)} · exact manifest frozen`,id,{planHash:plan.hash,mode:executionMode}); });
+  await db.transaction(async tx=>{
+    await currentWriter(tx,actor,['owner','operator','judge','investigator']);
+    await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR SHARE',[actor.tenantId]);
+    if(buildSnapshot(await datasetFor(actor,tx),snapshot.context).hash!==snapshot.hash)throw new HttpError(409,'SNAPSHOT_CHANGED','Evidence changed before the recovery could be frozen. Review the current snapshot and prepare a new proposal.');
+    await storePlan(tx,plan);await audit(tx,actor,'plan.created',`${branch.eligibleCount} proposed refunds · $${(branch.refundTotalMinor/100).toFixed(2)} · exact manifest frozen`,id,{planHash:plan.hash,mode:executionMode});
+  });
   return plan;
 }
 
@@ -53,6 +68,7 @@ export async function approvePlan(actor: Actor, planId: string, submittedHash: s
   const existing=(await db.query<{body:RecoveryPlan}>('SELECT body FROM gh_plans WHERE tenant_id=$1 AND id=$2',[actor.tenantId,planId]))[0]?.body;
   if(existing?.executionMode==='sandbox')return (await recoveryRuntime()).recoveryService.approve(actor,planId,submittedHash,fixtureAcknowledged);
   return db.transaction(async tx=>{
+    await currentWriter(tx,actor,['owner','operator','judge']);
     const rows=await tx.query<{body:RecoveryPlan}>('SELECT body FROM gh_plans WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,planId]);
     const plan=rows[0]?.body;
     if (!plan) throw new HttpError(404,'PLAN_NOT_FOUND','This plan is not in your workspace.');
@@ -80,6 +96,7 @@ export async function enqueuePlan(actor: Actor, planId: string, submittedHash: s
   const existing=(await db.query<{body:RecoveryPlan}>('SELECT body FROM gh_plans WHERE tenant_id=$1 AND id=$2',[actor.tenantId,planId]))[0]?.body;
   if(existing?.executionMode==='sandbox')return (await recoveryRuntime()).recoveryService.enqueue(actor,planId,submittedHash);
   return db.transaction(async tx=>{
+    await currentWriter(tx,actor,['owner','operator','judge']);
     const rows=await tx.query<{body:RecoveryPlan}>('SELECT body FROM gh_plans WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,planId]);
     const plan=rows[0]?.body;
     if (!plan || plan.hash!==submittedHash) throw new HttpError(409,'APPROVAL_MISMATCH','A matching exact approval is required.');

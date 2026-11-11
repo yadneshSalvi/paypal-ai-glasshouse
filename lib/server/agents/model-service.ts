@@ -7,7 +7,7 @@ import {HttpError} from '../errors';
 import {hash} from '../repository';
 import {AgentJournal,type RunRow,type TurnDocument,type TurnRow,type ToolRow} from './journal';
 import {authorizedTools,instructionsFor,modelFor} from './registry';
-import {agentSnapshot,bounded} from './security';
+import {agentMember,agentSnapshot,bounded} from './security';
 import {BeforeModelDispatch,ModelRejected,ModelUnavailable,publicModelResponse,type AgentModelProvider} from './provider';
 import {modelOutcome,modelOutcomeMessage} from './model-outcome';
 
@@ -76,6 +76,7 @@ export class AgentModels {
   async step(actor:Actor,runId:string,index:number,clientId?:string):Promise<TurnView>{
     if(!this.provider)throw new HttpError(503,'AI_UNAVAILABLE','Live AI is not connected. Saved investigations and manual tools remain available.');
     const claim=await this.journal.db.transaction(async tx=>{
+      await agentMember(tx,actor,actor.membershipVersion,true);
       const run=clientId?await this.journal.ownRun(tx,actor,runId,clientId):await this.journal.run(tx,actor,runId,true);
       const snapshot=await agentSnapshot(tx,actor,run.snapshot_hash);await this.journal.checkReadGrants(tx,actor,run.id,snapshot);
       const row=await this.row(tx,actor.tenantId,runId,index,true);
@@ -97,6 +98,7 @@ export class AgentModels {
     if(!claim.token)return this.read(actor,runId,index);
     const doc=this.journal.turnDocument(claim.row);
     const guard=async()=>this.journal.db.transaction(async tx=>{
+      await agentMember(tx,actor,actor.membershipVersion,true);
       const run=await this.journal.run(tx,actor,runId);
       if(run.state!=='running')throw new BeforeModelDispatch('This run was stopped.');
       const snapshot=await agentSnapshot(tx,actor,run.snapshot_hash);await this.journal.checkReadGrants(tx,actor,run.id,snapshot);

@@ -1,5 +1,5 @@
 import { database } from '@/packages/db/client';
-import { actor, startSession } from '@/lib/server/auth';
+import { actor, startSession,bindSessionAuthority,assertRequestCurrent } from '@/lib/server/auth';
 import { body, problem, HttpError, sameOrigin } from '@/lib/server/errors';
 import { snapshotFor } from '@/lib/server/snapshots';
 import { audit, auditFor, hash, operationsFor, plansFor } from '@/lib/server/repository';
@@ -13,6 +13,7 @@ import { currentMember } from '@/lib/server/payments/records';
 import { recoveryRuntime } from '@/lib/server/recovery/runtime';
 import { orderDetailFor } from '@/lib/server/order-detail';
 import {readLayout,saveLayout} from '@/lib/server/layouts';
+import {workspaceRuntime} from '@/lib/server/workspaces/runtime';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -29,10 +30,10 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
     const db=await database(); await db.query('SELECT 1');
     return Response.json({status:'ok',product:'Glasshouse',storage:'durable-postgres',version:'0.1.0'});
   }
-  if(key==='session' && method==='POST') {
-    const session=await startSession(request);
-    const snapshot=await snapshotFor(session.actor);
-    return Response.json({actor:session.actor,snapshot,capabilities:await capabilities(session.actor),studioLicense:process.env.AG_STUDIO_LICENSE_KEY || ''},{headers:session.cookie?{'Set-Cookie':session.cookie}:{}});
+  if((key==='session'||key==='session/new') && method==='POST') {
+    const session=await startSession(request,{fresh:key==='session/new'}),workspace=await (await workspaceRuntime()).admit(session.actor,session.token,{newSample:!!session.cookie});
+    const current=await bindSessionAuthority(request,session.actor,session.token,workspace.identity.contextId),snapshot=await snapshotFor(current);
+    return Response.json({actor:current,snapshot,workspace,capabilities:await capabilities(current),studioLicense:process.env.AG_STUDIO_LICENSE_KEY || ''},{headers:session.cookie?{'Set-Cookie':session.cookie}:{}});
   }
   const who=await actor(request);
   const db=await database();
@@ -51,7 +52,7 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
       if(path[3]==='approve') return Response.json(await service.approve(who,runId,input.manifestHash??''));
       if(path[3]==='revoke') return Response.json(await service.revoke(who,runId));
       if(path[3]==='process') {
-        await currentMember(db,who.tenantId,who.id,who.membershipVersion);
+        await currentMember(db,who.tenantId,who.id,who.membershipVersion,who);
         if(!executor) throw new HttpError(503,'SANDBOX_NOT_CONFIGURED','Connect the isolated sandbox to process the approved batch.');
         await executor.drain({tenantId:who.tenantId,runId,limit:40,signal:request.signal});
         return Response.json(await service.viewRun(who,runId));
@@ -105,6 +106,7 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
   }
   throw new HttpError(404,'NOT_FOUND','This Glasshouse route is not available.');
 }
-export async function GET(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
-export async function POST(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
-export async function DELETE(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
+async function handle(request:Request,context:Params){try{const result=await dispatch(request,context);await assertRequestCurrent(request);result.headers.set('Cache-Control','no-store');return result;}catch(error){return problem(error);}}
+export const GET=handle;
+export const POST=handle;
+export const DELETE=handle;

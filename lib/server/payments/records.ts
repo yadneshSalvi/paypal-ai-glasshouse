@@ -4,6 +4,7 @@ import type { SeedManifest, SeedManifestEntry, SeedRunStatus, ConsentStatus, See
 import type { PaymentSecrets } from '@/packages/payments/security';
 import type { SetupObservation, TokenObservation, VaultReceipt } from './vault';
 import { HttpError } from '../errors';
+import {assertWorkspaceContext,assertWorkspaceProviderScope,assertWorkspaceWritable} from '../workspaces/authority';
 
 export type RunRecord = Record<string, unknown> & {
   tenant_id: string; id: string; manifest: SeedManifest; manifest_hash: string; status: SeedRunStatus;
@@ -34,8 +35,11 @@ export const commandIdentity = (tenant: string, id: string) => JSON.stringify(['
 export const vaultIdentity = (tenant: string, id: string) => JSON.stringify(['glasshouse', tenant, 'vault-operation', id]);
 export const openConsent = (secrets: PaymentSecrets, row: ConsentRecord) => secrets.open<ConsentPrivate>(row.private_document, consentIdentity(row.tenant_id, row.id));
 
-export async function currentMember(db: Database, tenantId: string, actorId: string, expectedVersion?: number): Promise<Actor> {
-  const row = (await db.query<{ role: Role; version: number; active: boolean }>('SELECT role,version,active FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2', [tenantId, actorId]))[0];
+export async function currentMember(db: Database, tenantId: string, actorId: string, expectedVersion?: number,requestActor?:Actor): Promise<Actor> {
+  if(requestActor&&requestActor.tenantId!==tenantId)throw new HttpError(403,'CURRENT_AUTHORITY_REQUIRED','The requesting workspace does not own this operation.');
+  if(requestActor)await assertWorkspaceContext(db,requestActor,true);
+  await assertWorkspaceWritable(db,tenantId);await assertWorkspaceProviderScope(db,tenantId);
+  const row = (await db.query<{ role: Role; version: number; active: boolean }>('SELECT role,version,active FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2 FOR SHARE', [tenantId, actorId]))[0];
   if (!row?.active || !['owner','operator','judge'].includes(row.role) || expectedVersion !== undefined && row.version !== expectedVersion) throw new HttpError(403, 'CURRENT_AUTHORITY_REQUIRED', 'Current workspace authority is required for this sandbox operation.');
   return { id: actorId, tenantId, role: row.role, membershipVersion: row.version };
 }

@@ -41,6 +41,7 @@ export class AgentJournal {
     return row;
   }
   async ownRun(tx:Database,actor:Actor,id:string,clientId:string,allowCompleted=false){
+    await agentMember(tx,actor,actor.membershipVersion,true);
     const row=await this.run(tx,actor,id,true);
     if(row.lease_owner!==safeId(clientId,'client')||!row.lease_until||Date.parse(row.lease_until)<=Date.now())throw new HttpError(409,'AGENT_RUN_LEASE','This run is being held by another tab or needs to be resumed.');
     if(row.state!=='running'&&!(allowCompleted&&row.state==='completed'))throw new HttpError(409,'AGENT_RUN_HELD',row.reason||'This saved run is no longer active.');
@@ -75,7 +76,7 @@ export class AgentJournal {
     if(!last||typeof last.content!=='string'||!last.content.trim()||last.content.length>20000)throw new HttpError(400,'INVALID_AGENT_PROMPT','Use a message between 1 and 20,000 characters.');
     safeId(last.id,'user message');
     return this.db.transaction(async tx=>{
-      await agentMember(tx,actor);
+      await agentMember(tx,actor,actor.membershipVersion,true);
       await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`agent-thread:${actor.tenantId}:${native.threadId}`]);
       let existing:RunRow|undefined;
       if(input.resumeRunId)existing=await this.run(tx,actor,input.resumeRunId,true);

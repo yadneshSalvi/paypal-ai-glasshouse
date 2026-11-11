@@ -7,6 +7,7 @@ import {ownedPayment,recoveryMember} from '../recovery/authority';
 import type {DisputeObservation} from '../recovery/disputes';
 import {actor,authenticatedSessionHash} from '../auth';
 import type {ToolkitDisputeBinding,ToolkitOwnedPayment} from './toolkit';
+import {assertAgentWorkspaceContext,assertWorkspaceRequestWrite} from '../workspaces/authority';
 
 export type AgentActor=Actor&{agentSessionHash:string};
 export async function agentActor(request:Request):Promise<AgentActor>{return {...await actor(request),agentSessionHash:authenticatedSessionHash(request)};}
@@ -22,9 +23,12 @@ export class AgentSecrets {
     catch{throw new HttpError(409,'AGENT_DOCUMENT_UNVERIFIED','This saved investigation could not be verified. Its encrypted original is preserved.');}
   }
 }
-export async function agentMember(tx:Database,actor:Actor,expected=actor.membershipVersion){
+export async function agentMember(tx:Database,actor:Actor,expected=actor.membershipVersion,write=false){
+  const session=agentSessionHash(actor);
+  if(session)await assertAgentWorkspaceContext(tx,actor,session,write);
+  if(write)await assertWorkspaceRequestWrite(tx,actor);
   await tx.query('SELECT actor_id FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2 FOR SHARE',[actor.tenantId,actor.id]);
-  const member=await recoveryMember(tx,actor,false,expected),session=agentSessionHash(actor);
+  const member=await recoveryMember(tx,actor,false,expected);
   if(!session||!/^[a-f0-9]{64}$/.test(session)||!(await tx.query("SELECT token_hash FROM gh_sessions WHERE token_hash=$1 AND actor->>'tenantId'=$2 AND actor->>'id'=$3 AND expires_at>now() FOR SHARE",[session,actor.tenantId,actor.id]))[0])throw new HttpError(401,'AGENT_SESSION_EXPIRED','The exact session that authorized this agent work is no longer active. Its recorded evidence remains saved.');
   return member;
 }

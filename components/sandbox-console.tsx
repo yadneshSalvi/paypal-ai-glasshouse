@@ -1,16 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Download, ExternalLink, Leaf, LoaderCircle, LockKeyhole, Pause, RefreshCw, Search, ShieldCheck, Wallet } from 'lucide-react';
 import type { SandboxStatus, SeedRun } from '@/packages/payments/types';
 import { api, dateLabel, money } from '@/lib/client';
+import {admitWorkspace,connectWorkspaceSignals,workspaceScope} from '@/lib/workspace-context';
+import type {WorkspaceBootstrap} from '@/packages/workspaces/types';
 
 let boot: Promise<SandboxStatus> | null = null;
 const callbacks = new Map<string, Promise<SeedRun>>();
 const label = (status: string) => ({queued:'Queued',creating:'Creating order',awaiting_buyer:'PayPal approval needed',capturing:'Capturing',verifying:'Verifying',captured:'Capture verified',unknown:'Reconciling',refused:'Provider refused',held:'Held',draft:'Draft',awaiting_consent:'Awaiting consent',ready:'Ready for approval',approved:'Approved',running:'Processing',complete:'Complete',revoked:'Authority revoked'}[status] ?? status.replaceAll('_',' '));
 
 export function SandboxConsole() {
+  useEffect(connectWorkspaceSignals,[]);
+  const contextState=useSyncExternalStore(workspaceScope.subscribe,workspaceScope.snapshot,workspaceScope.snapshot);
   const [status,setStatus]=useState<SandboxStatus|null>(null);
   const [error,setError]=useState<string|null>(null);
   const [notice,setNotice]=useState<string|null>(null);
@@ -22,7 +26,7 @@ export function SandboxConsole() {
   const refresh=useCallback(async()=>{const value=await api<SandboxStatus>('sandbox');setStatus(value);return value;},[]);
   useEffect(()=>{
     let active=true;
-    boot ??= api('session',{}).then(()=>api<SandboxStatus>('sandbox')).catch(error=>{boot=null;throw error;});
+    boot ??= api<{workspace:WorkspaceBootstrap}>('session',{}).then(value=>{admitWorkspace(value.workspace.identity.contextId,value.workspace.workspace.id);return api<SandboxStatus>('sandbox');}).catch(error=>{boot=null;throw error;});
     void boot.then(async value=>{
       if(!active)return;
       setStatus(value);
@@ -70,6 +74,7 @@ export function SandboxConsole() {
     const blob=new Blob([rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='glasshouse-sandbox-600-orders.csv';link.click();URL.revokeObjectURL(url);
   }
+  if(contextState.held)return <main className="workspace-held-view"><LockKeyhole size={28}/><h1>This workspace access changed.</h1><p>{contextState.reason}</p><Link className="button primary" href="/">Choose your current workspace<ArrowRight size={16}/></Link></main>;
   return <div className="sandbox-shell">
     <header className="sandbox-header"><Link href="/" className="sandbox-brand"><span><Leaf size={20}/></span>glasshouse<i> / </i><small>payment studio</small></Link><Link href="/" className="sandbox-back"><ArrowLeft size={15}/>Back to the incident room</Link></header>
     <main className="sandbox-main">

@@ -35,7 +35,7 @@ export class AgentThreads {
     bounded(input,2000000,'This conversation exceeds the saved history limit.');const thread=clean(input.thread);
     if(id!==thread.summary.threadId||!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)throw new HttpError(409,'AGENT_THREAD_VERSION','Reload the saved investigation before replacing its history.');
     return this.journal.db.transaction(async tx=>{
-      await agentMember(tx,actor);await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`agent-thread-save:${actor.tenantId}:${id}`]);
+      await agentMember(tx,actor,actor.membershipVersion,true);await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`agent-thread-save:${actor.tenantId}:${id}`]);
       const row=(await tx.query<{body:unknown;version:number;actor_id:string|null}>('SELECT body,version,actor_id FROM gh_threads WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,id]))[0];
       if(row?.actor_id&&row.actor_id!==actor.id)throw new HttpError(403,'AGENT_THREAD_OWNER','This conversation belongs to another workspace member.');
       if(thread.summary.parentThreadId){
@@ -53,7 +53,7 @@ export class AgentThreads {
       return {saved:true,version,replayed:false};
     });
   }
-  async remove(actor:Actor,id:string){return this.journal.db.transaction(async tx=>{await agentMember(tx,actor);const active=await tx.query("SELECT id FROM gh_agent_runs WHERE tenant_id=$1 AND thread_id=$2 AND state='running'",[actor.tenantId,id]);if(active.length)throw new HttpError(409,'AGENT_THREAD_ACTIVE','Stop the active investigation before removing its visible transcript.');await tx.query('DELETE FROM gh_threads WHERE tenant_id=$1 AND id=$2 AND (actor_id=$3 OR actor_id IS NULL)',[actor.tenantId,id,actor.id]);return {deleted:true,evidenceRetained:true};});}
+  async remove(actor:Actor,id:string){return this.journal.db.transaction(async tx=>{await agentMember(tx,actor,actor.membershipVersion,true);const active=await tx.query("SELECT id FROM gh_agent_runs WHERE tenant_id=$1 AND thread_id=$2 AND state='running'",[actor.tenantId,id]);if(active.length)throw new HttpError(409,'AGENT_THREAD_ACTIVE','Stop the active investigation before removing its visible transcript.');await tx.query('DELETE FROM gh_threads WHERE tenant_id=$1 AND id=$2 AND (actor_id=$3 OR actor_id IS NULL)',[actor.tenantId,id,actor.id]);return {deleted:true,evidenceRetained:true};});}
 }
 
 /** Explicit root-owned migration. Verify ciphertext before replacing plaintext in

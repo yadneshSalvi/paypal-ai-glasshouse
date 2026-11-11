@@ -3,6 +3,7 @@ import {HistorySaves,type ReportHistory} from '../packages/studio/history-saves'
 import {inspectHistoryRestore} from '../packages/studio/history';
 import {readLayout,saveLayout,validateHistory} from '../lib/server/layouts';
 import {paymentHarness} from './helpers/payments';
+import {digest} from '../packages/payments/security';
 
 const history=(id='page-a'):ReportHistory=>({type:'AgReportHistory',current:{pages:[{id}],selectedPageId:id},undo:[],redo:[]});
 const deferred=()=>{let resolve!:()=>void;const promise=new Promise<void>(r=>{resolve=r;});return {promise,resolve};};
@@ -37,12 +38,12 @@ test('redo selections use their own widget identities without suppressing invali
  delete saved.redo[0].state.pages[0].widgets?.future;delete native.redo[0].state.pages[0].widgets?.future;assert.equal(inspectHistoryRestore(api,saved).state,'unavailable');
 });
 test('report save is version-bound, exact replay is idempotent, and stale tabs cannot overwrite',async t=>{
- const h=await paymentHarness();t.after(()=>h.pg.close());assert.deepEqual(await readLayout(h.db,h.who),{history:null,version:0});
+ const h=await paymentHarness();t.after(()=>h.pg.close());assert.deepEqual(await readLayout(h.db,h.who),{history:null,version:0,hash:digest(null)});
  const first={history:history(),expectedVersion:0,label:'First edit'};assert.equal((await saveLayout(h.db,h.who,first)).version,1);
  assert.equal((await saveLayout(h.db,h.who,first)).replayed,true);assert.equal((await h.db.query('SELECT id FROM gh_audit')).length,1);
  await saveLayout(h.db,h.who,{history:history('page-b'),expectedVersion:1});
  await assert.rejects(saveLayout(h.db,h.who,first),/Another tab/);await assert.rejects(saveLayout(h.db,h.who,{history:history('stale'),expectedVersion:1}),/Another tab/);
- assert.deepEqual(await readLayout(h.db,h.who),{history:history('page-b'),version:2});assert.equal((await h.db.query('SELECT id FROM gh_audit')).length,2);
+ assert.deepEqual(await readLayout(h.db,h.who),{history:history('page-b'),version:2,hash:digest(history('page-b'))});assert.equal((await h.db.query('SELECT id FROM gh_audit')).length,2);
 });
 test('competing writers admit only one version and preserve the losing local draft',async t=>{
  const h=await paymentHarness();t.after(()=>h.pg.close());await saveLayout(h.db,h.who,{history:history(),expectedVersion:0});
@@ -56,5 +57,5 @@ test('invalid history, stale membership, foreign scope and viewer writes leave t
  await h.db.query("UPDATE gh_memberships SET role='viewer',version=version+1 WHERE tenant_id=$1",[h.who.tenantId]);
  await assert.rejects(saveLayout(h.db,h.who,{history:history('stale'),expectedVersion:1}),/Current workspace membership/);
  const viewer={...h.who,role:'viewer' as const,membershipVersion:2};await assert.rejects(saveLayout(h.db,viewer,{history:history('viewer'),expectedVersion:1}),/cannot change/);
- assert.deepEqual(await readLayout(h.db,viewer),{history:history(),version:1});await h.db.query('UPDATE gh_memberships SET active=false WHERE tenant_id=$1',[h.who.tenantId]);await assert.rejects(readLayout(h.db,viewer),/Current workspace membership/);
+ assert.deepEqual(await readLayout(h.db,viewer),{history:history(),version:1,hash:digest(history())});await h.db.query('UPDATE gh_memberships SET active=false WHERE tenant_id=$1',[h.who.tenantId]);await assert.rejects(readLayout(h.db,viewer),/Current workspace membership/);
 });

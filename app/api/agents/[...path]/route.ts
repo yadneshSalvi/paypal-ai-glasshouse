@@ -3,6 +3,7 @@ import type {EnrollRun,NativeAcknowledgement,SubmitTurn,ToolClaim} from '@/packa
 import {agentActor} from '@/lib/server/agents/security';
 import {body,HttpError,problem,sameOrigin} from '@/lib/server/errors';
 import {agentRuntime} from '@/lib/server/agents/runtime';
+import {assertRequestCurrent} from '@/lib/server/auth';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -33,6 +34,7 @@ async function dispatch(request:Request,context:Params){
   }
   throw new HttpError(404,'AGENT_ROUTE_NOT_FOUND','This agent operation is not available.');
 }
-export async function GET(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
-export async function POST(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
-export async function DELETE(request:Request,context:Params){try{return await dispatch(request,context);}catch(error){return problem(error);}}
+async function handle(request:Request,context:Params){try{const result=await dispatch(request,context);await assertRequestCurrent(request);result.headers.set('Cache-Control','no-store');return result;}catch(error){return problem(error);}}
+export const GET=handle;
+export const POST=handle;
+export const DELETE=handle;

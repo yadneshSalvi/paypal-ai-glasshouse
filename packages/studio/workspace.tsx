@@ -15,7 +15,7 @@ import {HistorySaves,type ReportHistory} from './history-saves';
 import type {AgentLayoutReceipt} from '../agents/contracts';
 
 interface Props {
-  snapshot:Snapshot; license:string; bridge:StudioBridge; editable:boolean;
+  snapshot:Snapshot; license:string; bridge:StudioBridge; editable:boolean;readOnly?:boolean;
   history:AgReportHistory<GlasshouseRegistry>|null;
   historyVersion:number;
   onSaveReady(actions:{save():Promise<void>;retry():Promise<void>}):void;
@@ -44,6 +44,7 @@ export default function StudioWorkspace(props:Props){
   const saves=useRef<HistorySaves|null>(null);
   saves.current??=new HistorySaves(props.historyVersion,input=>api<{version:number}>('layout',input),(history,version)=>current.current.onSaved(history,version));
   const persist=async(history:ReportHistory,label:string,receipt?:AgentLayoutReceipt)=>{
+    if(current.current.readOnly)throw new Error('This workspace is read-only. Its saved native report remains preserved.');
     if(saveTimer.current){clearTimeout(saveTimer.current);saveTimer.current=null;}
     try{await saves.current!.save(history,label,receipt);current.current.onSaveError(null);}
     catch(error){const message=error instanceof Error?error.message:'The workspace save could not be confirmed.';current.current.onSaveError(message);throw error;}
@@ -155,7 +156,7 @@ export default function StudioWorkspace(props:Props){
         setLayoutState(e.state as AgReportState<GlasshouseRegistry>);
         const history=apiRef.current.getHistory();bridge.onHistory(history);
         setHistoryStatus(previous=>({...previous,undo:history.undo.length,redo:history.redo.length}));
-        if(!e.durable||!historyRestored.current||agentMutation.current)return;
+        if(!e.durable||!historyRestored.current||agentMutation.current||current.current.readOnly)return;
         if(saveTimer.current)clearTimeout(saveTimer.current);
         saveTimer.current=setTimeout(()=>{void persist(history,e.change?.source.type==='ai'?'Agent workspace edit':'Workspace edited').catch(()=>{});},700);
       }}

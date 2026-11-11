@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Actor, AuditEvent, SeedDataset, RecoveryPlan, Operation, Snapshot } from '@/packages/domain/types';
 import { createSeedDataset } from '@/packages/domain';
 import { database, type Database } from '@/packages/db/client';
+import {assertWorkspaceContext,assertWorkspaceWritable} from './workspaces/authority';
 
 export function hash(value: unknown): string {
   function canonical(input: unknown): string {
@@ -11,7 +12,7 @@ export function hash(value: unknown): string {
   }
   return createHash('sha256').update(canonical(value)).digest('hex');
 }
-export async function audit(tx: Database, actor: Actor, type: string, summary: string, refId: string | null = null, data: Record<string, unknown> = {}) {
+export async function audit(tx: Database, actor: Pick<Actor,'id'|'tenantId'>, type: string, summary: string, refId: string | null = null, data: Record<string, unknown> = {}) {
   const event: AuditEvent = { id: randomUUID(), tenantId: actor.tenantId, actorId: actor.id, timestamp: new Date().toISOString(), type, summary, refId, data };
   await tx.query('INSERT INTO gh_audit (tenant_id,id,timestamp,actor_id,event_type,body) VALUES ($1,$2,$3,$4,$5,$6::jsonb)', [event.tenantId,event.id,event.timestamp,event.actorId,event.type,JSON.stringify(event)]);
   return event;
@@ -34,6 +35,7 @@ export async function datasetFor(actor: Actor, tx?: Database): Promise<SeedDatas
   if (rows[0]) return rows[0].body;
   const seed = createSeedDataset(actor.tenantId);
   const initialize = async (locked: Database) => {
+    await assertWorkspaceContext(locked,actor,true);await assertWorkspaceWritable(locked,actor.tenantId);
     // The transaction advisory lock serializes simultaneous first requests for one session.
     await locked.query('SELECT pg_advisory_xact_lock(hashtext($1))', [actor.tenantId]);
     const existing = await locked.query<{ body: SeedDataset }>('SELECT body FROM gh_datasets WHERE tenant_id=$1', [actor.tenantId]);

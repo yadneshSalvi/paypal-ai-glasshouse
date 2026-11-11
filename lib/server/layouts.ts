@@ -4,6 +4,7 @@ import {HttpError} from './errors';
 import {audit,hash} from './repository';
 import {recoveryMember} from './recovery/authority';
 import type {AgentLayoutReceipt} from '@/packages/agents/contracts';
+import {assertWorkspaceContext,assertWorkspaceWritable} from './workspaces/authority';
 
 function object(value:unknown):value is Record<string,unknown>{return !!value&&typeof value==='object'&&!Array.isArray(value);}
 /** Transport shape checks complement the registered native schema admission.
@@ -31,13 +32,14 @@ export function validateHistory(value:unknown){
 export async function readLayout(db:Database,actor:Actor){
   await recoveryMember(db,actor);
   const row=(await db.query<{body:unknown;version:number}>('SELECT body,version FROM gh_layouts WHERE tenant_id=$1 AND id=$2',[actor.tenantId,'incident-room']))[0];
-  return {history:row?.body??null,version:row?.version??0};
+  return {history:row?.body??null,version:row?.version??0,hash:hash(row?.body??null)};
 }
 export async function saveLayout(db:Database,actor:Actor,input:{history:unknown;expectedVersion:number;label?:string;agentMutation?:AgentLayoutReceipt},commitAgent?:(tx:Database,actor:Actor,receipt:AgentLayoutReceipt,history:unknown,version:number,previous:{body:unknown;version:number})=>Promise<void>){
   if(!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)throw new HttpError(409,'LAYOUT_VERSION_REQUIRED','Reload the saved investigation before saving changes from this tab.');
   const history=validateHistory(input.history),digest=hash(history);
   if(input.agentMutation&&!commitAgent)throw new HttpError(409,'AGENT_LAYOUT_JOURNAL_REQUIRED','An agent workspace change requires its durable tool journal.');
   return db.transaction(async tx=>{
+    await assertWorkspaceContext(tx,actor,true);await assertWorkspaceWritable(tx,actor.tenantId);
     await tx.query('SELECT actor_id FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2 FOR SHARE',[actor.tenantId,actor.id]);
     const member=await recoveryMember(tx,actor);
     if(member.role==='viewer')throw new HttpError(403,'LAYOUT_READ_ONLY','This workspace role can read reports but cannot change their saved history.');

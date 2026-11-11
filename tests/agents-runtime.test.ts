@@ -131,7 +131,14 @@ test('canonical model input ignores forged browser instructions, tool output and
 test('current membership, exact snapshot and foreign scope are checked before dispatch',async t=>{
   const h=await agentHarness();t.after(h.dispose);const run=await h.begin();const value={runId:run.run.id,index:0,request:request([tool('read_incident')]),clientId:h.clientId,snapshotHash:h.snapshot.hash};await h.models.submit(h.who,value);
   await assert.rejects(h.models.submit(h.who,{...value,snapshotHash:'0'.repeat(64)}),failure('AGENT_SCOPE_CHANGED'));
-  await assert.rejects(h.models.step({...h.who,tenantId:'foreign'},run.run.id,0,h.clientId),failure('AGENT_RUN_NOT_FOUND'));
+  await assert.rejects(h.models.step({...h.who,tenantId:'foreign'},run.run.id,0,h.clientId),failure('CURRENT_AUTHORITY_REQUIRED'));
+  // A valid member in another tenant still cannot discover this run. A forged
+  // tenant without membership is rejected before any run identity is examined.
+  const foreign={...h.who,id:'foreign-member',tenantId:'foreign',agentSessionHash:'f'.repeat(64)};
+  await h.db.query('INSERT INTO gh_memberships(tenant_id,actor_id,role,version) VALUES($1,$2,$3,$4)',[foreign.tenantId,foreign.id,foreign.role,foreign.membershipVersion]);
+  await h.db.query("INSERT INTO gh_sessions(token_hash,actor,expires_at) VALUES($1,$2::jsonb,now()+interval '1 hour')",[foreign.agentSessionHash,JSON.stringify(foreign)]);
+  await assert.rejects(h.models.step(foreign,run.run.id,0,h.clientId),failure('AGENT_RUN_NOT_FOUND'));
+  await assert.rejects(h.models.step(foreign,'run-missing',0,h.clientId),failure('AGENT_RUN_NOT_FOUND'));
   await h.db.query('UPDATE gh_memberships SET active=false WHERE tenant_id=$1',[h.who.tenantId]);await assert.rejects(h.models.step(h.who,run.run.id,0,h.clientId),failure('CURRENT_AUTHORITY_REQUIRED'));assert.equal(h.fixture.creates.length,0);
   await h.db.query('UPDATE gh_memberships SET active=true WHERE tenant_id=$1',[h.who.tenantId]);h.dataset.evidence[0].excerpt='A conflicting current source correction.';await persistDataset(h.db,h.dataset);
   await assert.rejects(h.models.step(h.who,run.run.id,0,h.clientId),failure('AGENT_SNAPSHOT_CHANGED'));assert.equal(h.fixture.creates.length,0);

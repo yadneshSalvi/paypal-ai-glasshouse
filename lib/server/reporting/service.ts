@@ -6,6 +6,7 @@ import {digest} from '@/packages/payments/security';
 import {HttpError} from '../errors';
 import {audit} from '../repository';
 import {recoveryMember} from '../recovery/authority';
+import {assertWorkspaceRequestWrite} from '../workspaces/authority';
 import {requireConnector,type ObservationConnector} from '../observations/connector';
 import type {ReportingGrant,ReportingReader} from './gateway';
 export type ReportingInput={requestId:string;start:string;end:string};
@@ -33,6 +34,7 @@ export class ReportingService {
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>31*86400000||end>Date.now()+60000||start<Date.now()-3*366*86400000||!/^[-a-f0-9]{36}$/.test(input.requestId))throw new HttpError(400,'REPORTING_WINDOW_INVALID','Choose past UTC dates spanning at most 31 days.');
   const c=this.connector;if(!c||c.tenantId!==actor.tenantId||!this.reader)throw new HttpError(503,'REPORTING_UNAVAILABLE','Connect this workspace’s isolated merchant reporting source.');
   return this.db.transaction(async tx=>{
+   await assertWorkspaceRequestWrite(tx,actor);
    await recoveryMember(tx,actor);await requireConnector(tx,c);await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`reporting:${actor.tenantId}`]);
    const payloadHash=digest({actorId:actor.id,start:iso(input.start),end:iso(input.end)});
    const old=(await tx.query<Run>('SELECT * FROM gh_reporting_runs WHERE tenant_id=$1 AND request_id=$2',[actor.tenantId,input.requestId]))[0];
@@ -49,6 +51,7 @@ export class ReportingService {
   });
  }
  async cancel(actor:Actor,id:string){return this.db.transaction(async tx=>{
+  await assertWorkspaceRequestWrite(tx,actor);
   await recoveryMember(tx,actor);const r=(await tx.query<Run>('SELECT * FROM gh_reporting_runs WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,id]))[0];
   if(!r)throw new HttpError(404,'REPORTING_RUN_NOT_FOUND','This workspace has no such scan.');
   if(r.state==='active'||r.state==='attention'){await tx.query("UPDATE gh_reporting_runs SET state='cancelled',completed_at=now(),reason='Stopped by the current workspace operator; earlier observations retained.' WHERE tenant_id=$1 AND id=$2",[actor.tenantId,id]);

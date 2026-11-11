@@ -9,17 +9,27 @@ import { ownedPayment, recoveryMember, type OwnedPayment } from './authority';
 import type { DisputesGateway, DisputeObservation, DisputeInventory } from './disputes';
 import { disputeCapabilities } from './disputes';
 import { requireObservationAuthority, type ConnectorAuthority } from '../observations/connector';
+import {assertWorkspaceRequestWrite,assertWorkspaceProviderScope} from '../workspaces/authority';
 
 export class DisputeService {
   constructor(private readonly db: Database, private readonly disputes: Pick<DisputesGateway, 'list' | 'get'>,
     private readonly orders: Pick<OrderEvidenceGateway, 'order'>) {}
 
+  private async currentRead(actor:Actor,orderId:string,expected?:OwnedPayment){return this.db.transaction(async tx=>{
+    await assertWorkspaceRequestWrite(tx,actor);await assertWorkspaceProviderScope(tx,actor.tenantId);
+    const owned=await ownedPayment(tx,actor,orderId);
+    if(expected&&digest(owned)!==digest(expected))throw new HttpError(409,'RESOURCE_GRANT_CHANGED','The resource grant changed before the next case read.');
+    return owned;
+  });}
+
   async syncCase(actor:Actor,orderId:string,disputeId:string,signal?:AbortSignal){
-    const owned=await ownedPayment(this.db,actor,orderId);
+    const owned=await this.currentRead(actor,orderId);
     const order=await this.orders.order(owned.providerOrderId,owned.entry,owned.customId,signal);
     if(order.captureIds.length!==1||order.captureIds[0]!==owned.captureId)throw new HttpError(409,'PAYMENT_SET_CHANGED','The owning order no longer has the expected single capture.');
+    await this.currentRead(actor,orderId,owned);
     const observation=await this.disputes.get(disputeId,{captureId:owned.captureId,amountMinor:owned.entry.amountMinor,currency:'USD'},signal);
     await this.db.transaction(async tx=>{
+      await assertWorkspaceRequestWrite(tx,actor);
       await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE',[actor.tenantId]);
       if(digest(await ownedPayment(tx,actor,orderId))!==digest(owned))throw new HttpError(409,'RESOURCE_GRANT_CHANGED','The resource grant changed during the case read.');
       await projectDispute(tx,actor,owned,observation);
@@ -28,14 +38,16 @@ export class DisputeService {
   }
 
   async syncOrder(actor: Actor, orderId: string, signal?: AbortSignal) {
-    const owned = await ownedPayment(this.db, actor, orderId);
+    const owned = await this.currentRead(actor,orderId);
     const order = await this.orders.order(owned.providerOrderId, owned.entry, owned.customId, signal);
     if (order.captureIds.length !== 1 || order.captureIds[0] !== owned.captureId) throw new HttpError(409, 'PAYMENT_SET_CHANGED', 'The owning order no longer has the expected single capture.');
     const owner = { captureId: owned.captureId, amountMinor: owned.entry.amountMinor, currency: 'USD' as const };
+    await this.currentRead(actor,orderId,owned);
     const inventory = await this.disputes.list(owner, signal);
     const observations: DisputeObservation[] = [];
-    for (const id of inventory.ids) observations.push(await this.disputes.get(id, owner, signal));
+    for (const id of inventory.ids){await this.currentRead(actor,orderId,owned);observations.push(await this.disputes.get(id, owner, signal));}
     await this.db.transaction(async tx => {
+      await assertWorkspaceRequestWrite(tx,actor);
       await tx.query('SELECT tenant_id FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE', [actor.tenantId]);
       const current = await ownedPayment(tx, actor, orderId);
       if (digest(current) !== digest(owned)) throw new HttpError(409, 'RESOURCE_GRANT_CHANGED', 'The resource grant changed during the provider read.');

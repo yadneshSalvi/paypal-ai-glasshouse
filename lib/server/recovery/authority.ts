@@ -4,6 +4,7 @@ import type { SeedManifest, SeedManifestEntry } from '@/packages/payments/types'
 import { digest } from '@/packages/payments/security';
 import { HttpError } from '../errors';
 import { seedMarker } from '../payments/execution';
+import {assertWorkspaceContext,assertWorkspaceWritable} from '../workspaces/authority';
 
 export interface OwnedPayment {
   tenantId: string; orderId: string; runId: string; entry: SeedManifestEntry;
@@ -11,13 +12,15 @@ export interface OwnedPayment {
   orderGrantVersion: number; captureGrantVersion: number;
 }
 export async function recoveryMember(db: Database, actor: Actor, write = false, expectedVersion = actor.membershipVersion): Promise<Actor> {
+  await assertWorkspaceContext(db,actor,write);
+  if(write)await assertWorkspaceWritable(db,actor.tenantId);
   const membership = (await db.query<{ role: Role; version: number; active: boolean }>(
-    'SELECT role,version,active FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2', [actor.tenantId, actor.id]))[0];
+    'SELECT role,version,active FROM gh_memberships WHERE tenant_id=$1 AND actor_id=$2 FOR SHARE', [actor.tenantId, actor.id]))[0];
   const roles: Role[] = write ? ['owner', 'operator', 'judge'] : ['owner', 'operator', 'judge', 'investigator', 'viewer'];
   if (!membership?.active || !roles.includes(membership.role) || membership.version !== expectedVersion) {
     throw new HttpError(403, 'CURRENT_AUTHORITY_REQUIRED', 'Current workspace membership is required for this operation.');
   }
-  return { id: actor.id, tenantId: actor.tenantId, role: membership.role, membershipVersion: membership.version };
+  return { ...actor,role: membership.role, membershipVersion: membership.version };
 }
 
 /** The complete tenant seed manifest and active durable grants define the legal resource set. */

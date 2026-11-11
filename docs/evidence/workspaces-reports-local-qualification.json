@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-11T16:45:09.644Z",
+  "status": "local_qualification_pass_native_and_hosted_pending",
+  "scope": "Private organizations and workspace access; current-context guards on legacy routes; immutable six-instrument report library, reader, JSON and A4/Letter PDF export.",
+  "isolation": {
+    "database": "dedicated restricted local PostgreSQL only",
+    "modelProviderCalls": 0,
+    "paymentProviderCalls": 0,
+    "originalOrHostedDatabaseAccess": false,
+    "browserActionsBySourceLead": 0,
+    "domainData": "Explicit synthetic Sample fixtures",
+    "nativeHistory": "Actual installed AG Studio 3.1.0 state/history in JSDOM and exact fixture admission through localhost HTTP; browser acceptance remains separate"
+  },
+  "migrations": {
+    "workspaceSchema": 8,
+    "workspaceTablesAdded": 9,
+    "reportSchema": 9,
+    "reportTablesAdded": 2,
+    "originalAuthorityRowsRewritten": false,
+    "hostedMigrationPerformed": false
+  },
+  "verification": {
+    "fullRegression": {
+      "tests": 188,
+      "passed": 188,
+      "failed": 0,
+      "skipped": 0
+    },
+    "realPostgresWorkspaces": {
+      "tests": 19,
+      "passed": 19
+    },
+    "realPostgresReports": {
+      "tests": 19,
+      "passed": 19,
+      "coverage": "11 report/semantic, 5 HTTP authority, 3 actual PDF checks"
+    },
+    "finalPdfAfterPaginationAdjustment": {
+      "tests": 3,
+      "passed": 3
+    },
+    "typecheck": "PASS",
+    "productionBuild": {
+      "result": "PASS",
+      "buildId": "o6FQWORJoBetrOgJRCFNF",
+      "fontTrace": "Three bundled fonts, license and provenance included"
+    },
+    "localhostHttp": {
+      "checks": 25,
+      "requests": 43,
+      "result": "PASS",
+      "checksPassed": [
+        "Unauthenticated report denial",
+        "Foreign-origin session denial",
+        "Fresh provider-isolated Sample bootstrap",
+        "Current directory admission",
+        "Profile command exact replay",
+        "Separate Sample workspace creation",
+        "Exact installed-native fixture history saved through HTTP",
+        "Unapproved source-bound Sample proposal",
+        "Immutable edition creation and exact response replay",
+        "Scoped edition library",
+        "Exact private downloadable JSON",
+        "Actual A4 HTTP renderer and exact encrypted cache",
+        "Actual LETTER HTTP renderer and exact encrypted cache",
+        "Private invitation preview",
+        "Viewer acceptance and private report read",
+        "Viewer report and legacy mutation denial",
+        "Revoked viewer cannot disclose saved report",
+        "Stale original tab is held after selection",
+        "New workspace has no cross-tenant edition access",
+        "Round-trip selection retains exact original cookie and history",
+        "Archived workspace preserves report and holds new changes",
+        "Workspace restoration preserves evidence",
+        "Linked correction preserves the earlier 63-order edition",
+        "Foreign-origin edition write denied",
+        "No payment/provider/model records created"
+      ]
+    }
+  },
+  "sourceBoundFixture": {
+    "orders": 600,
+    "affected": 63,
+    "correctionAffected": 54,
+    "targetedRefunds": 47,
+    "targetedMinor": 23500,
+    "currency": "USD",
+    "budgetMinor": 30000,
+    "actions": 114,
+    "eligibilityRows": 63,
+    "excluded": 16,
+    "approved": false,
+    "noGraceComparisonAuthorizesOverride": false
+  },
+  "pdf": {
+    "renderer": "glasshouse-static-v1.0.0",
+    "pdfkit": "0.20.2",
+    "fontkit": "2.0.4",
+    "networkRequests": 0,
+    "canonicalDocumentHash": "f919f68bfdfdafb0c7098e833f5a0d74a50d10490f887d23e1e2c8645c84f131",
+    "fullCanonicalJsonEmbedded": true,
+    "visuallyReviewedPages": 66,
+    "files": [
+      {
+        "filename": "glasshouse-sample-a4.pdf",
+        "pages": 21,
+        "sha256": "d83534fa67bdaa4563c3ad1dad27a293fea5c9d8cd86794644ae5d1822b7afa5",
+        "bytes": 345813,
+        "printedActionAndOperationIds": 228,
+        "charactersOutsidePage": 0,
+        "visualResult": "PASS",
+        "clippingOrOverlapObserved": false
+      },
+      {
+        "filename": "glasshouse-sample-letter.pdf",
+        "pages": 21,
+        "sha256": "d3126e4a2396bde39e3ec10e9a40dc6be8f19ac3c1753dda3ea975651a8b89a0",
+        "bytes": 345465,
+        "printedActionAndOperationIds": 228,
+        "charactersOutsidePage": 0,
+        "visualResult": "PASS",
+        "clippingOrOverlapObserved": false
+      },
+      {
+        "filename": "maximum-copy-a4.pdf",
+        "pages": 12,
+        "sha256": "b11681517e1aa86205582a4587ea8949416de805fbd53e9099fbe386fe574d8b",
+        "bytes": 311175,
+        "printedActionAndOperationIds": 0,
+        "charactersOutsidePage": 0,
+        "visualResult": "PASS",
+        "clippingOrOverlapObserved": false
+      },
+      {
+        "filename": "maximum-copy-letter.pdf",
+        "pages": 12,
+        "sha256": "759f9f386db0ce3f9c2e191bccf74206a10e1f888dab34a815f12f6f188b1b31",
+        "bytes": 310946,
+        "printedActionAndOperationIds": 0,
+        "charactersOutsidePage": 0,
+        "visualResult": "PASS",
+        "clippingOrOverlapObserved": false
+      }
+    ],
+    "accessibility": "Semantic HTML reader; no PDF/UA tagging claim"
+  },
+  "authorityCoverage": [
+    "Exact original session/actor/membership/resource preservation on admission and switch return",
+    "Concurrent last-owner and role changes; issuer revocation; invitation expiry/single acceptance/replay",
+    "Switch and revoke guards inside legacy mutation dispatch, with response revalidation",
+    "Archive holds pending financial work, native runs, queued observations and active reporting",
+    "Immutable report database trigger, exact UUID replay, source/native-layout compare-and-swap and parent scope",
+    "Per-read provider ownership and case binding; grant revocation before/after render",
+    "Encrypted token/result/report/PDF persistence and corruption denial",
+    "Source corrections create a linked edition without changing the earlier document",
+    "Native layout history and financial audit remain separate; findings exclude private conversations and hidden reasoning"
+  ],
+  "failuresRetained": [
+    "Initial full regression with two layout-envelope expectations and a foreign-run authority expectation; assertions were updated for exact new hash/authority contracts and rerun successfully.",
+    "Initial PDF pagination and intermediate layout artifacts remain retained privately; final artifacts are separately identified by hash.",
+    "Earlier successful and failed actual-agent/Toolkit qualifications are unchanged."
+  ],
+  "dependencyAudit": {
+    "critical": 0,
+    "high": 10,
+    "moderate": 1,
+    "newPdfOrFontAdvisories": 0,
+    "assessment": "Existing Toolkit transitive advisory and reachability inventory remains in docs/agents-dependencies.md. No vendor fork or speculative override was introduced."
+  },
+  "immutableSharedCore": {
+    "version": "0.2.7",
+    "archiveSha256": "a2ccc98af5da871e3c057bcdc142c303d0d1d2f2fa9a9a42324d566177fa1061"
+  },
+  "priorHostedRelease": "f9c14528b850cb3603aeed677b38da5df430e517",
+  "requiredRemainingGates": [
+    "Integration-owner desktop/390px/360px browser journeys, native focus/keyboard/reload/error-state acceptance and downloaded-file verification",
+    "Integration-owner backup, additive schema 8/9 migration, original row/document continuity, hosted qualification and promotion",
+    "Complete remaining product scope in docs/remaining-scope.md; this checkpoint is not full-project completion"
+  ],
+  "evidence": [
+    {
+      "name": "full-regression-final.tap",
+      "sha256": "5c2a03183fad8d706e94427dee1fe83daa34d110b312fa869f8b61181864f721",
+      "bytes": 58213
+    },
+    {
+      "name": "workspaces-authority-final.tap",
+      "sha256": "1c6f25147ba9dd28fc77925cc680bc08f2fbcdb2f7f1733e3e3980978bc2bee7",
+      "bytes": 5658
+    },
+    {
+      "name": "reports-final.tap",
+      "sha256": "c6ce1e98d20e3d0921e4297c6fe61c0bb3b53b58db6e0b0a082969b594785b80",
+      "bytes": 5224
+    },
+    {
+      "name": "pdf-final-cards.tap",
+      "sha256": "e352367adbeccb57d7b3ef73d2ea4f2c238e198301112dff2dbb5e9838bec765",
+      "bytes": 931
+    },
+    {
+      "name": "typecheck-final.log",
+      "sha256": "eb59d1b781ba36ad63c81155c71cf4600c6dd98cff9c2b3eca73eff4b01bfd69",
+      "bytes": 46
+    },
+    {
+      "name": "build-final-cards.log",
+      "sha256": "8c0ac3ae330f4326eedfadcf5856e5194ae48123a093c7102d1e81c2adb1e09a",
+      "bytes": 1275
+    },
+    {
+      "name": "http-smoke-proof.json",
+      "sha256": "fe3291b933bddbb520e5b7dbeab5913ffcf099748024f1fc4ddcbea4f7b6ebe2",
+      "bytes": 7131
+    },
+    {
+      "name": "pdf-verified-cards-corrected.log",
+      "sha256": "186f520b0b1fdd90125e05d80c6fae6d804535a5c579e078b202aeb7d98ace69",
+      "bytes": 977
+    },
+    {
+      "name": "pdf-visual-proof.json",
+      "sha256": "41d4e35437b040be686fff0990da2e8fd0066dc79ee3d46fd7c4ae08f9fbf7d1",
+      "bytes": 2346
+    },
+    {
+      "name": "typecheck-canonical.log",
+      "sha256": "eb59d1b781ba36ad63c81155c71cf4600c6dd98cff9c2b3eca73eff4b01bfd69",
+      "bytes": 46
+    },
+    {
+      "name": "source-seal-checks.json",
+      "sha256": "06e7642925f252bee4688b1568739b3efc99811c2005127619e63dd500a05232",
+      "bytes": 1011
+    }
+  ],
+  "releaseChecks": {
+    "sourcePrivateValueScan": {
+      "files": 260,
+      "knownPrivateValues": 11,
+      "matches": 0,
+      "originalEnvironmentsRead": false
+    },
+    "fontAndLicenseProvenance": "PASS",
+    "rootHostedProofUnchanged": true,
+    "gitDiffCheck": "PASS",
+    "canonicalConfigTypecheck": "PASS",
+    "destinationRepositoryVisibility": "PRIVATE"
+  }
+}

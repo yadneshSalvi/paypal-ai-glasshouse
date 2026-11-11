@@ -9,6 +9,7 @@ import { audit, datasetFor } from '../repository';
 import { HttpError } from '../errors';
 import { VaultFailure, type SetupObservation, type TokenObservation, type VaultGateway, type VaultReceipt } from './vault';
 import { consentIdentity, consentRecord, currentMember, iso, openConsent, runRecord, vaultIdentity, type ConsentPrivate, type ConsentRecord, type ItemRecord, type RunRecord } from './records';
+import {workspaceProviderAvailable} from '../workspaces/authority';
 
 export interface PaymentServiceOptions {
   db: Database; secrets: PaymentSecrets;
@@ -25,10 +26,11 @@ export class PaymentService {
   constructor(readonly options: PaymentServiceOptions) { this.db = options.db; this.secrets = options.secrets; this.vault = options.vault; }
 
   async status(who: Actor): Promise<SandboxStatus> {
+    const providerAvailable=await workspaceProviderAvailable(this.db,who.tenantId);
     const row = (await this.db.query<RunRecord>('SELECT * FROM gh_seed_runs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1', [who.tenantId]))[0];
     return {
-      environment: 'sandbox', isolated: this.options.isolated, configured: this.options.configured,
-      role: who.role, canApprove: ['owner','operator','judge'].includes(who.role),
+      environment: 'sandbox', isolated: this.options.isolated, configured: this.options.configured&&providerAvailable,
+      role: who.role, canApprove: providerAvailable&&['owner','operator','judge'].includes(who.role),
       run: row ? await this.viewRun(who, row.id) : null,
       suggestedManifest: row?.manifest ?? seedManifest(await datasetFor(who, this.db)),
     };
@@ -58,7 +60,7 @@ export class PaymentService {
   }
   async createRun(who: Actor, expectedHash: string): Promise<SeedRun> {
     const id = await this.db.transaction(async tx => {
-      await currentMember(tx, who.tenantId, who.id, who.membershipVersion);
+      await currentMember(tx, who.tenantId, who.id, who.membershipVersion, who);
       await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`seed:${who.tenantId}`]);
       const prior = (await tx.query<RunRecord>('SELECT * FROM gh_seed_runs WHERE tenant_id=$1', [who.tenantId]))[0];
       if (prior) {
@@ -86,7 +88,7 @@ export class PaymentService {
     this.assertConfigured();
     const origin = trustedOrigin(requestOrigin);
     const consent = await this.db.transaction(async tx => {
-      await currentMember(tx, who.tenantId, who.id, who.membershipVersion);
+      await currentMember(tx, who.tenantId, who.id, who.membershipVersion, who);
       const run = await runRecord(tx, who.tenantId, runId, true);
       if (!equalDigest(run.manifest_hash, manifestHash)) throw new HttpError(409, 'MANIFEST_CHANGED', 'Review the exact batch before connecting a saved payment method.');
       if (run.consent_id) return consentRecord(tx, who.tenantId, run.consent_id);
@@ -145,7 +147,7 @@ export class PaymentService {
   private async claimVault(who: Actor, consent: ConsentRecord, kind: 'setup' | 'exchange', request: unknown) {
     return this.db.transaction(async tx => {
       const current = await consentRecord(tx, who.tenantId, consent.id, true);
-      await currentMember(tx, who.tenantId, current.created_by, current.membership_version);
+      await currentMember(tx, who.tenantId, current.created_by, current.membership_version, who);
       if (current.status === 'revoked' || Date.parse(iso(current.expires_at)!) <= Date.now()) throw new HttpError(403, 'CONSENT_EXPIRED', 'This saved-payment consent is no longer active.');
       const id = `${kind}-${consent.id}`;
       const requestId = digest([who.tenantId,id]).slice(0,32);
@@ -171,7 +173,7 @@ export class PaymentService {
 
   async completeConsent(who: Actor, runId: string, state?: string, caller?: AbortSignal): Promise<SeedRun> {
     this.assertConfigured();
-    await currentMember(this.db, who.tenantId, who.id, who.membershipVersion);
+    await currentMember(this.db, who.tenantId, who.id, who.membershipVersion, who);
     const run = await runRecord(this.db, who.tenantId, runId);
     if (!run.consent_id) throw new HttpError(409, 'CONSENT_REQUIRED', 'Connect this batch to a saved payment method first.');
     let consent = await consentRecord(this.db, who.tenantId, run.consent_id);
@@ -229,7 +231,7 @@ export class PaymentService {
       }
       await this.db.transaction(async tx => {
         const current = await consentRecord(tx, who.tenantId, consent.id, true);
-        await currentMember(tx, who.tenantId, current.created_by, current.membership_version);
+        await currentMember(tx, who.tenantId, current.created_by, current.membership_version, who);
         if (current.status === 'revoked' || Date.parse(iso(current.expires_at)!) <= Date.now()) throw new HttpError(403,'CONSENT_EXPIRED','This consent was revoked or expired during verification.');
         const currentRun = await runRecord(tx, who.tenantId, runId, true);
         if (!equalDigest(currentRun.manifest_hash, privateValue.runHash)) throw new HttpError(409,'MANIFEST_CHANGED','The consent no longer matches the exact batch.');
@@ -248,7 +250,7 @@ export class PaymentService {
   async approve(who: Actor, runId: string, manifestHash: string): Promise<SeedRun> {
     this.assertConfigured();
     await this.db.transaction(async tx => {
-      await currentMember(tx, who.tenantId, who.id, who.membershipVersion);
+      await currentMember(tx, who.tenantId, who.id, who.membershipVersion, who);
       const run = await runRecord(tx, who.tenantId, runId, true);
       if (!equalDigest(run.manifest_hash, manifestHash)) throw new HttpError(409,'MANIFEST_CHANGED','Review the exact manifest before approving it.');
       if (['approved','running','complete'].includes(run.status)) return;
@@ -271,7 +273,7 @@ export class PaymentService {
   }
   async revoke(who: Actor, runId: string): Promise<SeedRun> {
     await this.db.transaction(async tx => {
-      await currentMember(tx,who.tenantId,who.id,who.membershipVersion);
+      await currentMember(tx,who.tenantId,who.id,who.membershipVersion,who);
       const run = await runRecord(tx,who.tenantId,runId,true);
       if (run.consent_id) await tx.query("UPDATE gh_payment_consents SET status='revoked',version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status <> 'revoked'", [who.tenantId,run.consent_id]);
       await tx.query("UPDATE gh_seed_runs SET status='revoked',updated_at=now() WHERE tenant_id=$1 AND id=$2", [who.tenantId,runId]);
