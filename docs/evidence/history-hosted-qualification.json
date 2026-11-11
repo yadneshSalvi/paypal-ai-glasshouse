@@ -1,0 +1,43 @@
+{
+  "checkedAt": "2026-11-11T07:26:38.545Z",
+  "source": "7bd30be",
+  "deploymentId": "dpl_H9QS2WUvvHMXWFXDeMFCPmhdY9pF",
+  "passed": true,
+  "checks": [
+    "health serves",
+    "anonymous layout denied",
+    "foreign origin denied",
+    "original full history and version readable",
+    "legacy reads retain original history shape",
+    "completed original reporting retained",
+    "original recovery outcomes retained",
+    "qualification workspace is isolated",
+    "fresh workspace has no original layout",
+    "first complete history commits once",
+    "exact original save recovers without duplicate revision",
+    "stale changed draft refused",
+    "unversioned old clients cannot overwrite",
+    "malformed current report refused",
+    "next reviewed version commits",
+    "old exact payload cannot overwrite a later revision",
+    "latest isolated document survives refused saves",
+    "original history and version unchanged"
+  ],
+  "financialProviderDispatches": 0,
+  "originalHistoryMutations": 0,
+  "isolatedSampleRevisions": 2,
+  "nativeOriginalRestoration": {
+    "stableUrl": "https://paypal-ai-glasshouse.vercel.app",
+    "observedAt": "2026-11-11T07:29:17.324Z",
+    "undoEntries": 6,
+    "redoEntries": 0,
+    "status": "workspace history restored",
+    "capturedValueMinor": 2760000,
+    "paymentRecords": 600,
+    "openDisputes": 4,
+    "originalRecoveryActions": 105
+  },
+  "limitations": [
+    "Only the disposable new Sample workspace was edited by HTTP qualification. Native original restoration is checked separately."
+  ]
+}
