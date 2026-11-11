@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-11-11T17:17:00Z",
+  "recordedAt": "2026-11-11T17:21:23.283401+00:00",
   "scope": "Native browser qualification of private Sample workspaces and immutable reports",
   "sourceCommit": "aaea25aa8c20d45817053e8344924477aa48e4fe",
   "functionalSourceCommit": "e5211d9fee129e776b5d7bc0af1e9c3b046d077c",
@@ -20,7 +20,6 @@
   "checks": {
     "nativeOrganizationAndWorkspace": true,
     "originalWorkspaceCookieValueRestored": true,
-    "originalServerAccessExpiryPreserved": true,
     "browserCookieMaxAgePrecisionNote": "Browser cookie expiry differed by less than one second due to Max-Age rounding; the existing cookie value and displayed server deadline were preserved. Browser-cookie exact-expiry equality is not claimed.",
     "workspaceLayoutsIsolated": true,
     "nativeHistoryEntries": 2,
@@ -47,7 +46,8 @@
     ],
     "horizontalPageOverflow": false,
     "reducedMotion": true,
-    "consoleWarningsAndErrorsOnCorrectedRuntime": 0
+    "consoleWarningsAndErrorsOnCorrectedRuntime": 0,
+    "originalDisplayedServerAccessExpiryPreserved": true
   },
   "exports": {
     "reportId": "report-991c9962-d21f-43fa-b314-8f2b6d5e5c68",
@@ -138,5 +138,11 @@
     "Archive holds with pending financial work and revocation during response were covered by the source lead\u2019s isolated HTTP/PostgreSQL tests, not reproduced as a new browser payment/model operation.",
     "Hosted additive migrations and hosted native verification remain pending.",
     "No claim of complete project delivery or measured research outcomes."
-  ]
+  ],
+  "privateScan": {
+    "files": 46910,
+    "privateValueCount": 6,
+    "matches": [],
+    "actualKeysLoaded": false
+  }
 }
