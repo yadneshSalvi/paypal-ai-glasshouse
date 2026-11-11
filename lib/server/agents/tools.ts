@@ -18,6 +18,7 @@ import {FINDING_DEPENDENCY_POLICY} from '@/packages/findings/types';
 import {findingService} from '../findings/runtime';
 import type {FindingRow} from '../findings/service';
 import {parseFindingReferences,validateFindingReferences,savePlanFindingReferences,assertPlanFindingDependencies} from '../findings/dependencies';
+import {nativeQueryRefusal} from './query-policy';
 
 const success=(response:string,data?:unknown):AgAiToolResult=>({success:true,response,data});
 const failure=(message:string):AgAiToolResult=>({success:false,issues:[{message}]});
@@ -29,10 +30,10 @@ function validateResult(value:AgAiToolResult){
 export class AgentTools {
   constructor(readonly journal:AgentJournal,readonly toolkit:ScopedPayPalToolkit|null){}
   private async row(tx:Database,actor:Actor,callId:string){const row=(await tx.query<ToolRow>('SELECT * FROM gh_agent_tool_calls WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[actor.tenantId,callId]))[0];if(!row)throw new HttpError(403,'AGENT_TOOL_NOT_ISSUED','This tool call was not issued by an admitted model response.');return row;}
-  private async complete(tx:Database,run:RunRow,call:ToolRow,doc:ToolDocument,result:AgAiToolResult){
+  private async complete(tx:Database,run:RunRow,call:ToolRow,doc:ToolDocument,result:AgAiToolResult,observedTransport?:'application'){
     validateResult(result);doc.result=result;
     await tx.query("UPDATE gh_agent_tool_calls SET state='completed',private_document=$3,reason=null,updated_at=now() WHERE tenant_id=$1 AND id=$2",[run.tenant_id,call.id,this.journal.secrets.seal(run.tenant_id,'tool',call.id,doc)]);
-    const transport=call.transport==='Toolkit'&&!result.success?'application':call.transport as 'Studio'|'Toolkit'|'application';
+    const transport=observedTransport??(call.transport==='Toolkit'&&!result.success?'application':call.transport as 'Studio'|'Toolkit'|'application');
     await this.journal.event(tx,run,'tool_completed',call.id,`${call.name} ${result.success?'returned a recorded result':'returned an explicit refusal'}.`,result.success?'success':'denied',transport,call.name,call.input_hash);
   }
   async claim(actor:Actor,input:ToolClaim):Promise<ToolGrant>{
@@ -61,6 +62,10 @@ export class AgentTools {
       if(actor.role==='viewer'&&layoutTools.has(call.name))throw new HttpError(403,'LAYOUT_READ_ONLY','This workspace role cannot authorize native report changes.');
       if(call.state==='unknown'||call.state==='running'&&(call.name!=='delegate_to'||doc.executionOwner===input.clientId))return {grant:{state:'held',reason:'The original tool began without a confirmed result. Its mutation will not be repeated. A saved exact acknowledgement may still reconcile it.'} as ToolGrant};
       if(call.state!=='issued'&&call.name!=='delegate_to')return {grant:{state:'held',reason:'This original tool outcome is unresolved.'} as ToolGrant};
+      if(call.name==='execute_query'){
+        const refusal=nativeQueryRefusal(doc.args);
+        if(refusal){const result=failure(refusal);await this.complete(tx,run,call,doc,result,'application');return {grant:{state:'completed',result} as ToolGrant};}
+      }
       const token=this.journal.lease();doc.executionOwner=input.clientId;
       let mutationId:string|null=null;
       if(layoutTools.has(call.name)){
