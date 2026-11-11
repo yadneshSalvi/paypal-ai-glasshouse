@@ -1,0 +1,42 @@
+{
+  "observedAt": "2026-11-11T06:12:45.875Z",
+  "sourceCommit": "aafa9a5",
+  "deploymentId": "dpl_9g7Z784X64EzbRM3xJqfgDWq4iDA",
+  "application": "https://paypal-ai-glasshouse.vercel.app",
+  "migration": {
+    "originalTablesPreserved": 34,
+    "originalRowsPreserved": 58350,
+    "allTableHashesMatched": true,
+    "sourceRetiredReadOnly": true,
+    "schemaVersion": 5,
+    "originalConsentDecryptionVerified": true
+  },
+  "qualification": {
+    "hostedHttpChecksPassed": 15,
+    "originalOrderRecords": 600,
+    "capturedMinor": 2760000,
+    "currency": "USD",
+    "originalRecoveryActions": 105,
+    "independentChecksVerified": 105,
+    "refunds": 38,
+    "refundedMinor": 19000,
+    "trackingUpdates": 63,
+    "disputeEvidenceSubmissions": 4,
+    "casesAwaitingBuyerResponse": 4,
+    "casesResolved": 0,
+    "paymentCommandsUnchanged": true,
+    "providerWriteAttemptsUnchanged": true,
+    "originalRecoveryReceiptsUnchanged": true,
+    "newFinancialWritesDuringChecks": 0,
+    "authenticWebhookDeliveriesObserved": 0,
+    "nativeBrowserOriginalSessionVerified": true
+  },
+  "limits": [
+    "Payments and disputes use the isolated PayPal sandbox.",
+    "Shipping and delivery conditions are synthetic fixtures; tracking receipt verification does not establish physical shipment.",
+    "Evidence submission is distinct from dispute resolution.",
+    "The registered callback has not yet received an authentic provider delivery.",
+    "The hosted schedule drains independent observations only; it does not dispatch recovery or payment actions.",
+    "This qualifies the preserved recovery and observation workflow, not the full product backlog."
+  ]
+}

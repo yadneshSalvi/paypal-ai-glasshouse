@@ -30,6 +30,7 @@ test-results/
 .local/
 .private/
 .setup-evidence/
+.artifacts/
 artifacts/private/
 
 # Retain older supplied core archives locally; ship only the installed release.
