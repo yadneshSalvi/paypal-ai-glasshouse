@@ -1,0 +1,96 @@
+{
+  "sourceCommit": "25f070d91a677bf9cfd906527600062ad6b2f71b",
+  "observedAt": "2026-11-11T14:05:07.829Z",
+  "reads": [
+    {
+      "id": "call_Ap9kZwVESrHMSAe5CYrn7JBY",
+      "state": "completed",
+      "success": true,
+      "hash": "238665bfc561e2ea9d1b7aa129dcaabbbeb4699603491ecda30c2a89c57abf14"
+    },
+    {
+      "id": "call_Tj4EvOYIPBr2tqkyYH4GwjmH",
+      "state": "completed",
+      "success": true,
+      "hash": "238665bfc561e2ea9d1b7aa129dcaabbbeb4699603491ecda30c2a89c57abf14"
+    }
+  ],
+  "exactManifestHash": "238665bfc561e2ea9d1b7aa129dcaabbbeb4699603491ecda30c2a89c57abf14",
+  "toolManifestHash": "238665bfc561e2ea9d1b7aa129dcaabbbeb4699603491ecda30c2a89c57abf14",
+  "expectedHash": "238665bfc561e2ea9d1b7aa129dcaabbbeb4699603491ecda30c2a89c57abf14",
+  "bothResultsIdentical": true,
+  "eligibleIdsExact": true,
+  "eligibleCount": 47,
+  "excludedCount": 16,
+  "excludedReasons": {
+    "dispute": 4,
+    "grace": 12
+  },
+  "actionCount": 114,
+  "actionIdsUnique": true,
+  "operationIdsUnique": true,
+  "actionKinds": {
+    "refund": 47,
+    "tracking": 63,
+    "dispute_response": 4
+  },
+  "allActionsProviderBlocked": true,
+  "refundTotalMinor": 23500,
+  "budgetMinor": 30000,
+  "policy": {
+    "id": "goodwill-delay-v1",
+    "scenario": "targeted",
+    "graceHours": 48,
+    "refundAmountMinor": 500,
+    "currency": "USD",
+    "comparisonOnly": false,
+    "overrideAuthorization": "not_granted_by_this_tool"
+  },
+  "approval": {
+    "approvedBy": null,
+    "approvedAt": null,
+    "approvalGrantedByThisTool": false,
+    "executionStartedByThisTool": false
+  },
+  "snapshotHash": "9ada6ace1413ccd06ad11917280b7b0a8cd5c571ee03badb52b9bb9542077539",
+  "asOf": "2026-11-06T10:00:00.000Z",
+  "knownAt": "2026-11-06T10:00:00.000Z",
+  "financial": [
+    {
+      "table": "gh_recovery_runs",
+      "exists": false,
+      "count": null
+    },
+    {
+      "table": "gh_recovery_intents",
+      "exists": false,
+      "count": null
+    },
+    {
+      "table": "gh_payment_commands",
+      "exists": true,
+      "count": 0
+    }
+  ],
+  "completeAgentNarrative": false,
+  "heldOriginal": {
+    "run": "run-cc1075d4-97a5-443e-aa9e-147908661a29",
+    "turn": 1,
+    "reason": "max_output_tokens",
+    "requestedMaxOutput": 16000,
+    "outputTokens": 16000
+  },
+  "native": {
+    "handoffUpdatedWithoutReopen": true,
+    "undoRedoRestoredAfterReload": true,
+    "markdownRendered": true,
+    "railHeightPolishPending": true
+  },
+  "manifestChecksPassed": true,
+  "limits": [
+    "Two original saved-manifest tool reads passed independently. The full multi-agent narrative did not complete: the second Planner response exhausted its original 16000-output-token budget.",
+    "The held attempt and its incomplete answer remain unchanged; no replacement provider request was dispatched.",
+    "The saved Sample plan is unapproved and all provider actions are blocked. No financial dispatch occurred.",
+    "Native undo/redo persistence, Markdown and open handoff updates passed. Desktop rail height still needs improvement."
+  ]
+}

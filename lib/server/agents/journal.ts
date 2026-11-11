@@ -8,6 +8,7 @@ import {hash} from '../repository';
 import {HttpError} from '../errors';
 import {agentId,validateCall} from './registry';
 import {AgentSecrets,agentMember,agentSnapshot,bounded,safeId,ownedToolkitResource,agentSessionHash} from './security';
+import {modelOutcome} from './model-outcome';
 
 export interface RunDocument {input:AgAiRunInput;params?:unknown;prompt:string;promptId:string;actor:Actor;parentTask?:unknown}
 export interface RunRow extends Record<string,unknown> {tenant_id:string;id:string;thread_id:string;user_message_id:string;actor_id:string;membership_version:number;agent_id:AgentId;parent_run_id:string|null;parent_tool_call_id:string|null;snapshot_hash:string;state:RunState;reason:string|null;private_document:string;lease_owner:string|null;lease_until:string|null;updated_at:string}
@@ -52,9 +53,18 @@ export class AgentJournal {
     await tx.query('INSERT INTO gh_agent_durable_events(tenant_id,id,run_id,body) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT DO NOTHING',[run.tenant_id,id,run.id,JSON.stringify(event)]);
   }
   async view(tx:Database,run:RunRow):Promise<RunView>{
-    const turns=await tx.query<Pick<TurnRow,'turn_index'|'state'|'has_provider_id'|'provider_stored'|'dispatch_count'>>('SELECT turn_index,state,has_provider_id,provider_stored,dispatch_count FROM gh_agent_model_turns WHERE tenant_id=$1 AND run_id=$2 ORDER BY turn_index',[run.tenant_id,run.id]);
+    const turns=await tx.query<Pick<TurnRow,'turn_index'|'state'|'has_provider_id'|'provider_stored'|'dispatch_count'>&{failure_document:string|null}>("SELECT turn_index,state,has_provider_id,provider_stored,dispatch_count,CASE WHEN state='failed' THEN private_document ELSE NULL END AS failure_document FROM gh_agent_model_turns WHERE tenant_id=$1 AND run_id=$2 ORDER BY turn_index",[run.tenant_id,run.id]);
     const tools=await tx.query<Pick<ToolRow,'id'|'name'|'state'|'transport'|'layout_version'>>('SELECT id,name,state,transport,layout_version FROM gh_agent_tool_calls WHERE tenant_id=$1 AND run_id=$2 ORDER BY created_at,id',[run.tenant_id,run.id]);
-    return {id:run.id,threadId:run.thread_id,agentId:run.agent_id,parentRunId:run.parent_run_id,parentToolCallId:run.parent_tool_call_id,snapshotHash:run.snapshot_hash,state:run.state,reason:run.reason,updatedAt:new Date(run.updated_at).toISOString(),canResume:run.state!=='completed'&&run.state!=='cancelled'&&(!run.lease_until||Date.parse(run.lease_until)<=Date.now()),modelTurns:turns.map(t=>({index:t.turn_index,state:t.state,hasProviderId:t.has_provider_id,dispatchCount:t.dispatch_count,providerStored:t.provider_stored})),tools:tools.map(t=>({id:t.id,name:t.name,state:t.state,transport:t.transport,layoutVersion:t.layout_version}))};
+    const terminal=await this.hasTerminalModel(tx,run);
+    return {id:run.id,threadId:run.thread_id,agentId:run.agent_id,parentRunId:run.parent_run_id,parentToolCallId:run.parent_tool_call_id,snapshotHash:run.snapshot_hash,state:run.state,reason:run.reason,updatedAt:new Date(run.updated_at).toISOString(),canResume:!terminal&&run.state!=='completed'&&run.state!=='cancelled'&&(!run.lease_until||Date.parse(run.lease_until)<=Date.now()),modelTurns:turns.map(t=>({index:t.turn_index,state:t.state,hasProviderId:t.has_provider_id,dispatchCount:t.dispatch_count,providerStored:t.provider_stored,...(t.failure_document?{outcome:modelOutcome(this.secrets.open<TurnDocument>(run.tenant_id,'turn',`${run.id}:${t.turn_index}`,t.failure_document))}:{})})),tools:tools.map(t=>({id:t.id,name:t.name,state:t.state,transport:t.transport,layoutVersion:t.layout_version}))};
+  }
+  private async hasTerminalModel(tx:Database,run:RunRow){
+    const rows=await tx.query(`WITH RECURSIVE family(id) AS (
+      SELECT id FROM gh_agent_runs WHERE tenant_id=$1 AND id=$2
+      UNION ALL SELECT r.id FROM gh_agent_runs r JOIN family f ON r.parent_run_id=f.id WHERE r.tenant_id=$1
+    ) SELECT 1 FROM gh_agent_model_turns t JOIN family f ON f.id=t.run_id
+    WHERE t.tenant_id=$1 AND t.state IN ('failed','unknown','unavailable') LIMIT 1`,[run.tenant_id,run.id]);
+    return rows.length>0;
   }
   async enroll(actor:Actor,input:EnrollRun):Promise<EnrolledRun>{
     bounded(input,2000000,'The native conversation is too large to admit.');
@@ -82,6 +92,7 @@ export class AgentJournal {
         if(existing.state==='cancelled')throw new HttpError(409,'AGENT_RUN_CANCELLED','This run was stopped. Start a new investigation.');
         if(existing.parent_run_id&&(await this.run(tx,actor,existing.parent_run_id)).state==='cancelled')throw new HttpError(409,'AGENT_PARENT_CANCELLED','The parent investigation was stopped. Its delegated run cannot resume.');
         if(existing.state!=='completed'){
+          if(await this.hasTerminalModel(tx,existing))throw new HttpError(409,'AGENT_TERMINAL_MODEL','An original model response in this investigation is terminal or unresolved. Its request, identity and completed evidence are preserved. Start a separate investigation; this saved attempt cannot resume.');
           await tx.query("UPDATE gh_agent_runs SET state='running',reason=null,lease_owner=$3,lease_until=now()+interval '35 seconds',updated_at=now() WHERE tenant_id=$1 AND id=$2",[actor.tenantId,existing.id,input.clientId]);
           existing={...existing,state:'running',reason:null,lease_owner:input.clientId};
         }else{await tx.query("UPDATE gh_agent_runs SET lease_owner=$3,lease_until=now()+interval '35 seconds' WHERE tenant_id=$1 AND id=$2",[actor.tenantId,existing.id,input.clientId]);existing={...existing,lease_owner:input.clientId};}
@@ -134,7 +145,8 @@ export class AgentJournal {
       const hasFinish=run.parent_tool_call_id?receipt?.state==='completed'&&this.toolDocument(receipt).result?.success:lastDoc?.response?.output.some(item=>item.type==='message'&&item.content.length>0);
       const complete=action==='complete'&&outstanding.length===0&&!!hasFinish;
       const state:RunState=action==='cancel'?'cancelled':complete?'completed':'held';
-      const reason=complete?null:action==='cancel'?'Stopped by the reviewer. Dispatched model requests retain their recorded identities.':'The native run is saved with an unresolved step. Resume reuses its original identities; unknown outcomes are never repeated.';
+      const terminal=await this.hasTerminalModel(tx,run);
+      const reason=complete?null:action==='cancel'?'Stopped by the reviewer. Dispatched model requests retain their recorded identities.':terminal?'An original model response in this saved investigation is terminal or unresolved. Its identity and completed evidence are preserved. This attempt cannot resume.':'The native run is saved with an unresolved step. Resume reuses its original identities; unknown outcomes are never repeated.';
       await tx.query('UPDATE gh_agent_runs SET state=$3,reason=$4,lease_until=now(),updated_at=now() WHERE tenant_id=$1 AND id=$2',[actor.tenantId,runId,state,reason]);
       if(action==='cancel'){
         const children=await tx.query<RunRow>(`WITH RECURSIVE family(id) AS (

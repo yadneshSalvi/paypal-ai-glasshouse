@@ -6,6 +6,7 @@ export type AgentId=typeof agentIds[number];
 export type RunState='running'|'completed'|'held'|'cancelled';
 export type TurnState='prepared'|'dispatching'|'pending'|'completed'|'failed'|'unknown'|'unavailable';
 export type ToolState='issued'|'running'|'completed'|'unknown'|'denied';
+export interface ModelOutcome {status:'incomplete'|'failed'|'cancelled';reason:'max_output_tokens'|'content_filter'|'provider_failure'|'cancelled'|'incomplete';outputLimit:number|null;outputTokens:number|null}
 export interface EnrollRun {
   input:AgAiRunInput; agentId:AgentId; params?:unknown; snapshotHash:string;
   clientId:string; resumeRunId?:string;
@@ -13,12 +14,12 @@ export interface EnrollRun {
 export interface RunView {
   id:string;threadId:string;agentId:AgentId;parentRunId:string|null;parentToolCallId:string|null;
   snapshotHash:string;state:RunState;reason:string|null;updatedAt:string;canResume:boolean;
-  modelTurns:{index:number;state:TurnState;hasProviderId:boolean;dispatchCount:number;providerStored:boolean|null}[];
+  modelTurns:{index:number;state:TurnState;hasProviderId:boolean;dispatchCount:number;providerStored:boolean|null;outcome?:ModelOutcome}[];
   tools:{id:string;name:string;state:ToolState;transport:string;layoutVersion:number|null}[];
 }
 export interface EnrolledRun {run:RunView;input:AgAiRunInput;params?:unknown;replaying:boolean}
 export interface SubmitTurn {runId:string;index:number;request:AgLlmRequest;clientId:string;snapshotHash:string}
-export interface TurnView {runId:string;index:number;state:TurnState;hasProviderId:boolean;providerStored:boolean|null;response?:AgLlmResponse;reason?:string|null;retryAfterMs?:number}
+export interface TurnView {runId:string;index:number;state:TurnState;hasProviderId:boolean;providerStored:boolean|null;response?:AgLlmResponse;reason?:string|null;outcome?:ModelOutcome;retryAfterMs?:number}
 export interface ToolClaim {runId:string;callId:string;name:string;args:Record<string,unknown>;clientId:string;snapshotHash:string}
 export interface ToolGrant {state:'execute'|'completed'|'held';result?:AgAiToolResult;reason?:string;mutationId?:string;leaseToken?:string}
 export interface NativeAcknowledgement {runId:string;callId:string;clientId:string;leaseToken:string;result:AgAiToolResult;snapshotHash:string}

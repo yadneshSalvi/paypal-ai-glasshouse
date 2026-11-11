@@ -1,0 +1,118 @@
+{
+  "schema": "glasshouse.toolkit-qualification.v1",
+  "sourceCommit": "25f070d91a677bf9cfd906527600062ad6b2f71b",
+  "startedAt": "2026-11-11T13:35:10.377Z",
+  "finishedAt": "2026-11-11T13:35:32.006Z",
+  "scope": "Operator qualification of four installed Toolkit reads against one existing manifest-owned original sandbox capture and already-bound dispute; not a native-agent grant test",
+  "package": "@paypal/agent-toolkit@1.11.0",
+  "privateEvidenceSha256": "915f9298d2f8abde33dd777e1467397bd65a90a564cbb3881c0815ac04ce3ff1",
+  "passed": true,
+  "officialToolkitReads": 4,
+  "oauthRequests": 4,
+  "financialProviderWrites": 0,
+  "ownedSandboxCohortCaptures": 600,
+  "originalFinancialDataUnchanged": true,
+  "originalTablesChecked": [
+    {
+      "table": "gh_payment_commands",
+      "rows": 638
+    },
+    {
+      "table": "gh_payment_consents",
+      "rows": 1
+    },
+    {
+      "table": "gh_provider_resources",
+      "rows": 1242
+    },
+    {
+      "table": "gh_recovery_intents",
+      "rows": 105
+    },
+    {
+      "table": "gh_recovery_runs",
+      "rows": 1
+    },
+    {
+      "table": "gh_seed_items",
+      "rows": 600
+    },
+    {
+      "table": "gh_seed_runs",
+      "rows": 1
+    },
+    {
+      "table": "gh_vault_operations",
+      "rows": 2
+    }
+  ],
+  "operations": [
+    {
+      "name": "paypal_get_order",
+      "passed": true,
+      "httpStatus": 200,
+      "observedAt": "2026-11-11T13:35:17.718Z",
+      "bodyHash": "8f820e112309d825f460ae050d3397f633f8f9aff400f2d2ab6ffeb37e23a2e2",
+      "coverage": {
+        "kind": "exact_owned_order"
+      },
+      "disclosure": "A current read of the exact owned sandbox resource. This read does not change the workspace T/K projection."
+    },
+    {
+      "name": "paypal_list_disputes",
+      "passed": true,
+      "httpStatus": 200,
+      "observedAt": "2026-11-11T13:35:21.136Z",
+      "bodyHash": "c3d5b6eb2ef7acb9a0c0cd688048d51e35fdde41562dd20271aa3381a0a0774c",
+      "coverage": {
+        "kind": "first_bound_case_summary_page",
+        "page": 1,
+        "pageSize": 50,
+        "complete": false,
+        "boundCases": 1,
+        "ownership": "versioned_prior_case_details"
+      },
+      "disclosure": "A current, bounded summary page. Capture ownership comes from the exact previously verified case bindings, not the query filter. Unknown cases are refused; an empty page does not establish that no disputes exist. This read does not change the workspace T/K projection."
+    },
+    {
+      "name": "paypal_get_dispute",
+      "passed": true,
+      "httpStatus": 200,
+      "observedAt": "2026-11-11T13:35:24.933Z",
+      "bodyHash": "7d6c281a208929a9fd298ab191e181affe3dc782eb4702ba2f4bbcad33fe9b89",
+      "coverage": {
+        "kind": "exact_bound_case",
+        "page": 1,
+        "pageSize": 50,
+        "complete": false
+      },
+      "disclosure": "A current read of the exact owned sandbox resource. This read does not change the workspace T/K projection."
+    },
+    {
+      "name": "paypal_find_transaction",
+      "passed": true,
+      "httpStatus": 200,
+      "observedAt": "2026-11-11T13:35:28.708Z",
+      "bodyHash": "6bed6f7aab045e5bcefdb6032631ea62a8cba27adbbb6cfce5515cafc065cad1",
+      "coverage": {
+        "kind": "bounded_reporting_page",
+        "start": "2026-10-11T13:35:27.299Z",
+        "end": "2026-11-11T13:35:27.299Z",
+        "page": 1,
+        "pageSize": 100,
+        "totalItems": 1,
+        "totalPages": 1,
+        "complete": false,
+        "providerRefreshedAt": "2026-11-11T11:29:59.000Z"
+      },
+      "disclosure": "A current, bounded reporting read. Reporting can lag; absence in this page does not establish a missing capture. This read does not change the workspace T/K projection."
+    }
+  ],
+  "limits": [
+    "Separate operator qualification, not a native agent permission test.",
+    "Original failed summary-response qualification is retained unchanged. The corrected run validates versioned, previously verified case bindings before and after the bounded summary read.",
+    "Reporting and case summaries are bounded pages; missing rows do not prove absence.",
+    "The exact-order capture status and transaction-reporting status are independent provider observations; this run does not reconcile or overwrite canonical financial state.",
+    "No new recovery action, approval, buyer consent, or financial write."
+  ]
+}

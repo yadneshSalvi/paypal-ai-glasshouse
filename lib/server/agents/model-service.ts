@@ -9,13 +9,14 @@ import {AgentJournal,type RunRow,type TurnDocument,type TurnRow,type ToolRow} fr
 import {authorizedTools,instructionsFor,modelFor} from './registry';
 import {agentSnapshot,bounded} from './security';
 import {BeforeModelDispatch,ModelRejected,ModelUnavailable,publicModelResponse,type AgentModelProvider} from './provider';
+import {modelOutcome,modelOutcomeMessage} from './model-outcome';
 
 export class AgentModels {
   constructor(readonly journal:AgentJournal,readonly provider:AgentModelProvider|null){}
   private async row(tx:Database,tenant:string,run:string,index:number,lock=false){return (await tx.query<TurnRow>(`SELECT * FROM gh_agent_model_turns WHERE tenant_id=$1 AND run_id=$2 AND turn_index=$3${lock?' FOR UPDATE':''}`,[tenant,run,index]))[0];}
   private view(row:TurnRow):TurnView {
-    const doc=this.journal.turnDocument(row);
-    return {runId:row.run_id,index:row.turn_index,state:row.state,hasProviderId:row.has_provider_id,providerStored:row.provider_stored,response:row.state==='completed'?doc.response:undefined,reason:row.reason,retryAfterMs:row.state==='pending'?2000:row.state==='dispatching'?2500:undefined};
+    const doc=this.journal.turnDocument(row),outcome=modelOutcome(doc);
+    return {runId:row.run_id,index:row.turn_index,state:row.state,hasProviderId:row.has_provider_id,providerStored:row.provider_stored,response:row.state==='completed'?doc.response:undefined,reason:outcome?modelOutcomeMessage(outcome):row.reason,outcome,retryAfterMs:row.state==='pending'?2000:row.state==='dispatching'?2500:undefined};
   }
   async submit(actor:Actor,input:SubmitTurn):Promise<TurnView>{
     if(!Number.isSafeInteger(input.index)||input.index<0||input.index>=100)throw new HttpError(400,'AGENT_TURN_INDEX','A native turn index between 0 and 99 is required.');
@@ -63,7 +64,7 @@ export class AgentModels {
         include:['reasoning.encrypted_content'],
         instructions:instructionsFor(run.agent_id,run.snapshot_hash,runDoc.params,input.request.instructions),
         tools:tools.map(tool=>({type:'function',name:tool.name,description:tool.description,parameters:tool.parameters,strict:false})),
-        reasoning:{effort:'max'},max_output_tokens:16000,tool_choice:forced&&tools.some(tool=>tool.name===forced)?{type:'function',name:forced}:'auto',parallel_tool_calls:false,
+        reasoning:{effort:'max'},max_output_tokens:32768,tool_choice:forced&&tools.some(tool=>tool.name===forced)?{type:'function',name:forced}:'auto',parallel_tool_calls:false,
         metadata:{glasshouse_turn:hash({tenant:actor.tenantId,run:run.id,index:input.index}),transport:this.provider?.mode??'unconfigured'}};
       const doc:TurnDocument={request,tools},requestHash=hash(request);
       await tx.query('INSERT INTO gh_agent_model_turns(tenant_id,run_id,turn_index,request_hash,private_document) VALUES($1,$2,$3,$4,$5)',[actor.tenantId,run.id,input.index,requestHash,this.journal.secrets.seal(actor.tenantId,'turn',`${run.id}:${input.index}`,doc)]);
@@ -154,7 +155,8 @@ export class AgentModels {
       doc.providerId=response.id;doc.provider=response;doc.response=publicModelResponse(response);
       const state=response.status==='completed'?'completed':['queued','in_progress'].includes(response.status??'')?'pending':'failed';
       if(state==='completed')for(const call of response.output)if(call.type==='function_call')await this.journal.insertCall(tx,run,row,call.name,call.call_id,call.arguments,doc.tools);
-      await tx.query("UPDATE gh_agent_model_turns SET state=$4,private_document=$5,has_provider_id=true,provider_stored=$7,lease_owner=null,lease_until=now()+interval '2 seconds',reason=$6,updated_at=now() WHERE tenant_id=$1 AND run_id=$2 AND turn_index=$3",[actor.tenantId,run.id,claim.turn_index,state,this.journal.secrets.seal(actor.tenantId,'turn',`${run.id}:${claim.turn_index}`,doc),state==='failed'?'The provider ended this exact response without a complete answer.':null,returnedStorage??row.provider_stored]);
+      const outcome=modelOutcome(doc);
+      await tx.query("UPDATE gh_agent_model_turns SET state=$4,private_document=$5,has_provider_id=true,provider_stored=$7,lease_owner=null,lease_until=now()+interval '2 seconds',reason=$6,updated_at=now() WHERE tenant_id=$1 AND run_id=$2 AND turn_index=$3",[actor.tenantId,run.id,claim.turn_index,state,this.journal.secrets.seal(actor.tenantId,'turn',`${run.id}:${claim.turn_index}`,doc),state==='failed'?(outcome?modelOutcomeMessage(outcome):'The provider ended this exact response without a complete answer.'):null,returnedStorage??row.provider_stored]);
       await this.journal.event(tx,run,state==='completed'?'model_completed':'model_identity_saved',String(claim.turn_index),state==='completed'?'Observed and saved the exact model response.':`Saved the exact response identity; provider state is ${response.status}.`,state==='completed'?'success':state==='failed'?'error':'running',this.provider!.mode==='live'?'OpenAI':'application',null,row.request_hash);
     });
   }

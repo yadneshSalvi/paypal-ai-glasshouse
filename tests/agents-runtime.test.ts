@@ -54,6 +54,43 @@ test('an ambiguous create without an ID is permanently held and cannot be repost
   assert.match(unknown.reason!,/will not be sent again/);assert.equal((await h.journal.finish(h.who,run.run.id,h.clientId,'complete')).state,'held');
 });
 
+test('an incomplete output-limit response is terminal across child and parent resume with exact original evidence retained',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const parent=await h.begin('Inspect the saved proposal.'),planner=await h.handoff(parent,'planner');
+  const {OpenAIBackgroundProvider}=await import('../lib/server/agents/provider');
+  const {modelOutcome}=await import('../lib/server/agents/model-outcome');
+  const partial=functionCall('prepare_recovery',{branchId:'targeted',budgetMinor:30000});
+  h.fixture.outputs.push([partial,{id:'rs_fixture_private',type:'reasoning',summary:[{type:'summary_text',text:'PRIVATE_FIXTURE_REASONING'}],encrypted_content:'OPAQUE_PRIVATE_CONTINUATION'}]);
+  const provider=new OpenAIBackgroundProvider('fixture-only-model-key','synthetic',async(input,init)=>{
+    const response=await h.fixture.fetch(input,init),body=await response.json();
+    return new Response(JSON.stringify({...body,status:'incomplete',incomplete_details:{reason:'max_output_tokens'},usage:{input_tokens:37099,output_tokens:32768,total_tokens:69867,output_tokens_details:{reasoning_tokens:24000}}}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  const models=new AgentModels(h.journal,provider),input={runId:planner.run.id,index:0,request:request([tool('prepare_recovery')]),clientId:h.clientId,snapshotHash:h.snapshot.hash};
+  await models.submit(h.who,input);const result=await models.step(h.who,planner.run.id,0,h.clientId);
+  assert.equal(result.state,'failed');assert.equal(result.hasProviderId,true);assert.equal(result.response,undefined);assert.equal(result.outcome?.status,'incomplete');assert.equal(result.outcome?.reason,'max_output_tokens');assert.equal(result.outcome?.outputLimit,32768);assert.match(result.reason!,/output limit/);
+  assert.equal((await h.db.query('SELECT id FROM gh_agent_tool_calls WHERE id=$1',[partial.call_id])).length,0,'A partial provider answer cannot authorize a new tool.');
+  assert.equal((await h.db.query('SELECT id FROM gh_plans')).length,0);
+  const before=(await h.db.query<import('../lib/server/agents/journal').TurnRow>('SELECT * FROM gh_agent_model_turns WHERE run_id=$1',[planner.run.id]))[0],doc=h.journal.turnDocument(before);
+  const count=h.fixture.creates.length;await models.submit(h.who,input);await models.step(h.who,planner.run.id,0,h.clientId);await models.drain();assert.equal(h.fixture.creates.length,count);assert.deepEqual(h.fixture.gets,[]);
+  const childView=await h.journal.finish(h.who,planner.run.id,h.clientId,'hold'),parentView=await h.journal.finish(h.who,parent.run.id,h.clientId,'hold');
+  assert.equal(childView.canResume,false);assert.equal(parentView.canResume,false);assert.deepEqual(childView.modelTurns[0].outcome,modelOutcome(doc));
+  assert.doesNotMatch(JSON.stringify(childView),/PRIVATE_FIXTURE_REASONING|OPAQUE_PRIVATE_CONTINUATION|resp_fixture/);
+  for(const run of [planner,parent])await assert.rejects(h.journal.enroll(h.who,{input:run.input,agentId:run.run.agentId,snapshotHash:h.snapshot.hash,clientId:h.clientId,resumeRunId:run.run.id}),failure('AGENT_TERMINAL_MODEL'));
+  const after=(await h.db.query<import('../lib/server/agents/journal').TurnRow>('SELECT * FROM gh_agent_model_turns WHERE run_id=$1',[planner.run.id]))[0];assert.equal(after.private_document,before.private_document);assert.equal(after.request_hash,before.request_hash);assert.equal(after.dispatch_count,1);assert.equal(h.journal.turnDocument(after).providerId,doc.providerId);
+  const contentFiltered={...doc,provider:{...doc.provider!,status:'incomplete' as const,incomplete_details:{reason:'content_filter' as const}}};assert.equal(modelOutcome(contentFiltered)?.reason,'content_filter');
+});
+
+test('a larger new-request output allowance never rewrites or reposts an earlier admitted request',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const prior=await h.begin('Earlier admitted request.'),input={runId:prior.run.id,index:0,request:request([tool('read_incident')]),clientId:h.clientId,snapshotHash:h.snapshot.hash};
+  await h.models.submit(h.who,input);
+  const row=(await h.db.query<import('../lib/server/agents/journal').TurnRow>('SELECT * FROM gh_agent_model_turns WHERE run_id=$1',[prior.run.id]))[0],document=h.journal.turnDocument(row);
+  document.request.max_output_tokens=16000;const requestHash=hash(document.request),privateDocument=h.secrets.seal(h.who.tenantId,'turn',`${prior.run.id}:0`,document);
+  await h.db.query('UPDATE gh_agent_model_turns SET request_hash=$2,private_document=$3 WHERE run_id=$1',[prior.run.id,requestHash,privateDocument]);
+  await h.models.submit(h.who,input);assert.equal((await h.db.query<{private_document:string}>('SELECT private_document FROM gh_agent_model_turns WHERE run_id=$1',[prior.run.id]))[0].private_document,privateDocument);
+  await h.models.step(h.who,prior.run.id,0,h.clientId);await h.models.step(h.who,prior.run.id,0,h.clientId);assert.equal(h.fixture.creates.length,1);assert.equal(h.fixture.creates[0].max_output_tokens,16000);
+  const next=await h.begin('New independent request.');await h.models.submit(h.who,{...input,runId:next.run.id});await h.models.step(h.who,next.run.id,0,h.clientId);
+  assert.equal(h.fixture.creates[1].max_output_tokens,32768);assert.deepEqual(h.fixture.creates[1].reasoning,{effort:'max'});assert.equal((await h.db.query<{request_hash:string}>('SELECT request_hash FROM gh_agent_model_turns WHERE run_id=$1',[prior.run.id]))[0].request_hash,requestHash);
+});
+
 test('a known response ID survives malformed output and an expired dispatch lease never repeats create',async t=>{
   const h=await agentHarness();t.after(h.dispose);const run=await h.begin();h.fixture.malformed=true;h.fixture.reportedStore=false;
   await h.models.submit(h.who,{runId:run.run.id,index:0,request:request([tool('read_incident')]),clientId:h.clientId,snapshotHash:h.snapshot.hash});
