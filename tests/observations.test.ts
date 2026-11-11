@@ -58,7 +58,9 @@ test('webhook verification preserves original JSON bytes and only posts to fixed
   }
   await assert.rejects(rawWebhook(new Request('https://glasshouse.test/api/webhooks/paypal',{method:'POST',headers:{'content-type':'application/json','content-length':'1048577'},body:'{}'})),/bounded/);
   await assert.rejects(boundedBody(new ReadableStream({start(controller){controller.enqueue(new Uint8Array(11));}}),10,AbortSignal.timeout(1000)),/bounded/);
-  await assert.rejects(boundedBody(new ReadableStream({}),10,AbortSignal.timeout(5)));
+  const stalled = new AbortController(), deadline = setTimeout(() => stalled.abort(), 5);
+  try { await assert.rejects(boundedBody(new ReadableStream({}),10,stalled.signal)); }
+  finally { clearTimeout(deadline); }
   const refund = parseWebhook(event('WH-REFUND',{id:'REFUND-1',supplementary_data:{related_ids:{capture_id:'CAPTURE-1'}}},'PAYMENT.CAPTURE.REFUNDED'));
   assert.deepEqual(refund.primary,{kind:'refund',id:'REFUND-1'});assert(refund.resources.some(value=>value.kind==='capture'&&value.id==='CAPTURE-1'));
   assert.deepEqual(parseWebhook(event('WH-DECLINED',{id:'CAPTURE-1'},'PAYMENT.CAPTURE.DECLINED')).primary,{kind:'capture',id:'CAPTURE-1'});

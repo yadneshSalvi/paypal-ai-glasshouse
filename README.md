@@ -48,8 +48,14 @@ The immutable shared core is `@fracture/paypal-core` **0.2.7**, from `vendor/fra
 
 Every write checks current SQL membership, original resource ownership, immutable approval, policy, expiry and a durable operation claim. The final provider POST rechecks authority. Independent provider reads establish the result; an ambiguous write retains its original identity and is never blindly resent. Sample records cannot authorize provider execution. Disputes use a typed fixed-sandbox REST adapter; the current agent tools use application reads. Actual PayPal Agent Toolkit transport is a remaining integration, so it is not presented as an executed capability.
 
+## Reporting coverage
+
+Open **Fernwood Coffee → source and clock ledger → Reporting** to read a past UTC window. The installed APIMatic SDK requests one transaction-info page at a time, saves its cursor, and links only already-owned capture/refund IDs. Work continues through the authenticated reporting cron; stopped scans retain their collected pages. A changed merchant, revoked operator, changed resource scope, changed pagination metadata, or a truncated result cannot be labelled complete.
+
+The evidence table shows original resource/order identities, signed amounts, provider status, update time, and observation time. Reporting never creates a payment, retries a financial action, or replaces an independently verified receipt. The denominator counts all workspace-owned resources; resources outside the selected dates need not appear. PayPal documents reporting lag of up to three hours, but the observed refresh timestamp is shown without assuming that service level was met. See [reporting implementation and verification](docs/reporting.md).
+
 ## Current limits
 
-This is a verified implementation checkpoint, not the full product release. Actual authenticated webhook qualification, scoped Transaction Search backfill, hosted durable agent jobs and scheduling, model comparisons, complete widget configuration/export, the full temporal/accessibility/performance corpus, broader commerce remedies and the bounded public judge tour remain in scope. No seller research, prevented-dispute or retained-revenue result is claimed. Provider tracking records an assignment; fulfillment fixtures supply delivery facts. Evidence submission records a seller response; current provider observations determine case status.
+This is a verified implementation checkpoint, not the full product release. Actual authenticated webhook qualification, hosted durable agent jobs and scheduling, model comparisons, complete widget configuration/export, the full temporal/accessibility/performance corpus, broader commerce remedies and the bounded public judge tour remain in scope. No seller research, prevented-dispute or retained-revenue result is claimed. Provider tracking records an assignment; fulfillment fixtures supply delivery facts. Evidence submission records a seller response; current provider observations determine case status.
 
 The repository is private. Private plans, credentials, operational evidence, local data and the build handoff remain excluded from Git.

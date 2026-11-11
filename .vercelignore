@@ -21,3 +21,5 @@ playwright-report/
 paypal-plan.md
 vendor/*
 !vendor/fracture-paypal-core-0.2.7.tgz
+
+.next-*/

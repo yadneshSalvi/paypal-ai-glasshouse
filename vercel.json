@@ -3,6 +3,10 @@
     {
       "path": "/api/internal/observations",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/reporting",
+      "schedule": "* * * * *"
     }
   ]
 }

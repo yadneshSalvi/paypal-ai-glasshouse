@@ -37,3 +37,5 @@ artifacts/private/
 /vendor/*
 !/vendor/fracture-paypal-core-0.2.7.tgz
 !/vendor/README.md
+
+.next-*/

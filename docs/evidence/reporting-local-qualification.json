@@ -1,0 +1,58 @@
+{
+  "at": "2026-11-11T06:45:53.013Z",
+  "source": "working tree reporting unit",
+  "isolatedLocalDatabase": true,
+  "actualProviderReportingGetPages": 6,
+  "observedCaptures": 600,
+  "reportedCaptureMinor": 2760000,
+  "currency": "USD",
+  "providerRefreshTimestamp": "2026-11-11T03:29:59.000Z",
+  "firstPageObservedAt": "2026-11-11T06:43:49.932Z",
+  "lastPageObservedAt": "2026-11-11T06:43:56.390Z",
+  "refreshAgeAtLastPageSeconds": 11637.39,
+  "retainedQaTransportFailures": 3,
+  "financialTablesUnchanged": [
+    {
+      "table": "gh_payment_commands",
+      "count": 638
+    },
+    {
+      "table": "gh_payment_consents",
+      "count": 1
+    },
+    {
+      "table": "gh_recovery_intents",
+      "count": 105
+    },
+    {
+      "table": "gh_recovery_runs",
+      "count": 1
+    },
+    {
+      "table": "gh_seed_items",
+      "count": 600
+    },
+    {
+      "table": "gh_seed_runs",
+      "count": 1
+    },
+    {
+      "table": "gh_vault_operations",
+      "count": 2
+    }
+  ],
+  "financialProviderWrites": 0,
+  "limits": [
+    "Report refresh timestamp exceeded three hours at collection; no live freshness or completeness of recent payments is asserted.",
+    "The first three attempts failed in the local read-only fetch wrapper before transport. That test wrapper was corrected; the same durable page identity resumed after restart.",
+    "Thirty-eight owned refund resources are outside the selected capture-day window.",
+    "No authentic webhook delivery has been received."
+  ],
+  "nativeBrowser": {
+    "reloadPersisted": true,
+    "evidencePagination": true,
+    "mobileWidth": 390,
+    "documentOverflow": false,
+    "escapeFocusReturned": true
+  }
+}
