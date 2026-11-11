@@ -10,9 +10,19 @@ export interface HistoryRestoreStatus {
   issues:{snapshot:string;key:string;path:unknown}[];
 }
 
-function canonical(value:unknown):string{
-  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
-  if(value&&typeof value==='object')return '{'+Object.entries(value).filter(([,v])=>v!==undefined).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>JSON.stringify(k)+':'+canonical(v)).join(',')+'}';
+function canonical(value:unknown,path:(string|number)[]=[]):string{
+  if(Array.isArray(value))return '['+value.map((child,index)=>canonical(child,[...path,index])).join(',')+']';
+  if(value&&typeof value==='object')return '{'+Object.entries(value).filter(([key,child])=>{
+    if(child===undefined)return false;
+    // AG Studio 3.1 admits an unconfigured widget's absent dataMapping as {},
+    // and on later admission fills required mapping slots with empty arrays.
+    // Each represents no mapped fields. Accept only these admission changes;
+    // every field reference, aggregation, format, layout and other value remains
+    // part of the comparison. Saved history and mutation receipts are untouched.
+    const widget=path[0]==='pages'&&typeof path[1]==='number'&&path[2]==='widgets'&&typeof path[3]==='string';
+    if(widget&&path.length===5&&path[4]==='dataMapping'&&Array.isArray(child)&&child.length===0)return false;
+    return !(widget&&path.length===4&&key==='dataMapping'&&child!==null&&typeof child==='object'&&!Array.isArray(child)&&Object.values(child).every(mapping=>mapping===undefined||Array.isArray(mapping)&&mapping.length===0));
+  }).sort(([a],[b])=>a.localeCompare(b)).map(([key,child])=>JSON.stringify(key)+':'+canonical(child,[...path,key])).join(',')+'}';
   return JSON.stringify(value)??'null';
 }
 
@@ -37,7 +47,10 @@ export function inspectHistoryRestore(api:AgStudioApi<GlasshouseRegistry>,saved:
       return !(selection?.type==='widget'&&typeof selection.id==='string'&&!!page.widgets?.[selection.id]);
     }).map(issue=>({snapshot:snapshot.name,key:issue.key,path:issue.path??[]}));
   });
-  const sameEntries=(kind:'undo'|'redo')=>!saved||native[kind].length===saved[kind].length&&native[kind].every((entry,index)=>entry.id===saved[kind][index].id&&canonical(entry.state)===canonical(saved[kind][index].state));
+  // The display label is translated by the native engine in the current locale;
+  // its key and source metadata must still retain their saved identities.
+  const identity=(entry:AgReportHistory<GlasshouseRegistry>['undo'][number])=>({id:entry.id,at:entry.at,labelKey:entry.labelKey,labelVariableValues:entry.labelVariableValues,focus:entry.focus,source:entry.source});
+  const sameEntries=(kind:'undo'|'redo')=>!saved||native[kind].length===saved[kind].length&&native[kind].every((entry,index)=>canonical(identity(entry))===canonical(identity(saved[kind][index]))&&canonical(entry.state)===canonical(saved[kind][index].state));
   if(saved&&canonical(native.current)!==canonical(saved.current))issues.push({snapshot:'current',key:'restored_state_differs',path:[]});
   for(const kind of ['undo','redo'] as const)if(!sameEntries(kind))issues.push({snapshot:kind,key:'restored_history_differs',path:[]});
   return {state:issues.length===0?'restored':'unavailable',savedUndo:saved?.undo.length??0,savedRedo:saved?.redo.length??0,undo:native.undo.length,redo:native.redo.length,issues};

@@ -6,6 +6,7 @@ import {HttpError} from '../errors';
 import {ownedPayment,recoveryMember} from '../recovery/authority';
 import type {DisputeObservation} from '../recovery/disputes';
 import {actor,authenticatedSessionHash} from '../auth';
+import type {ToolkitDisputeBinding,ToolkitOwnedPayment} from './toolkit';
 
 export type AgentActor=Actor&{agentSessionHash:string};
 export async function agentActor(request:Request):Promise<AgentActor>{return {...await actor(request),agentSessionHash:authenticatedSessionHash(request)};}
@@ -38,15 +39,24 @@ export async function agentSnapshot(tx:Database,actor:Actor,snapshotHash:string)
   if(snapshot.hash!==snapshotHash)throw new HttpError(409,'AGENT_SNAPSHOT_CHANGED','Evidence changed while this investigation was running. Its previous results are saved; start from the current snapshot.');
   return snapshot;
 }
-export async function ownedToolkitResource(tx:Database,actor:Actor,snapshot:Snapshot,orderId:string,disputeId?:string){
+export async function ownedToolkitResource(tx:Database,actor:Actor,snapshot:Snapshot,orderId:string,disputeId?:string,includeBoundCases=false):Promise<ToolkitOwnedPayment&{disputeGrantVersion?:number;disputeHash?:string}>{
   const order=snapshot.orders.find(row=>row.id===orderId);
   if(!order||order.paymentSource!=='sandbox'||!order.captureId)throw new HttpError(403,'TOOLKIT_OWNED_SNAPSHOT_REQUIRED','This order has no admitted sandbox capture in the current snapshot.');
   const owned=await ownedPayment(tx,actor,orderId);
   if(owned.captureId!==order.captureId||owned.providerOrderId!==order.paypalOrderId)throw new HttpError(403,'TOOLKIT_SNAPSHOT_BINDING','This snapshot does not match the current provider resource grant.');
   if(disputeId){
     const row=(await tx.query<{body:DisputeObservation;version:number}>("SELECT body,version FROM gh_provider_resources WHERE tenant_id=$1 AND kind='dispute' AND provider_id=$2 AND order_id=$3 AND active=true FOR SHARE",[actor.tenantId,disputeId,orderId]))[0];
-    if(!row||row.body.captureId!==owned.captureId)throw new HttpError(403,'TOOLKIT_CASE_BINDING','This case is not already bound to this owned capture.');
+    if(!row||row.body.id!==disputeId||row.body.captureId!==owned.captureId)throw new HttpError(403,'TOOLKIT_CASE_BINDING','This case is not already bound to this owned capture.');
     return {...owned,disputeGrantVersion:row.version,disputeHash:row.body.bodyHash};
+  }
+  if(includeBoundCases){
+    const rows=await tx.query<{provider_id:string;body:DisputeObservation;version:number}>("SELECT provider_id,body,version FROM gh_provider_resources WHERE tenant_id=$1 AND kind='dispute' AND order_id=$2 AND active=true ORDER BY provider_id LIMIT 51 FOR SHARE",[actor.tenantId,orderId]);
+    if(rows.length>50)throw new HttpError(409,'TOOLKIT_CASE_BINDING_LIMIT','This owned capture has more case bindings than the bounded Toolkit read can verify.');
+    const disputeBindings:ToolkitDisputeBinding[]=rows.map(row=>{
+      if(row.body.id!==row.provider_id||row.body.captureId!==owned.captureId||typeof row.body.buyerTransactionId!=='string'||!/^[A-Za-z0-9_-]{1,150}$/.test(row.body.buyerTransactionId)||typeof row.body.bodyHash!=='string'||!/^[a-f0-9]{64}$/.test(row.body.bodyHash)||typeof row.body.observedAt!=='string'||!Number.isFinite(Date.parse(row.body.observedAt)))throw new HttpError(403,'TOOLKIT_CASE_BINDING','A case summary requires its independently verified owned-capture detail binding.');
+      return {id:row.provider_id,captureId:owned.captureId,buyerTransactionId:row.body.buyerTransactionId,version:row.version,bodyHash:row.body.bodyHash,observedAt:row.body.observedAt};
+    });
+    return {...owned,disputeBindings};
   }
   return owned;
 }

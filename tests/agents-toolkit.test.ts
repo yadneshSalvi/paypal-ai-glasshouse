@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import type {OwnedPayment} from '../lib/server/recovery/authority';
+import type {ToolkitDisputeBinding,ToolkitOwnedPayment} from '../lib/server/agents/toolkit';
 import {agentHarness,functionCall,request,tool} from './helpers/agents';
 const {ScopedPayPalToolkit}=await import('../lib/server/agents/toolkit');
 const {AgentTools}=await import('../lib/server/agents/tools');
@@ -13,6 +14,8 @@ const {persistDataset,hash}=await import('../lib/server/repository');
 type Harness=Awaited<ReturnType<typeof agentHarness>>;
 const errorCode=(code:string)=>(error:unknown)=>!!error&&typeof error==='object'&&'code'in error&&error.code===code;
 const fixtureOwned=(suffix='A'):OwnedPayment=>({tenantId:`toolkit-fixture-${suffix}`,orderId:`local-${suffix}`,runId:`fixture-run-${suffix}`,entry:{orderId:`local-${suffix}`,reference:`TEST-${suffix}`,product:'Synthetic qualification item',amountMinor:4600,currency:'USD',resourceVersion:1},providerOrderId:`ORDER_${suffix}`,captureId:`CAPTURE_${suffix}`,customId:`fixture-owned-${suffix}`,orderGrantVersion:1,captureGrantVersion:1});
+const fixtureBinding=(owned:OwnedPayment,id='CASE_FIXTURE'):ToolkitDisputeBinding=>({id,captureId:owned.captureId,buyerTransactionId:'BUYER_TRANSACTION_FIXTURE',version:1,bodyHash:'a'.repeat(64),observedAt:'2026-11-11T10:00:00.000Z'});
+const boundOwned=(owned=fixtureOwned()):ToolkitOwnedPayment=>({...owned,disputeBindings:[fixtureBinding(owned)]});
 
 /** Actual installed Toolkit code, with an explicitly synthetic HTTP transport. */
 class ToolkitWire {
@@ -21,6 +24,7 @@ class ToolkitWire {
   constructor(readonly owned:OwnedPayment,readonly disputeId='CASE_FIXTURE'){}
   order(){return {id:this.owned.providerOrderId,status:'COMPLETED',payer:{email_address:'PRIVATE_PAYER_NOT_FOR_MODEL'},purchase_units:[{custom_id:this.owned.customId,payments:{captures:[{id:this.owned.captureId,status:'COMPLETED',amount:{currency_code:'USD',value:(this.owned.entry.amountMinor/100).toFixed(2)},create_time:'2026-11-11T10:00:00Z'}]}}]};}
   dispute(){return {dispute_id:this.disputeId,status:'WAITING_FOR_BUYER_RESPONSE',reason:'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',dispute_life_cycle_stage:'INQUIRY',dispute_amount:{currency_code:'USD',value:'46.00'},update_time:'2026-11-11T10:00:00Z',disputed_transactions:[{seller_transaction_id:this.owned.captureId,gross_amount:{currency_code:'USD',value:(this.owned.entry.amountMinor/100).toFixed(2)}}],messages:[{content:'PRIVATE_CASE_TEXT_NOT_FOR_MODEL'}]};}
+  summary(){return {...this.dispute(),dispute_amount:{currency_code:'USD',value:(this.owned.entry.amountMinor/100).toFixed(2)},disputed_transactions:[{buyer_transaction_id:'BUYER_TRANSACTION_FIXTURE',buyer:{name:'PRIVATE_BUYER_NAME'},seller:{name:'PRIVATE_SELLER_NAME'}}]};}
   reporting(){return {page:1,total_items:1,total_pages:1,last_refreshed_datetime:'2026-11-11T03:29:59Z',transaction_details:[{transaction_info:{transaction_id:this.owned.captureId,transaction_status:'S',transaction_initiation_date:'2026-11-11T10:00:00Z',transaction_amount:{currency_code:'USD',value:(this.owned.entry.amountMinor/100).toFixed(2)}},payer_info:{email_address:'PRIVATE_REPORTING_PAYER'}}]};}
   fetch:typeof fetch=async(input,init)=>{
     const url=new URL(input instanceof Request?input.url:String(input));
@@ -55,6 +59,11 @@ async function admitSyntheticOwned(h:Harness){
   Object.assign(h.snapshot,await h.saveSnapshot(buildSnapshot(h.dataset,snapshotContext(h.who,h.dataset))));
   return owned;
 }
+async function admitSyntheticCase(h:Harness,owned:OwnedPayment){
+  const binding=fixtureBinding(owned);
+  await h.db.query("INSERT INTO gh_provider_resources(tenant_id,kind,provider_id,order_id,run_id,observed_at,body) VALUES($1,'dispute',$2,$3,$4,now(),$5::jsonb)",[h.who.tenantId,binding.id,owned.orderId,owned.runId,JSON.stringify({...binding,syntheticTransport:true,notAProviderObservation:true})]);
+  return binding;
+}
 async function issued(h:Harness,name:string,args:Record<string,unknown>){
   const child=await h.handoff(await h.begin(),'investigator'),call=functionCall(name,args);
   await h.issue(child.run.id,[tool(name)],[call]);
@@ -62,7 +71,7 @@ async function issued(h:Harness,name:string,args:Record<string,unknown>){
 }
 
 test('installed Toolkit executes its four scoped reads and returns bounded, redacted, explicitly synthetic facts',async()=>{
-  const owned=fixtureOwned(),wire=new ToolkitWire(owned),toolkit=wire.toolkit();let guards=0;
+  const owned=boundOwned(),wire=new ToolkitWire(owned),toolkit=wire.toolkit();let guards=0;
   const names=['paypal_get_order','paypal_list_disputes','paypal_get_dispute','paypal_find_transaction'];
   const results=[];
   for(const name of names)results.push(await toolkit.read(name,owned,name==='paypal_get_dispute'?wire.disputeId:undefined,async()=>{guards++;}));
@@ -83,6 +92,58 @@ test('Toolkit wrapper blocks writes before OAuth and verifies exact returned ord
     const body=wire.order();if(field==='id')body.id='FOREIGN_ORDER';if(field==='capture')body.purchase_units[0].payments.captures[0].id='FOREIGN_CAPTURE';if(field==='marker')body.purchase_units[0].custom_id='FOREIGN_MARKER';if(field==='amount')body.purchase_units[0].payments.captures[0].amount.value='100.00';wire.replacement=body;
     await assert.rejects(toolkit.read('paypal_get_order',owned,undefined,async()=>{}),errorCode('TOOLKIT_EVIDENCE_UNVERIFIED'));
   }
+});
+
+test('installed Toolkit summary reads require exact previously bound cases, not query filters',async()=>{
+  const owned=boundOwned(),wire=new ToolkitWire(owned),toolkit=wire.toolkit();
+  wire.replacement={items:[wire.summary()]};
+  const result=await toolkit.read('paypal_list_disputes',owned,undefined,async()=>{});
+  const disputes=result.facts.disputes as {id:string;captureId:string;captureBinding:{source:string;version:number;bodyHash:string}}[];
+  assert.equal(disputes[0].id,'CASE_FIXTURE');assert.equal(disputes[0].captureId,owned.captureId);assert.equal(disputes[0].captureBinding.source,'previously_verified_case_detail');assert.equal(disputes[0].captureBinding.version,1);
+  assert.equal(result.coverage.complete,false);assert.equal(JSON.stringify(result).includes('PRIVATE_'),false);assert.equal(JSON.stringify(result).includes('BUYER_TRANSACTION_FIXTURE'),false);assert.match(result.disclosure,/not the query filter/);
+  // The documented summary can omit the transaction detail entirely.
+  const {disputed_transactions,...summary}=wire.summary();wire.replacement={items:[summary]};
+  assert.equal((await toolkit.read('paypal_list_disputes',owned,undefined,async()=>{})).status,200);
+  const invalid=[
+    {items:[{...summary,dispute_id:'UNKNOWN_CASE'}]},
+    {items:[{...wire.dispute(),dispute_id:'UNKNOWN_CASE'}]},
+    {items:[summary,summary]},
+    {items:[{...summary,disputed_transactions:[{seller_transaction_id:'FOREIGN_CAPTURE'}]}]},
+    {items:[{...summary,disputed_transactions:[{buyer_transaction_id:'FOREIGN_BUYER_TRANSACTION'}]}]},
+    {items:[{...summary,dispute_amount:{currency_code:'USD',value:'900.00'}}]},
+  ];
+  for(const response of invalid){wire.replacement=response;await assert.rejects(toolkit.read('paypal_list_disputes',owned,undefined,async()=>{}),errorCode('TOOLKIT_EVIDENCE_UNVERIFIED'));}
+  const before=wire.requests.length;
+  await assert.rejects(toolkit.read('paypal_list_disputes',fixtureOwned(),undefined,async()=>{}),errorCode('TOOLKIT_EVIDENCE_UNVERIFIED'));assert.equal(wire.requests.length,before,'Missing explicit binding scope is denied before OAuth.');
+  wire.replacement={items:[]};const empty=await toolkit.read('paypal_list_disputes',{...owned,disputeBindings:[]},undefined,async()=>{});assert.deepEqual(empty.facts.disputes,[]);assert.match(empty.disclosure,/does not establish that no disputes exist/);
+});
+
+test('versioned case bindings enter the durable read grant and are checked before GET and replay',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const owned=await admitSyntheticOwned(h);await admitSyntheticCase(h,owned);
+  const wire=new ToolkitWire(owned),tools=new AgentTools(h.journal,wire.toolkit());wire.replacement={items:[wire.summary()]};
+  const call=await issued(h,'paypal_list_disputes',{orderId:owned.orderId});
+  const result=await tools.claim(h.who,call);assert.equal(result.result?.success,true);assert.equal(wire.requests.length,2);
+  assert.deepEqual(await tools.claim(h.who,call),result);assert.equal(wire.requests.length,2);
+  await h.db.query("UPDATE gh_provider_resources SET version=version+1 WHERE kind='dispute'");
+  await assert.rejects(tools.claim(h.who,call),errorCode('TOOLKIT_GRANT_CHANGED'));assert.equal(wire.requests.length,2);
+  await assert.rejects(h.models.submit(h.who,{runId:call.runId,index:1,request:request([tool('read_incident')]),clientId:h.clientId,snapshotHash:h.snapshot.hash}),errorCode('TOOLKIT_GRANT_CHANGED'));
+});
+
+test('case binding revocation between OAuth and GET prevents the summary read',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const owned=await admitSyntheticOwned(h);await admitSyntheticCase(h,owned);
+  const wire=new ToolkitWire(owned),tools=new AgentTools(h.journal,wire.toolkit());wire.replacement={items:[wire.summary()]};
+  const call=await issued(h,'paypal_list_disputes',{orderId:owned.orderId});wire.onToken=async()=>{await h.db.query("UPDATE gh_provider_resources SET active=false WHERE kind='dispute'");};
+  await assert.rejects(tools.claim(h.who,call),errorCode('TOOLKIT_GRANT_CHANGED'));assert.equal(wire.requests.length,1);
+  const row=(await h.db.query<import('../lib/server/agents/journal').ToolRow>('SELECT * FROM gh_agent_tool_calls WHERE id=$1',[call.callId]))[0];assert.equal(h.journal.toolDocument(row).result?.success,false);assert.equal(row.dispatch_count,1);
+});
+
+test('a summary response racing case-binding revocation is retained encrypted without disclosure',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const owned=await admitSyntheticOwned(h);await admitSyntheticCase(h,owned);
+  const wire=new ToolkitWire(owned),tools=new AgentTools(h.journal,wire.toolkit());wire.replacement={items:[wire.summary()]};
+  const call=await issued(h,'paypal_list_disputes',{orderId:owned.orderId});wire.onRead=async()=>{await h.db.query("UPDATE gh_provider_resources SET version=version+1 WHERE kind='dispute'");};
+  await assert.rejects(tools.claim(h.who,call),errorCode('TOOLKIT_GRANT_CHANGED'));assert.equal(wire.requests.length,2);
+  const row=(await h.db.query<import('../lib/server/agents/journal').ToolRow>('SELECT * FROM gh_agent_tool_calls WHERE id=$1',[call.callId]))[0];assert.equal(row.state,'completed');assert.equal(h.journal.toolDocument(row).result?.success,true);assert.equal(row.private_document.includes(owned.captureId),false);
+  await assert.rejects(tools.claim(h.who,call),errorCode('TOOLKIT_GRANT_CHANGED'));assert.equal(wire.requests.length,2);
 });
 
 test('Toolkit reporting failures and foreign or malformed pages never become a clean absent-payment result',async()=>{

@@ -1,0 +1,109 @@
+{
+  "version": "glasshouse-agent-corrections.v1",
+  "observedAt": "2026-11-11T13:28:18.026267+00:00",
+  "baseCommit": "9ff8e6f642f5b0b93d1411144d469b69742b915e",
+  "scope": "Source correction with isolated automated qualification; same-record browser and actual Toolkit reread remain pending.",
+  "preservedActualQualification": {
+    "path": "agents-live-qualification.json",
+    "sha256": "a5ac8cbea7ecf0800305ddcec98c343eea388e95624f4d9b1f6223970587c378",
+    "responses": 63,
+    "toolReceipts": 60,
+    "nativeRuns": 10,
+    "eachDispatchExactlyOnce": true,
+    "failedNativeChecksRetained": true
+  },
+  "history": {
+    "engine": "installed AG Studio 3.1.0",
+    "rendering": "JSDOM with empty widget-renderer seams; actual native state, command, history and session APIs",
+    "checks": [
+      "Two native add/configure undo entries survive JSON reload",
+      "Both undos then JSON reload preserve two redo entries",
+      "Both redos preserve configured chart and entry identities",
+      "Nonempty mapping, formatting, ID, timestamp, focus and source changes still hold saving"
+    ],
+    "equivalence": "Only absent/empty widget dataMapping and empty mapping arrays; no saved history or receipt rewritten."
+  },
+  "childTranscripts": {
+    "tests": 3,
+    "checks": [
+      "Late delegate registration appears while the child view remains mounted",
+      "Same-ID replacement native session rebinds and continues updates",
+      "Late historical hydration cannot replace the current live session",
+      "Historical load errors remain unavailable without inventing a transcript"
+    ]
+  },
+  "proposal": {
+    "checks": [
+      "Preparation reads the exact stored approval contract back and verifies its hash",
+      "Planner-only read of the existing plan exposes complete eligible IDs, exclusions, source/policy snapshot and hash without a new plan",
+      "Foreign tenant, changed snapshot and corrupt contract refused",
+      "Comprehensive is a no-grace comparison and grants no policy override"
+    ],
+    "approvalOrExecutionGranted": false
+  },
+  "toolkit": {
+    "package": "@paypal/agent-toolkit@1.11.0",
+    "transport": "synthetic HTTP with the actual installed Toolkit and PostgreSQL authority checks",
+    "tests": 13,
+    "checks": [
+      "Summary requires exact independently verified, active and versioned case-to-owned-capture bindings",
+      "Unknown or duplicate cases and contradictory transaction/amount fields refused",
+      "Binding revocation checked before dispatch, after response, on replay and before model continuation",
+      "Post-response revocation preserves encrypted evidence while refusing disclosure"
+    ],
+    "actualProviderCallsBySourceLead": 0
+  },
+  "presentation": {
+    "tests": 2,
+    "checks": [
+      "Headings, emphasis, lists, code and tables render without changing canonical text",
+      "HTML, media, active schemes, network-path and backslash URLs excluded"
+    ],
+    "longReceipts": "Preview is explicitly labelled and the complete recorded result can be downloaded."
+  },
+  "validation": {
+    "applicationTests": {
+      "passed": 145,
+      "failed": 0
+    },
+    "postgresAgentTests": {
+      "passed": 37,
+      "failed": 0
+    },
+    "markdownAfterFinalUrlHardening": {
+      "passed": 2,
+      "failed": 0
+    },
+    "productionBuild": "passed",
+    "schema7Migration": "passed on fresh restricted local QA database; financial tables unchanged",
+    "typecheck": "passed"
+  },
+  "dependencyAudit": {
+    "high": 10,
+    "moderate": 1,
+    "critical": 0,
+    "unchangedResidualFindings": true
+  },
+  "privateLogSha256": {
+    "full-final.tap": "a03a429325d6b5cf997f11ca9023e9ff1f05abbc20c673899b0394da80ce73fe",
+    "postgres-final.tap": "906f91947d512ed69ee25069316edab81e418302c112d0a8fce7a833ebdc4166",
+    "native-history-complete.tap": "f4054a8543dfbecebbb9d8ca5149e7be29b08f58d7c8d2b2a911b2f6bab4f7c8",
+    "markdown-final-corrected.tap": "9f3bef50186efe7d61c24cc9e75982027940c5c35823ade252cf4bfef9372aec",
+    "build-url-final.log": "42e93bc89a6c3226b16460c749c10dee9ebc3fc3b62b9b69c980608f908d5fed",
+    "migrate-final.log": "3022b07dbc9f3f1ea8d2a88e3cacb96abcd4aad558f4bc3c42fe1e13b4423148",
+    "typecheck-final.log": "eb59d1b781ba36ad63c81155c71cf4600c6dd98cff9c2b3eca73eff4b01bfd69"
+  },
+  "failedAttemptsRetained": [
+    "Original actual native qualification and list-summary rejection retained separately",
+    "Initial test fixture/diagnostic setup failures retained in private logs",
+    "Native redo admission empty-array difference retained before correction",
+    "Additional Markdown encoded-backslash regression failure retained before final passing check"
+  ],
+  "notClaimed": [
+    "Corrected native browser acceptance",
+    "Corrected actual PayPal list-summary acceptance",
+    "Hosted migration or deployment",
+    "Human financial approval, provider writes, resolved cases, physical fulfillment",
+    "Organization/export or remaining full-plan completion"
+  ]
+}

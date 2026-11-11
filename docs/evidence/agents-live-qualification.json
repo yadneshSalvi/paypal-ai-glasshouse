@@ -1,0 +1,70 @@
+{
+  "version": "glasshouse-agents-live-qualification.v1",
+  "observedAt": "2026-11-11T12:52:31.074Z",
+  "sourceCommit": "9ff8e6f642f5b0b93d1411144d469b69742b915e",
+  "transport": "actual OpenAI Responses through native AG Studio delegation",
+  "inputScope": "Fresh disclosed600-order Sample workspace, fixture shipping/support, immutable Replay snapshot",
+  "sourceSnapshot": "9ada6ace1413ccd06ad11917280b7b0a8cd5c571ee03badb52b9bb9542077539",
+  "nativeRuns": 10,
+  "agents": [
+    "coordinator",
+    "investigator",
+    "operator",
+    "page",
+    "planner",
+    "widget",
+    "writer"
+  ],
+  "actualResponses": 63,
+  "toolReceipts": 60,
+  "everyDispatchExactlyOnce": true,
+  "knownIdRecovery": "One explicit reload/resume of saved pending investigation; previous provider responses and tool mutations reused",
+  "finding": "Saved sourced hypothesis with explicit warehouse/stale-scan counterpoint",
+  "chart": {
+    "id": "incident-bottom-column-chart",
+    "category": "order_snapshot.regionCode",
+    "value": "sum(order_snapshot.supportContacts)",
+    "values": {
+      "MW": 10,
+      "NE": 10,
+      "PNW": 136,
+      "SE": 11,
+      "SW": 11
+    },
+    "originalWidgetsPreserved": 7
+  },
+  "recovery": {
+    "targetedEligible": 47,
+    "targetedMinor": 23500,
+    "comprehensiveEligible": 59,
+    "comprehensiveMinor": 29500,
+    "capMinor": 30000,
+    "proposalState": "ready_for_review",
+    "approved": false,
+    "executed": false,
+    "manifestExposureLimitation": "The saved tool response did not expose the full eligible/excluded manifest; actual model correctly retained this uncertainty. Follow-up required."
+  },
+  "operator": {
+    "operations": 0,
+    "savedCases": 0,
+    "providerReceiptsReturned": 0,
+    "absenceScope": "this new Sample workspace only"
+  },
+  "writer": {
+    "documentsSaved": 2,
+    "findingAndBriefRetained": true,
+    "counterpointPreserved": true
+  },
+  "nativeFailuresRetained": [
+    "Layout reload guard rejected native absent-to-empty dataMapping normalization; fix and requalification required",
+    "Mounted delegate history did not rebind to replacement native session; collapse/reopen showed retained history",
+    "Literal Markdown in coordinator final reply needs presentation fix"
+  ],
+  "notClaimed": [
+    "Live provider coverage for this Sample workspace",
+    "Physical delivery or resolved disputes",
+    "Human approval or research",
+    "All native checks passing"
+  ],
+  "privateAuditSha256": "bce82f4e5cf272c0e0285d38efd01146779ce51156e1c6e33e3d316b907b22ff"
+}

@@ -13,6 +13,10 @@ const axios=requireNative('axios') as AxiosStatic;
 const {PayPalAgentToolkit}=requireNative('@paypal/agent-toolkit/openai') as {PayPalAgentToolkit:typeof NativeToolkit};
 const ORIGIN='https://api.sandbox.paypal.com';
 type NativeRead='get_order'|'list_disputes'|'get_dispute'|'list_transactions';
+export interface ToolkitDisputeBinding {
+  id:string;captureId:string;buyerTransactionId:string;version:number;bodyHash:string;observedAt:string;
+}
+export interface ToolkitOwnedPayment extends OwnedPayment {disputeBindings?:readonly ToolkitDisputeBinding[]}
 interface WireRead {status:number;body:unknown;hash:string;observedAt:string;start:string|null;end:string|null;debugId:string|null}
 interface Context {
   name:NativeRead;owned:OwnedPayment;disputeId?:string;fetch:typeof fetch;beforeSend():Promise<void>;
@@ -77,10 +81,20 @@ export interface ToolkitReadResult {
 }
 export class ScopedPayPalToolkit {
   constructor(private readonly clientId:string,private readonly clientSecret:string,readonly mode:'live'|'synthetic'='live',private readonly fetcher:typeof fetch=globalThis.fetch){}
-  async read(name:string,owned:OwnedPayment,disputeId:string|undefined,beforeSend:()=>Promise<void>):Promise<ToolkitReadResult>{
+  async read(name:string,owned:ToolkitOwnedPayment,disputeId:string|undefined,beforeSend:()=>Promise<void>):Promise<ToolkitReadResult>{
     const mapping:Record<string,NativeRead>={paypal_get_order:'get_order',paypal_list_disputes:'list_disputes',paypal_get_dispute:'get_dispute',paypal_find_transaction:'list_transactions'};
     const native=mapping[name];if(!native)throw new HttpError(403,'TOOLKIT_WRITE_DENIED','Only four explicitly registered PayPal reads are available.');
     if(native==='get_dispute'&&(!disputeId||!/^[A-Za-z0-9_-]{1,100}$/.test(disputeId)))throw mismatch();
+    // The list endpoint returns summaries and can omit seller_transaction_id.
+    // Only server-verified, pre-existing bindings authorize those summaries.
+    const bindings=new Map<string,ToolkitDisputeBinding>();
+    if(native==='list_disputes'){
+      if(!Array.isArray(owned.disputeBindings)||owned.disputeBindings.length>50)throw mismatch();
+      for(const binding of owned.disputeBindings){
+        if(id(binding.id)!==binding.id||binding.captureId!==owned.captureId||typeof binding.buyerTransactionId!=='string'||!/^[A-Za-z0-9_-]{1,150}$/.test(binding.buyerTransactionId)||!Number.isSafeInteger(binding.version)||binding.version<1||!/^[a-f0-9]{64}$/.test(binding.bodyHash)||!date(binding.observedAt)||bindings.has(binding.id))throw mismatch();
+        bindings.set(binding.id,binding);
+      }
+    }
     if(process.env.DEBUG&&(/agent-toolkit|\*/.test(process.env.DEBUG)))throw new HttpError(503,'TOOLKIT_DEBUG_DISABLED','Toolkit debug output must be disabled before private reads.');
     const toolkit=new PayPalAgentToolkit({clientId:this.clientId,clientSecret:this.clientSecret,configuration:{actions:{orders:{get:true},disputes:{list:true,get:true},transactions:{list:true}},context:{sandbox:true,debug:false}}});
     const advertised=toolkit.getTools().filter(tool=>tool.type==='function').map(tool=>tool.function.name).sort();
@@ -102,14 +116,21 @@ export class ScopedPayPalToolkit {
     }else if(native==='get_dispute'||native==='list_disputes'){
       const cases=native==='get_dispute'?[body]:list(body.items??[],50);
       if(native==='list_disputes'&&body.items===undefined)throw mismatch();
+      const seen=new Set<string>();
       const rows=cases.map(value=>{
-        const item=object(value),transactions=list(item.disputed_transactions,1);if(transactions.length!==1)throw mismatch();const transaction=object(transactions[0]);
-        if(transaction.seller_transaction_id!==owned.captureId)throw mismatch();
-        if(transaction.gross_amount!==undefined&&money(transaction.gross_amount)!==owned.entry.amountMinor)throw mismatch();
-        const dispute=id(item.dispute_id);if(native==='get_dispute'&&dispute!==disputeId)throw mismatch();
-        return {id:dispute,captureId:owned.captureId,status:code(item.status),reason:code(item.reason),stage:item.dispute_life_cycle_stage?code(item.dispute_life_cycle_stage):null,amountMinor:item.dispute_amount?money(item.dispute_amount):null,currency:'USD',providerUpdatedAt:date(item.update_time),sellerResponseDueAt:date(item.seller_response_due_date)};
+        const item=object(value),dispute=id(item.dispute_id),binding=bindings.get(dispute);
+        if(seen.has(dispute)||native==='get_dispute'&&dispute!==disputeId||native==='list_disputes'&&!binding)throw mismatch();seen.add(dispute);
+        if(native==='get_dispute'||item.disputed_transactions!==undefined){
+          const transactions=list(item.disputed_transactions,1);if(transactions.length!==1)throw mismatch();const transaction=object(transactions[0]);
+          if(native==='get_dispute'&&transaction.seller_transaction_id!==owned.captureId||transaction.seller_transaction_id!==undefined&&transaction.seller_transaction_id!==owned.captureId)throw mismatch();
+          if(binding&&transaction.buyer_transaction_id!==undefined&&transaction.buyer_transaction_id!==binding.buyerTransactionId)throw mismatch();
+          if(transaction.gross_amount!==undefined&&money(transaction.gross_amount)!==owned.entry.amountMinor)throw mismatch();
+        }
+        const amount=item.dispute_amount?money(item.dispute_amount):null;
+        if(amount!==null&&amount>owned.entry.amountMinor)throw mismatch();
+        return {id:dispute,captureId:owned.captureId,status:code(item.status),reason:code(item.reason),stage:item.dispute_life_cycle_stage?code(item.dispute_life_cycle_stage):null,amountMinor:amount,currency:'USD',providerUpdatedAt:date(item.update_time),sellerResponseDueAt:date(item.seller_response_due_date),...(binding?{captureBinding:{source:'previously_verified_case_detail',version:binding.version,bodyHash:binding.bodyHash,observedAt:binding.observedAt}}:{})};
       });
-      facts={disputes:rows};coverage={kind:native==='get_dispute'?'exact_bound_case':'first_owned_capture_page',page:1,pageSize:50,complete:false};
+      facts={disputes:rows};coverage={kind:native==='get_dispute'?'exact_bound_case':'first_bound_case_summary_page',page:1,pageSize:50,complete:false,...(native==='list_disputes'?{boundCases:bindings.size,ownership:'versioned_prior_case_details'}:{})};
     }else{
       if(!Array.isArray(body.transaction_details)&&!(body.total_items===0&&body.total_pages===0))throw mismatch();
       const rows=list(body.transaction_details??[],100).map(value=>object(object(value).transaction_info));
@@ -121,6 +142,6 @@ export class ScopedPayPalToolkit {
       const refreshed=date(body.last_refreshed_datetime);
       facts={matches,observed:matches.length>0,providerRefreshedAt:refreshed};coverage={kind:'bounded_reporting_page',start:wire.start,end:wire.end,page:1,pageSize:100,totalItems:body.total_items,totalPages:body.total_pages,complete:false,providerRefreshedAt:refreshed};
     }
-    return {source:this.mode==='live'?'sandbox':'synthetic_transport',transport:'Toolkit',package:'@paypal/agent-toolkit@1.11.0',operation:native,orderId:owned.orderId,captureId:owned.captureId,observedAt:wire.observedAt,bodyHash:wire.hash,status:wire.status,coverage,facts,disclosure:native==='list_transactions'?'A current, bounded reporting read. Reporting can lag; absence in this page does not establish a missing capture. This read does not change the workspace T/K projection.':'A current read of the exact owned sandbox resource. This read does not change the workspace T/K projection.'};
+    return {source:this.mode==='live'?'sandbox':'synthetic_transport',transport:'Toolkit',package:'@paypal/agent-toolkit@1.11.0',operation:native,orderId:owned.orderId,captureId:owned.captureId,observedAt:wire.observedAt,bodyHash:wire.hash,status:wire.status,coverage,facts,disclosure:native==='list_transactions'?'A current, bounded reporting read. Reporting can lag; absence in this page does not establish a missing capture. This read does not change the workspace T/K projection.':native==='list_disputes'?'A current, bounded summary page. Capture ownership comes from the exact previously verified case bindings, not the query filter. Unknown cases are refused; an empty page does not establish that no disputes exist. This read does not change the workspace T/K projection.':'A current read of the exact owned sandbox resource. This read does not change the workspace T/K projection.'};
   }
 }

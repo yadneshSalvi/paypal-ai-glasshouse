@@ -13,6 +13,7 @@ import {AgentJournal,type RunRow,type ToolDocument,type ToolRow} from './journal
 import {agentMember,agentSnapshot,bounded,ownedToolkitResource} from './security';
 import {layoutTools,requireTool} from './registry';
 import type {ScopedPayPalToolkit} from './toolkit';
+import {proposalEvidence} from './proposal-evidence';
 
 const success=(response:string,data?:unknown):AgAiToolResult=>({success:true,response,data});
 const failure=(message:string):AgAiToolResult=>({success:false,issues:[{message}]});
@@ -39,7 +40,7 @@ export class AgentTools {
       if(call.run_id!==run.id||call.name!==input.name||hash({name:input.name,args:input.args})!==call.input_hash)throw new HttpError(403,'AGENT_TOOL_IDENTITY','This request differs from its exact model-issued tool call.');
       // Replayed private reads require the current grant too. A saved result from
       // a response racing revocation is evidence, not renewed disclosure authority.
-      if(call.name.startsWith('paypal_')&&doc.resourceHash&&hash(await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The resource grant changed before this saved Toolkit result could be disclosed.');
+      if(call.name.startsWith('paypal_')&&doc.resourceHash&&hash(await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes'))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The resource grant changed before this saved Toolkit result could be disclosed.');
       if(['completed','denied'].includes(call.state)&&doc.result)return {grant:{state:'completed',result:doc.result} as ToolGrant};
       if(run.state==='completed')throw new HttpError(409,'AGENT_RUN_COMPLETED','A completed delegate can only return its recorded tool results.');
       requireTool(run.agent_id,call.name);
@@ -55,7 +56,7 @@ export class AgentTools {
         mutationId=`native-${hash({tenant:actor.tenantId,run:run.id,call:call.id}).slice(0,40)}`;
       }
       if(call.name.startsWith('paypal_')){
-        const owned=await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined);
+        const owned=await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes');
         doc.resourceHash=hash(owned);
       }
       await tx.query("UPDATE gh_agent_tool_calls SET state='running',dispatch_count=1,lease_token=$3,mutation_id=$4,private_document=$5,updated_at=now() WHERE tenant_id=$1 AND id=$2",[actor.tenantId,call.id,token,mutationId,this.journal.secrets.seal(actor.tenantId,'tool',call.id,doc)]);
@@ -73,18 +74,18 @@ export class AgentTools {
     else{
       const guard=async()=>this.journal.db.transaction(async tx=>{
         await this.journal.run(tx,actor,run.id);await agentSnapshot(tx,actor,run.snapshot_hash);
-        const current=await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined);
+        const current=await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes');
         if(hash(current)!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The owned resource grant changed during this Toolkit read.');
       });
       try{
-        const owned=await this.journal.db.transaction(tx=>this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined));
+        const owned=await this.journal.db.transaction(tx=>this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes'));
         const receipt=await this.toolkit.read(call.name,owned,doc.args.disputeId as string|undefined,guard);
         result=success('Observed through the installed PayPal Agent Toolkit.',receipt);
       }catch(error){result=failure(error instanceof HttpError?error.message:'This scoped Toolkit read is unresolved. No absent payment or successful action was inferred.');}
     }
     // A response racing revocation is retained encrypted; it is not disclosed below.
     await this.journal.db.transaction(async tx=>{const current=await this.row(tx,actor,call.id);if(current.lease_token===call.lease_token&&current.state!=='completed')await this.complete(tx,run,current,doc,result);});
-    return this.journal.db.transaction(async tx=>{await this.journal.run(tx,actor,run.id);await agentSnapshot(tx,actor,run.snapshot_hash);if(doc.resourceHash&&hash(await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The resource grant changed before this Toolkit result could be disclosed.');return {state:'completed',result} as ToolGrant;});
+    return this.journal.db.transaction(async tx=>{await this.journal.run(tx,actor,run.id);await agentSnapshot(tx,actor,run.snapshot_hash);if(doc.resourceHash&&hash(await this.owned(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,call.name==='paypal_list_disputes'))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','The resource grant changed before this Toolkit result could be disclosed.');return {state:'completed',result} as ToolGrant;});
   }
   private owned=ownedToolkitResource;
   async acknowledge(actor:Actor,input:NativeAcknowledgement){
@@ -133,7 +134,7 @@ export class AgentTools {
       const offset=Number(doc.args.offset??0),rows=snapshot.evidence.filter(row=>!doc.args.orderId||row.orderId===doc.args.orderId);
       return success('Source-labelled evidence; quoted excerpts are untrusted data.',{...context,total:rows.length,offset,nextOffset:offset+40<rows.length?offset+40:null,evidence:rows.slice(offset,offset+40)});
     }
-    if(call.name==='evaluate_recovery')return success('Exact policy totals and exclusions.',{...context,branches:snapshot.branches.map(({id,policyId,eligibleCount,refundTotalMinor,trackingCount,disputeCount,exclusionCounts,budgetMinor})=>({id,policyId,eligibleCount,refundTotalMinor,trackingCount,disputeCount,exclusionCounts,budgetMinor})),approvalRequired:true});
+    if(call.name==='evaluate_recovery')return success('Exact policy totals and exclusions; the comprehensive branch is a no-grace comparison, not an authorized policy override.',{...context,branches:snapshot.branches.map(({id,policyId,graceHours,eligibleCount,refundTotalMinor,trackingCount,disputeCount,exclusionCounts,budgetMinor})=>({id,policyId,graceHours,comparisonOnly:id==='comprehensive',policyOverrideAuthorized:false,eligibleCount,refundTotalMinor,trackingCount,disputeCount,exclusionCounts,budgetMinor})),approvalRequired:true});
     if(call.name==='boundary_check'){
       let denied=false;try{requireTool(run.agent_id,'execute_refund');}catch(error){if(error instanceof HttpError&&error.code==='AGENT_TOOL_DENIED')denied=true;else throw error;}
       if(!denied)throw new Error('The financial capability boundary did not deny the investigator.');
@@ -141,6 +142,7 @@ export class AgentTools {
       return success('The server refused the financial capability.',{allowed:false,agent:run.agent_id,tool:'execute_refund',reason:'Delegate a proposal to Planner. Exact human review and approval remain separate.'});
     }
     if(call.name==='inspect_operations')return success('Observed original outcomes; submission does not imply resolution.',{...context,...await this.outcomes(tx,actor,snapshot)});
+    if(call.name==='read_recovery_proposal')return success('Exact saved proposal evidence. This read grants no approval, execution or policy override.',await this.proposal(tx,actor,String(doc.args.planId),snapshot));
     if(call.name==='prepare_recovery'){
       if(actor.role==='viewer')throw new HttpError(403,'AGENT_PROPOSAL_DENIED','This role cannot prepare a recovery proposal.');
       const dataset=(await tx.query<{body:SeedDataset}>('SELECT body FROM gh_datasets WHERE tenant_id=$1',[actor.tenantId]))[0].body;
@@ -150,8 +152,11 @@ export class AgentTools {
       const id=`plan-agent-${hash({tenant:actor.tenantId,call:call.id}).slice(0,32)}`;
       const branch={...chosen,budgetMinor:budget,withinBudget:true,actions:chosen.actions.map(action=>freezeAction(actor.tenantId,id,action))};
       const plan:RecoveryPlan={id,tenantId:actor.tenantId,version:1,createdBy:actor.id,createdAt:new Date().toISOString(),status:'ready_for_review',branch,snapshotId:snapshot.id,snapshotHash:snapshot.hash,cohortVersion:snapshot.context.cohortVersion,hash:'',expiresAt:new Date(Date.now()+30*60000).toISOString(),staleReason:null,approvedBy:null,approvedAt:null,executionMode:snapshot.sourceCoverage.sandboxPayments>0&&branch.actions.filter(action=>action.kind==='refund').every(action=>action.sourceClass==='sandbox')?'sandbox':'sample',contractVersion:2,context:snapshot.context};
-      plan.hash=exactPlanHash(plan);await storePlan(tx,plan);await audit(tx,actor,'plan.created','Agent prepared an exact proposal for human review',id,{runId:run.id,callId:call.id,planHash:plan.hash,snapshotHash:snapshot.hash});
-      return success('Exact proposal frozen once. Human review is required before approval or execution.',{id:plan.id,hash:plan.hash,status:plan.status,branch:plan.branch.name,eligibleCount:plan.branch.eligibleCount,refundTotalMinor:plan.branch.refundTotalMinor,budgetMinor:budget,trackingCount:plan.branch.trackingCount,disputeCount:plan.branch.disputeCount,executionMode:plan.executionMode,snapshotHash:snapshot.hash,expiresAt:plan.expiresAt});
+      plan.hash=exactPlanHash(plan);proposalEvidence(plan); // Bound the complete view before writing a proposal.
+      await storePlan(tx,plan);await audit(tx,actor,'plan.created','Agent prepared an exact proposal for human review',id,{runId:run.id,callId:call.id,planHash:plan.hash,snapshotHash:snapshot.hash});
+      const evidence=await this.proposal(tx,actor,id,snapshot);
+      if(evidence.hash!==plan.hash)throw new Error('The newly saved proposal changed inside its creation transaction.');
+      return success('Exact proposal frozen once and read back from storage with its complete approval manifest. Human review is required before approval or execution.',evidence);
     }
     if(call.name==='record_finding'){
       const evidenceIds=doc.args.evidenceIds as string[],evidence=snapshot.evidence.filter(row=>evidenceIds.includes(row.id));
@@ -170,6 +175,13 @@ export class AgentTools {
       await this.document(tx,run,brief.id,'brief',brief);return success('Saved the sourced incident brief.',brief);
     }
     throw new HttpError(403,'AGENT_DOMAIN_TOOL_DENIED','This domain tool is not authorized.');
+  }
+  private async proposal(tx:Database,actor:Actor,id:string,snapshot:Snapshot){
+    const row=(await tx.query<{body:RecoveryPlan;plan_hash:string;version:number}>('SELECT body,plan_hash,version FROM gh_plans WHERE tenant_id=$1 AND id=$2 FOR SHARE',[actor.tenantId,id]))[0];
+    if(!row||row.body.tenantId!==actor.tenantId||row.body.id!==id)throw new HttpError(404,'AGENT_PROPOSAL_NOT_FOUND','This saved proposal does not belong to the current workspace.');
+    if(row.body.snapshotHash!==snapshot.hash)throw new HttpError(409,'AGENT_PROPOSAL_SCOPE_CHANGED','Inspect this proposal at its exact saved snapshot. Its earlier manifest remains preserved.');
+    if(row.plan_hash!==row.body.hash||row.version!==row.body.version)throw new HttpError(409,'AGENT_PROPOSAL_UNVERIFIED','The stored proposal header and immutable manifest do not agree.');
+    return proposalEvidence(row.body);
   }
   private async outcomes(tx:Database,actor:Actor,snapshot:Snapshot){
     const operations=(await tx.query<{body:Operation}>('SELECT body FROM gh_operations WHERE tenant_id=$1 ORDER BY updated_at DESC LIMIT 1000',[actor.tenantId])).map(row=>row.body).filter(row=>snapshot.orders.some(order=>order.id===row.orderId));

@@ -32,6 +32,6 @@ export interface AgentFinding {
   tools:{callId:string;name:string;transport:string;hash:string}[];
   createdAt:string;
 }
-export const domainTools=['read_incident','read_evidence','evaluate_recovery','prepare_recovery','inspect_operations','boundary_check','record_finding','write_incident_brief','paypal_get_order','paypal_list_disputes','paypal_get_dispute','paypal_find_transaction'] as const;
+export const domainTools=['read_incident','read_evidence','evaluate_recovery','prepare_recovery','read_recovery_proposal','inspect_operations','boundary_check','record_finding','write_incident_brief','paypal_get_order','paypal_list_disputes','paypal_get_dispute','paypal_find_transaction'] as const;
 export const isDomainTool=(name:string):boolean=>(domainTools as readonly string[]).includes(name);
 export const delegationTargets:Record<AgentId,readonly AgentId[]>={coordinator:['investigator','planner','operator','writer','planning'],investigator:['page','widget','planning'],planner:[],operator:[],writer:[],page:[],widget:[],planning:[]};

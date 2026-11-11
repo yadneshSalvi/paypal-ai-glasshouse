@@ -1,6 +1,6 @@
 # Durable Glasshouse agents
 
-Glasshouse keeps AG Studio 3.1.0's actual Agent Framework, `createAiHarness`, `directLlmRunner`, native child sessions, and `complete_task`. A PostgreSQL journal now owns user/model turn identities, tool admission, recovery, and encrypted evidence. This source unit has isolated automated coverage; current live-model, native-browser, hosted migration, and actual Toolkit-provider qualification are separate release gates.
+Glasshouse keeps AG Studio 3.1.0's actual Agent Framework, `createAiHarness`, `directLlmRunner`, native child sessions, and `complete_task`. A PostgreSQL journal now owns user/model turn identities, tool admission, recovery, and encrypted evidence. The [first actual model qualification](evidence/agents-live-qualification.json) retained 63 Responses and 60 successful tools across ten native runs, each dispatched once. Its three native defects and incomplete proposal evidence are retained alongside the successful work. Corrected same-history browser qualification, the remaining Toolkit summary read, and hosted migration remain separate release gates.
 
 ## Roles and routing
 
@@ -8,12 +8,14 @@ Glasshouse keeps AG Studio 3.1.0's actual Agent Framework, `createAiHarness`, `d
 |---|---|
 | Coordinator | Read incident/outcomes; delegate to Investigator, Planner, Operator, Writer, or Planning |
 | Investigator | Read scoped evidence and owned payment facts; record a sourced hypothesis; delegate to native Page/Widget/Planning |
-| Planner | Evaluate deterministic policy branches; freeze an exact proposal for human review |
+| Planner | Evaluate deterministic policy branches; freeze an exact proposal for human review; read an existing saved manifest |
 | Operator | Inspect original operation receipts and current case state; owned Toolkit reads |
 | Writer | Save a sourced incident brief from deterministic facts, findings, and actual operation receipts |
 | Native Page / Widget / Planning | Inspect and change permitted report configuration through the actual Studio tools |
 
 The model cannot approve or execute money. Operator execution integration remains a later, separately qualified unit. The existing human review sheet still owns exact approval and guarded execution. `prepare_recovery` saves one immutable proposal per model-issued call, with no approval or operation enqueue.
+
+Both preparation and `read_recovery_proposal(planId)` return the complete bounded approval contract read from the stored proposal, with its verified hash, exact eligible IDs, exclusions, source labels, policy and T/K snapshot. The read is Planner-only and requires the proposal's current tenant and exact snapshot; it creates no replacement. A truncated manifest is never described as complete. The comprehensive branch is explicitly a no-grace comparison scenario; these tools do not grant a policy override, human approval or execution authority.
 
 ## Turn and dispatch contract
 
@@ -34,6 +36,8 @@ Every tool needs its exact model-issued call ID, name and argument hash. Domain 
 
 Native conversations use an encrypted, versioned `AgAiHistoryStore`. Conflicting tabs cannot overwrite a newer transcript. An uncertain save is reconciled before later observed messages are merged. Child messages come from actual native sessions and retain their native IDs; missing legacy child transcripts are disclosed rather than reconstructed as invented conversations. Private reasoning parts never render or enter the visible thread store.
 
+An open child view listens to both native harness registration changes and its current native session. If a resumed delegate replaces a hydrated session under the same thread ID, the view rebinds without requiring collapse/reopen. A child not yet registered shows a pending state. Assistant Markdown is formatted only for display with raw HTML, media and active URL schemes excluded; saved canonical text is unchanged. Long tool receipts disclose their preview limit and offer the complete recorded JSON for download.
+
 After reload, the rail opens the actual saved conversation. **Resume saved turn** re-enters the native loop with the original server run identity, reuses saved model/tool results, and retrieves only a known pending response. An unresolved create or unconfirmed native mutation stays held. The model-only worker can retrieve admitted model responses while the browser is absent; browser-owned native tools still require the native session to resume. This is not yet an autonomous server implementation of every planned agent activity.
 
 ## Owned PayPal Toolkit reads
@@ -43,6 +47,8 @@ The adapter calls the installed public `@paypal/agent-toolkit/openai` entry poin
 The local order must have a current immutable seed-manifest binding and active order/capture grants, and its snapshot must name those exact provider resources. A dispute GET additionally requires a pre-existing bound case. Browser-supplied merchant or arbitrary provider IDs cannot widen that set. Whole-merchant insights and every Toolkit financial write remain unavailable.
 
 The supported Axios middleware seam intercepts only the active scoped Toolkit call. It permits one OAuth POST and one exact fixed-sandbox GET, refuses redirects and extra parameters, checks the response's resource/amount/custom marker, and emits allowlisted facts plus observation time, raw-body hash and bounded coverage. No payer/contact text, credentials, or OAuth token is persisted in the model-visible receipt. The Toolkit's reporting helper can turn an error into `found: false`; independent observed wire evidence therefore decides whether a read succeeded. Failed reads never establish missing payments. Reporting absence on its single recent page is expressly incomplete and does not alter the workspace's T/K snapshot.
+
+The [PayPal list-disputes endpoint](https://developer.paypal.com/api/customer-disputes/v1/disputes-list) returns a summary, which need not contain a seller capture ID or a gross amount. A summary is admitted only when its case ID already has an active, versioned tenant/order/capture binding from independently verified detail. The exact sorted binding set joins the encrypted read-grant hash and is checked before OAuth, before the GET, before disclosure or replay, and before a later model turn consumes the result. Unknown cases, conflicting transaction IDs and changed bindings are rejected; query filtering alone is never ownership evidence. The original rejected live summary qualification remains a failed attempt and requires a separately recorded reread.
 
 `GLASSHOUSE_TOOLKIT_READS_ENABLED` defaults to `false`. Enabling it also requires the existing isolated sandbox configuration. Automated tests use the actual installed Toolkit with an explicit synthetic HTTP transport; those results do not prove live PayPal capability. Actual provider qualification belongs to the deployment owner. See [dependency risks](agents-dependencies.md).
 

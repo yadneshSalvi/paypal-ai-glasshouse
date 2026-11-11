@@ -29,7 +29,7 @@ export class AgentJournal {
     WHERE c.tenant_id=$1 AND c.name LIKE 'paypal_%' AND c.state='completed'`,[actor.tenantId,runId]);
     for(const read of reads){
       const doc=this.toolDocument(read);
-      if(doc.result?.success&&doc.resourceHash&&hash(await ownedToolkitResource(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','A resource grant used by this saved investigation changed. Its private result cannot be reused by a model.');
+      if(doc.result?.success&&doc.resourceHash&&hash(await ownedToolkitResource(tx,actor,snapshot,String(doc.args.orderId),doc.args.disputeId as string|undefined,read.name==='paypal_list_disputes'))!==doc.resourceHash)throw new HttpError(409,'TOOLKIT_GRANT_CHANGED','A resource grant used by this saved investigation changed. Its private result cannot be reused by a model.');
     }
   }
   async run(tx:Database,actor:Actor,id:string,lock=false){

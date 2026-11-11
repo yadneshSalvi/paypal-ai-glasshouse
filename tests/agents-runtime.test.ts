@@ -114,11 +114,29 @@ test('Planner freezes one exact proposal; Investigator cannot inherit its author
   const h=await agentHarness();t.after(h.dispose);const parent=await h.begin(),planner=await h.handoff(parent,'planner');
   const create=functionCall('prepare_recovery',{branchId:'targeted',budgetMinor:30000});await h.issue(planner.run.id,[tool('prepare_recovery')],[create]);
   const first=await claim(h,planner.run.id,create),second=await claim(h,planner.run.id,create);assert.deepEqual(first,second);assert.equal(first.result?.success,true);
-  const plans=await h.db.query<{body:{status:string;approvedBy:unknown;branch:{refundTotalMinor:number}}}>('SELECT body FROM gh_plans');assert.equal(plans.length,1);assert.equal(plans[0].body.status,'ready_for_review');assert.equal(plans[0].body.approvedBy,null);assert.equal(plans[0].body.branch.refundTotalMinor,h.snapshot.branches[0].refundTotalMinor);assert.equal((await h.db.query('SELECT id FROM gh_operations')).length,0);
+  const plans=await h.db.query<{body:import('../packages/domain/types').RecoveryPlan}>('SELECT body FROM gh_plans');assert.equal(plans.length,1);assert.equal(plans[0].body.status,'ready_for_review');assert.equal(plans[0].body.approvedBy,null);assert.equal(plans[0].body.branch.refundTotalMinor,h.snapshot.branches[0].refundTotalMinor);assert.equal((await h.db.query('SELECT id FROM gh_operations')).length,0);
+  assert.ok(first.result?.success);
+  const evidence=first.result.data as ReturnType<typeof import('../lib/server/agents/proposal-evidence').proposalEvidence>;
+  assert.equal(evidence.evidenceSource,'saved_immutable_proposal');assert.equal(hash(evidence.manifest),plans[0].body.hash);assert.deepEqual(evidence.manifest.branch,plans[0].body.branch);
+  assert.deepEqual(evidence.eligibleOrderIds,plans[0].body.branch.rows.filter(row=>row.eligible).map(row=>row.orderId));assert.deepEqual(evidence.excludedOrders,plans[0].body.branch.rows.filter(row=>!row.eligible).map(row=>({orderId:row.orderId,reasons:row.excludedReasons})));
+  assert.equal(evidence.manifest.snapshotHash,h.snapshot.hash);assert.equal(evidence.policy.graceHours,48);assert.equal(evidence.approval.approvalGrantedByThisTool,false);assert.ok(evidence.manifest.branch.actions.every(action=>typeof action.payload.operationId==='string'));
+  const inspect=functionCall('read_recovery_proposal',{planId:evidence.id});await h.issue(planner.run.id,[tool('read_recovery_proposal')],[inspect]);const read=await claim(h,planner.run.id,inspect);assert.ok(read.result?.success);assert.deepEqual(read.result.data,evidence);assert.equal((await h.db.query('SELECT id FROM gh_plans')).length,1);
   const root2=await h.begin('Investigate without financial authority.'),investigator=await h.handoff(root2,'investigator');
   await assert.rejects(h.models.submit(h.who,{runId:investigator.run.id,index:0,request:request([tool('prepare_recovery')]),clientId:h.clientId,snapshotHash:h.snapshot.hash}),failure('AGENT_TOOL_DENIED'));
   const boundary=functionCall('boundary_check',{});await h.issue(investigator.run.id,[tool('boundary_check')],[boundary]);const result=await claim(h,investigator.run.id,boundary);assert.equal(result.result?.success,true);if(result.result?.success)assert.equal((result.result.data as {allowed:boolean}).allowed,false);
   assert.equal((await h.db.query("SELECT id FROM gh_audit WHERE event_type='authority.denied'")).length,1);
+});
+
+test('saved proposal reads reject foreign scope and corrupt contracts; a no-grace proposal grants no override',async t=>{
+  const h=await agentHarness();t.after(h.dispose);const parent=await h.begin(),planner=await h.handoff(parent,'planner');
+  const create=functionCall('prepare_recovery',{branchId:'comprehensive',budgetMinor:30000});await h.issue(planner.run.id,[tool('prepare_recovery')],[create]);const result=await claim(h,planner.run.id,create);assert.ok(result.result?.success);
+  const evidence=result.result.data as ReturnType<typeof import('../lib/server/agents/proposal-evidence').proposalEvidence>;
+  assert.equal(evidence.policy.graceHours,0);assert.equal(evidence.policy.comparisonOnly,true);assert.equal(evidence.policy.overrideAuthorization,'not_granted_by_this_tool');assert.match(evidence.disclosure,/not an authorized policy override/);assert.equal(hash(evidence.manifest),evidence.hash);
+  const read=async(planId:string)=>{const call=functionCall('read_recovery_proposal',{planId});await h.issue(planner.run.id,[tool('read_recovery_proposal')],[call]);return claim(h,planner.run.id,call);};
+  const missing=await read('plan-from-another-workspace');assert.equal(missing.result?.success,false);
+  await h.db.query("UPDATE gh_plans SET body=jsonb_set(body,'{snapshotHash}',to_jsonb($1::text)) WHERE id=$2",['f'.repeat(64),evidence.id]);const stale=await read(evidence.id);assert.equal(stale.result?.success,false);if(stale.result&&!stale.result.success)assert.match(stale.result.issues[0].message,/exact saved snapshot/);
+  await h.db.query("UPDATE gh_plans SET body=jsonb_set(jsonb_set(body,'{snapshotHash}',to_jsonb($1::text)),'{branch,refundTotalMinor}','0'::jsonb) WHERE id=$2",[h.snapshot.hash,evidence.id]);const changed=await read(evidence.id);assert.equal(changed.result?.success,false);if(changed.result&&!changed.result.success)assert.match(changed.result.issues[0].message,/immutable approval contract/);
+  assert.equal((await h.db.query('SELECT id FROM gh_operations')).length,0);assert.equal((await h.db.query('SELECT plan_id FROM gh_recovery_runs')).length,0);
 });
 
 test('findings retain only citations actually read at the saved scope and deterministic factual values',async t=>{
