@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A temporal commerce incident room with evidence-backed recovery.",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "packageManager": "npm@10.9.8",
   "scripts": {
