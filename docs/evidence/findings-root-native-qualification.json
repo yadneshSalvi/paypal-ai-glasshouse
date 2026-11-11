@@ -1,0 +1,124 @@
+{
+  "schema": "glasshouse.findings-root-native-qualification.v2",
+  "at": "2026-11-11T22:56:20.774328+00:00",
+  "status": "local native finding lifecycle and presentation repair verified; hosted and actual provider/model release gates remain",
+  "source": "4e664363080934544c8dac026456ad59dec76eaf",
+  "build": "0-Z9E3aVEr99nX8IzjSXD",
+  "firstLifecycle": {
+    "source": "06fc001b28cba7f6295ea1f7dcec7711446ec9cf",
+    "description": "Retained separate native seven-review lifecycle, exact source corrections and manifest binding, old export preservation, same-command lost-response recovery and private-version denial. Its visual failures prompted this repair."
+  },
+  "repairNative": {
+    "browser": "Actual Codex in-app browser",
+    "observations": 17,
+    "freshSyntheticSample": true,
+    "mobileWidths": [
+      390,
+      360
+    ],
+    "readableCreamInkSurfaces": true,
+    "citationSearchAccessibleName": "Search citation sources",
+    "originalResponseFocusChecks": [
+      "Refresh retains focus during and after actual HTTP200",
+      "Linked manifest closes to exact finding draft button",
+      "Prepare remains focused while pending and opens new manifest heading",
+      "Actual response released after closing leaves dialog closed"
+    ],
+    "newPlansPrepared": 1,
+    "newPlansApproved": 0,
+    "nativeReturnWhilePendingDuplicatePlans": 0,
+    "savedReportComparison": {
+      "savedReview": 2,
+      "currentPermittedReview": 5,
+      "fromCohort": 1,
+      "toCohort": 2,
+      "fromCount": 63,
+      "toCount": 54,
+      "removed": 9,
+      "added": 0,
+      "includedHeldManifests": 2
+    }
+  },
+  "preservation": {
+    "databaseTablesCompared": 63,
+    "unchangedTables": 60,
+    "changedTables": [
+      {
+        "name": "gh_audit",
+        "before": 28,
+        "after": 29
+      },
+      {
+        "name": "gh_plan_finding_dependencies",
+        "before": 3,
+        "after": 4
+      },
+      {
+        "name": "gh_plans",
+        "before": 6,
+        "after": 7
+      }
+    ],
+    "findingRevisionsUnchanged": true,
+    "savedReportUnchanged": true,
+    "originalSessionExpiryUnchanged": true,
+    "privateConfigurationUnchanged": true,
+    "files": [
+      {
+        "label": "repairSource",
+        "files": 296,
+        "mismatches": [],
+        "previouslyDeclaredGeneratedOverlays": []
+      },
+      {
+        "label": "repairBuild",
+        "files": 459,
+        "mismatches": [],
+        "previouslyDeclaredGeneratedOverlays": []
+      },
+      {
+        "label": "repairDependencies",
+        "files": 46177,
+        "mismatches": [],
+        "previouslyDeclaredGeneratedOverlays": []
+      },
+      {
+        "label": "original4541Source",
+        "files": 289,
+        "mismatches": [],
+        "previouslyDeclaredGeneratedOverlays": [
+          "next-env.d.ts",
+          "tsconfig.json"
+        ]
+      },
+      {
+        "label": "original4541Build",
+        "files": 459,
+        "mismatches": [],
+        "previouslyDeclaredGeneratedOverlays": []
+      }
+    ],
+    "providerResources": 0,
+    "financialOperations": 0,
+    "modelTurns": 0
+  },
+  "evidenceDigests": {
+    "observations.json": "e2601fdb4d924af9e28e7aaf6a21745b8d45641472d6d539f484c87615337467",
+    "database-before.json": "9d04e768c71d7fd794bf987fb7770b095c7573c0c6cac4d69739a98d1fda8761",
+    "database-after.json": "2a0396e4203835c2f288fc842c8c4f0aea79a76114009e8f17cf25b75a9b7628",
+    "final-verification.json": "fc9cf543643ac0e334ff615d5c9b6d34207f24aa8e3cef7d7762f6de931b55b8",
+    "REVIEW.md": "50f303070f837f00aa3564534c6c6ae3381029a6a632b5b3533e135c65a22fdf"
+  },
+  "limitations": [
+    "Actual200percent browser zoom unmeasured: native shortcut did not change viewport or DPR. CSS width emulation is reported separately.",
+    "No screen-reader qualification.",
+    "Prepared synthetic reviews are not claimed as actual human decisions or merchant evidence.",
+    "No new provider/model calls or hosted migration/deployment in this native repair pass.",
+    "Broader stale-peer, workspace, provider and full-product gates remain in docs/remaining-scope.md."
+  ],
+  "harnessCorrections": [
+    "Mobile native-wrapper scaling and a scrolled-page clip were replaced with settled CDP captures.",
+    "Accessible label whitespace corrected; native Return used when Playwright refused an aria-disabled press.",
+    "Original generated overlays were compared with their already-frozen hashes, without changing files."
+  ]
+}
