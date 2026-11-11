@@ -1,0 +1,1079 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-11T15:09:03.588Z",
+  "passed": true,
+  "sourceCommit": "f9c14528b850cb3603aeed677b38da5df430e517",
+  "deployment": {
+    "id": "dpl_AUc8EgfAX4doAYm326VvxbZ2TWno",
+    "url": "https://paypal-ai-glasshouse-k14qs3ibh-yadneshsalvis-projects.vercel.app",
+    "inspectorUrl": "https://vercel.com/yadneshsalvis-projects/paypal-ai-glasshouse/AUc8EgfAX4doAYm326VvxbZ2TWno",
+    "readyState": "READY",
+    "target": "production",
+    "deploymentApiUrl": "https://api.vercel.com/v13/deployments/dpl_AUc8EgfAX4doAYm326VvxbZ2TWno"
+  },
+  "hostedHttp": {
+    "checks": [
+      "anonymous /api/agents/status denied",
+      "anonymous /api/agents/threads denied",
+      "model worker denies absent scheduler secret",
+      "foreign origin denied before enrollment",
+      "original owner session and 600 orders retained",
+      "three migrated original threads readable",
+      "all original encrypted conversation documents decode",
+      "original completed recovery plan retained",
+      "105 original operation outcomes retained",
+      "fresh Sample session isolated",
+      "durable live-model runtime and installed Toolkit configured without original evidence leakage",
+      "Sample cannot list original private conversations",
+      "Sample cannot load original private conversation by ID",
+      "old plaintext conversation endpoint retired",
+      "authenticated model-only worker respects its four-turn bound"
+    ],
+    "worker": {
+      "checked": 0,
+      "results": []
+    },
+    "oldPlaintextEndpointRetired": true
+  },
+  "migration": {
+    "at": "2026-11-11T15:05:20.167Z",
+    "passed": true,
+    "sourceCommit": "f9c14528b850cb3603aeed677b38da5df430e517",
+    "backupSha256": "2dbadb6efd06f050c0f484cbc725a8eb866d2bcf103fdced1c90f05dfa36cf81",
+    "preservedTables": 40,
+    "preservedRows": 223279,
+    "originalTableHashes": [
+      {
+        "name": "gh_agent_events",
+        "count": 180,
+        "sha256": "b82311bbaf94dc5d582992740e7577a3b055abd2302f533e275c58c77899be5b"
+      },
+      {
+        "name": "gh_audit",
+        "count": 1017,
+        "sha256": "306675e3f1a4f2b1653f5ce0874bd2e82876bcc95e3a5ef6e04ba99c939db24d"
+      },
+      {
+        "name": "gh_capabilities",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_datasets",
+        "count": 13,
+        "sha256": "f8ba08d564916df3fdebfc1dd9fae1df0286a28801d5ebd2dfd09c5c7bc8303b"
+      },
+      {
+        "name": "gh_dispute_inventories",
+        "count": 8,
+        "sha256": "d43e2a72f38f7a52f61cdab553a26b8106eccf8273f38dfe9d5e919f97c8a383"
+      },
+      {
+        "name": "gh_dispute_scenario_bindings",
+        "count": 4,
+        "sha256": "acb0eb4531ec7f409917135a259fb0d5af8f2af546599db850b84fd6ac2fa7bd"
+      },
+      {
+        "name": "gh_jobs",
+        "count": 2,
+        "sha256": "b8bba3815a0a045bd9f507807ef38d872b179714d8b0aef2a7e45c14228696b0"
+      },
+      {
+        "name": "gh_layouts",
+        "count": 2,
+        "sha256": "6286b419ed39b404cef72b6ae0f4ed56b7d6189c5b9229f3d367dc872b9852ec"
+      },
+      {
+        "name": "gh_memberships",
+        "count": 12,
+        "sha256": "684dfc04b762c360f8e3ced5342eabd8ef26db1f21b2fde495e743b9bf1ced05"
+      },
+      {
+        "name": "gh_observation_jobs",
+        "count": 105,
+        "sha256": "554a9886277c0d89cad269533d93697683fd8297f9c707d8e92d302c4f236199"
+      },
+      {
+        "name": "gh_operations",
+        "count": 210,
+        "sha256": "d4cefc35c8dfd6c50536c43a7c826b122fe30994ef14d645f7a52c99fc3e9b1d"
+      },
+      {
+        "name": "gh_payment_commands",
+        "count": 638,
+        "sha256": "67a05a9a3826f32768299cb8d6398699205aa944c3c8e4407db6dfa6e5c5709a"
+      },
+      {
+        "name": "gh_payment_consents",
+        "count": 1,
+        "sha256": "17c312cc6712e32d6152294a6d96c06c781da11ea6653722c1faf6eeba7342d3"
+      },
+      {
+        "name": "gh_paypal_connectors",
+        "count": 1,
+        "sha256": "74cc6bec913518f010b6645e65a8150b9603b80b56a25f1bdd667e09d7381047"
+      },
+      {
+        "name": "gh_plans",
+        "count": 3,
+        "sha256": "629e9729d2298715a129b01af92c660ba1bf0e0c546bf33f5de3d08680720a35"
+      },
+      {
+        "name": "gh_provider_observations",
+        "count": 717,
+        "sha256": "00c066d746e01a17f783d67f56d2bf19bd49bee858b6eec8eeadcf38b3b268bb"
+      },
+      {
+        "name": "gh_provider_resources",
+        "count": 1242,
+        "sha256": "3850b997c6235d15b2558d0ff2035f287db29549239cda8b68c2988ab651731f"
+      },
+      {
+        "name": "gh_recovery_intents",
+        "count": 105,
+        "sha256": "9861892e58704d5be382adab0aa1a030dd720a0c2c9dbe1712ec4dece184bc2a"
+      },
+      {
+        "name": "gh_recovery_runs",
+        "count": 1,
+        "sha256": "1398525ef06ba132ca9b6e57f3f0784776157ce08c5c5be357cdc4e49de66166"
+      },
+      {
+        "name": "gh_reporting_evidence",
+        "count": 600,
+        "sha256": "f57e000a99e002f5bd3c5fb6497bf34146253ba441a5a0db0c2daf0cc688ed68"
+      },
+      {
+        "name": "gh_reporting_pages",
+        "count": 6,
+        "sha256": "95a6b22d47b20f69edb1ed54610725f836011f061ff15b38002ab64129224e5d"
+      },
+      {
+        "name": "gh_reporting_runs",
+        "count": 1,
+        "sha256": "399b02cc30e544ab5faf15c5271414297ef9704c31ba17316da3de977616e794"
+      },
+      {
+        "name": "gh_reporting_windows",
+        "count": 1,
+        "sha256": "2caf0371fa5074b92fecdf69eb6c5c440b3235906df4244f1536290f33dd96db"
+      },
+      {
+        "name": "gh_resource_claims",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_scenario_revisions",
+        "count": 1,
+        "sha256": "5f028a5c6f7950f29cfdacd3925e1fd4c804784463b6a5bc8d953a531cd334b9"
+      },
+      {
+        "name": "gh_seed_items",
+        "count": 600,
+        "sha256": "e0bf6469d9fab7ac5553cfcba7c17fa6c55318b58413218639181089f1a78b0c"
+      },
+      {
+        "name": "gh_seed_runs",
+        "count": 1,
+        "sha256": "495c8573c3e161a92342de7ed923805b41e83fe7116b5b08afd477a03cd3148f"
+      },
+      {
+        "name": "gh_sessions",
+        "count": 14,
+        "sha256": "ad4c5b4c7010e2829cce67b2e384f62225df5211512c16166685abc4021dbf44"
+      },
+      {
+        "name": "gh_snapshots",
+        "count": 21,
+        "sha256": "c85f08511ca691d99e4e7616e9749ee673dbb8b7d80e8f8d6a09a5a60c225886"
+      },
+      {
+        "name": "gh_source_events",
+        "count": 64596,
+        "sha256": "64c1fe6bd7ac326f817b4891e87e06dd0c51ff6bd45e184431be8f5411870f14"
+      },
+      {
+        "name": "gh_state_intervals",
+        "count": 151754,
+        "sha256": "4cc935e043f7077a0afc15bd2eca5260bd25b8b45b9de4b79de24db23e8bab8e"
+      },
+      {
+        "name": "gh_status_checks",
+        "count": 105,
+        "sha256": "0705d28bd1a90413b3ee27cc57267960a917c2e1d5f0304f3ec5055317f3f0d5"
+      },
+      {
+        "name": "gh_vault_operations",
+        "count": 2,
+        "sha256": "f047128bda5f22fd78e57adac5c19ea22f602f15f5c39ecd93626724217ea569"
+      },
+      {
+        "name": "gh_webhook_deliveries",
+        "count": 2,
+        "sha256": "c3e7e88d3f4a33e0d9c2941e8f98f85c5c4ff0d2605a12546e206f55832ec62a"
+      },
+      {
+        "name": "gh_webhook_events",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "paycore_attempts",
+        "count": 638,
+        "sha256": "d05f729048c0effcceddd87ba9048736dd09f9a3f0d9309da998a4fd55df1659"
+      },
+      {
+        "name": "paycore_operations",
+        "count": 638,
+        "sha256": "20967aeb2a5050ff395e88347cc1053b8e9e76847d0edca9f6613a62d4c96ea0"
+      },
+      {
+        "name": "paycore_resource_locks",
+        "count": 38,
+        "sha256": "f7178bf2708f362a26d67659770ef8250c67a4e7b01c47933db24692f8225f27"
+      },
+      {
+        "name": "paycore_webhook_deliveries",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "paycore_webhook_events",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "newTables": [
+      {
+        "name": "gh_agent_documents",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_agent_durable_events",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_agent_model_turns",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_agent_runs",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_agent_tool_calls",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "encryptedDocuments": 67,
+    "logicalDocumentHashes": [
+      {
+        "table": "gh_threads",
+        "id": "thread-0bb67034-bf85-4057-b309-2d147c72aaa5",
+        "sha256": "c47ff2ba599eb81582a61ee3a4b7f02cb666dadf2bf183a48a6d3f6d6c74d2c8"
+      },
+      {
+        "table": "gh_threads",
+        "id": "thread-5c748de4-9a09-4991-b9c7-5565b0e180a9",
+        "sha256": "145e42812a39477d8a14064728547abd92dd9d7bc7fc41332346a92d9078c148"
+      },
+      {
+        "table": "gh_threads",
+        "id": "thread-a9dc487e-0db8-4f1c-944d-085423b296ab",
+        "sha256": "b1d2e784ad89d2da177e2824f9c3da0adf3b6a55d821898ced2b1cf04539f6d2"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_001a422cd1d9f386016af37a50729c87d283ba45aa2fee2f15",
+        "sha256": "5698283ff642e74183605182ceb98e82a77610392c33fe3ea475328fd0cf57d7"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378297fb887d2ba58117e955c600f",
+        "sha256": "bea0db1a82e4c0e638b6235efd423de40dd4e63338b9728cdb3f948b55dac954"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af37834707087d2821e82e7a5e2a001",
+        "sha256": "d4eaa95fc43f4b7e53557bbfc20acf8efa362835f1517264e277f5b08da09d5f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af37841e7b087d28e1806e117829d83",
+        "sha256": "b93aa5ad00c9a2efe3468f5dda8504fe7a700bfda4a4b73c6fda4631e3a860f5"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af3784e717c87d2a8787949a663d016",
+        "sha256": "856206d12697415d30775a5b4de73ec1b5402f5ffd810de57122214b2d6fdd9d"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af37862f56887d296b170bdb630fee2",
+        "sha256": "885e7b1d8270bedb4a18e797c1d6814767eec2e006fd6b932d55ae62945d1ba7"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af3786f165487d28afccc16a4793e39",
+        "sha256": "5258cf850fecf54db28ca8204de53c66696b62d60d90c2a0a6c080d824259a24"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af37884d5a087d289ad7de753ce556c",
+        "sha256": "cf1956bf48f6dabf557f0453e732c7355d16bec9f1c3d2bcbed747effc78638d"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af3788fbca887d29263bd6927f8e2d8",
+        "sha256": "3efb0c92a7d194d68f661b7d60f7a912c3c30358138a90c43ed092dafe0472d3"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af3789ad47087d2970cf947b72ba28f",
+        "sha256": "eccb231583f8453e726e60b806d7013756053794cb7e9b4f1814ec5fddc48d38"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378a57fdc87d28d52e336fef62c1d",
+        "sha256": "671e7154fa8269ec1f588a35b5603d60d1a54a50840f02ecf2a689cf7fb33708"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378b0db6c87d2bd5cfa55ab82ed5b",
+        "sha256": "d63b606e32385e7189e1af5577029b7a4aa81c5dea301efba7ccba295068f753"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378bf589087d2ac2f3ffff0d456d5",
+        "sha256": "7dfcc9efaf9dd3cb440c0cc043c539b1197b7606bb48e9d3a9860e8bf4de059d"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378ca0df487d2b2cce4fbfb0be968",
+        "sha256": "8a5fd2d0635cc33f6dd95e5b59eb5a48d62d941e64f80fd3e737f0ad7198fa8f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378d6290c87d2b825a15e150b4c4d",
+        "sha256": "ebb10d27ca9396a06970413349a5ea481c278a8b3d8eff2ebe7b3d67cb9988da"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378e2261087d29686a3300bed1ee2",
+        "sha256": "34eabd07509026688c1df0e0796bc580081510e8a86a89ee603e6a6a089d4688"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_027dae7a2fbf1875016af378ee9d2887d29521adb32b0c3f3b",
+        "sha256": "83707dd7bd4ec0c118e270ab93391eff46472506515263f4277a604dad23e3f9"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0516e911d783ba42016af379fecf8c87d299a8f0f20d55209d",
+        "sha256": "8401446a45ba8674ff69a21e1d862d8735f3874a9205c2612377fbcae8b27f4a"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0516e911d783ba42016af37a0819ec87d2a2a64f4e51224425",
+        "sha256": "214a73ce50cd7fa4d1beeace80c8cb00d6c3b1dc7bc8f0865fa061c384ce128f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0516e911d783ba42016af37a0fdb2c87d2ac452a07f5977c48",
+        "sha256": "e2a86ace3d339f4e75725d47b3bc5e580bd2712e9f2ff9476693070b82e64707"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0516e911d783ba42016af37a17d81487d290f4731219735ef4",
+        "sha256": "0f387715b3dad77f711355f8cbc73c1d184295d0a67ae229f158f0e7fc3990d5"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0536990c221ba769016af37af0a0bc87d2b797b7a61f511f4b",
+        "sha256": "19fa673c6a5cce4ceaeec7cd9e1ec03bf5de02edeb7f3d6491202ccac9e59069"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0536990c221ba769016af37afd3c6c87d282ba2f9749bb4c2f",
+        "sha256": "c688682aa78daa4ef8fd2c9789b5b9e15724b0d9701690d91781048e18b40648"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_08859a6575c4e785016af37b24abb887d292851b44b5762315",
+        "sha256": "79307b300fe6509ad6f29fd52b813646042c0248ec9831542f704ca2fd3dd16f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_08859a6575c4e785016af37b2f4aa487d2b43f0e8cbfddc520",
+        "sha256": "6b8b86a8cac04f133d78701eef0397606cd0ecb0ee98b1d251df1ce17fd920f0"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_08859a6575c4e785016af37b3e4a7887d2bd70ce1bc8e92b6b",
+        "sha256": "41ef44b57bf08d84279470ca406916064ab97c39fe48935a0cc1e0fcf656b0fc"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_08859a6575c4e785016af37b417c0887d2aed8147204d5ef9a",
+        "sha256": "34edc4834e2d80dc8689a2813aed98c8795aae93667fd2e13493857ee1f2673e"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_08859a6575c4e785016af37b4bcb5487d2b6213482ac124084",
+        "sha256": "350d24dde3f03ce6e69db2f93e9530655c315a048540e7d0960f885088d23603"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_09701ece8a94aea2016af3780fbf2887d286545f44dec02594",
+        "sha256": "e155b834735774d89265ed2e9c2d4af0b4287c5c3388c86feb9c7245a81959a8"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_09701ece8a94aea2016af3791cdbc487d2bcfcc0ab372033ea",
+        "sha256": "97f1ddde287a0c3f623bde3767dab960a829e6281dd094bd63d28b40d786d94f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_09701ece8a94aea2016af37929095c87d2801deab94322a7b5",
+        "sha256": "963580ad3a8105b856c3cf7c21023599677b93f1ea9d3281fea7d613063349c0"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_09701ece8a94aea2016af37933b6f887d286f15f247d348830",
+        "sha256": "51374c63b8bdcde15b0f21eb7d2f9d4fe608c94b73613f8146006b8da24cdcd5"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0a0b436e98193c94016af37b80b95c87d2b8747a61f17b6aa3",
+        "sha256": "05204b87d980ddb007f55852c48f423f875da0b284c76aafc14bb865bdfd975d"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af37826448c87d2be4cbb638a23be3e",
+        "sha256": "3672d849719602388bd325f72ac12eafcd9f91b6824180b8e4a2dce9d9e06978"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af3782fb64887d2bda1252e82f902e9",
+        "sha256": "3810a3d898ebe95a35809c83300d8f8615d939bbfd50f2dc8d4048eda3ec1e55"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af3783aeb5c87d2857311bcb59fa3e2",
+        "sha256": "6482092268f16113c1f73ae5a216cec4eb516fd22475f9948dcc7e9c9568de90"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af378454a4887d28c22eb82d48ea435",
+        "sha256": "17965503e0b48b1b057a5c640a84adbbbf3d2301e837bf0842103e08ae4738a6"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af378511b5087d2be0a38a4bfe78d2e",
+        "sha256": "d7c0ffdb91129046e673857edb8edf502b005e839512dfa78ab099eae1c61c11"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af37858a7e487d281497274275180f8",
+        "sha256": "d18e85ba87ea6555f4665f6bfdc09c2ab013259102457d94bf0ccecfa136b558"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af3786360a887d2951e867f4d4d338e",
+        "sha256": "e1f06c486acb34c2ca914a190781707bdb793a355a257518fa8851f86f9b9b07"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b60e67a6a282fd8016af3786decbc87d2a28dfe269ee9b832",
+        "sha256": "e08697e321c464c56efaa28522af08fa609e79db799e06c3516d82ea17559d41"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b636bcef52059ab016af37ae47bf487d2ab942f734003c6cf",
+        "sha256": "84cab159af1d92e4febe5501788cab8cb8908f97b77405729380a073b7473fea"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b636bcef52059ab016af37b0bee8887d2a7a043381057d354",
+        "sha256": "bbd21833166e247f38b812625a8fd6e151ab869297662e88ba808f577f3d253f"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b636bcef52059ab016af37b5e089c87d2ae2758336b1dd6a1",
+        "sha256": "b8b872e3efdab37374594896b9da0525a6a07a633d6241f7d1c6efec8cc3969a"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b636bcef52059ab016af37b62e6ac87d29896350ddaee0e78",
+        "sha256": "5291804106bed53e8c98330b9e19b1e005dd0d8e69d6dfd870b88c2488848804"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0b636bcef52059ab016af37b6cba0087d2a681380d7d035441",
+        "sha256": "a8798b90639811880999728403586ebaa9ab21a567944c2019b81a40c6768540"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af37945786487d2ab3055c8267bb9ef",
+        "sha256": "b50fcfd08a35b12d91726e8e27dd5b5df298ee59cd6e1005ad8466759ed91bf6"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af37951c65487d2baf695b566ba6a11",
+        "sha256": "31d01d7330ffe9449b3f94008153dd27c4143574a20c9468c7b570d33ca333f2"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af3795577f087d2b01babf1e9527137",
+        "sha256": "87c82e0c7810159ac17f008086502e887a2aee84586d1f04bcb7039bb2d77eee"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af3795fe9f087d28a1d787af1a7dbca",
+        "sha256": "31041edb8f7673af9848019339db16d45305542197b4c2b30b075067c47dbde6"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af3796cf63487d28d94bff9bcbb3892",
+        "sha256": "7bb3689185c32092bb4b3a9cf6680c1b0fc153666483897f39db972aab01b507"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af37977bb2487d2bbf507a13f8c4a5e",
+        "sha256": "714b34160a8484f836e21fe105547138c5344438775c1a231dc2c25ec5cdfbed"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af379843be887d28ba4c0bd69d23a91",
+        "sha256": "e52cb10f6c0d4cca8942af2d2d30f682c2323abd46cfa3e47c3ea41697fd2820"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bcbf99e7d0d539c016af379902e1087d29ed2a3dbcdc276c7",
+        "sha256": "81926908bcfa739827cf1893b35414a643a9f52b0ff35be71240c60e5c22abac"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af379eb39b087d2be206911ca9f86ea",
+        "sha256": "4ddffc37fb5c5ae4273987d75998d6ceffad3d644f8f7bdc294ce4a84f16edd3"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a2695c887d28ab52514d2e1cba5",
+        "sha256": "1864babb429717ae6ce502b5c3dd28cf34790a16689a2b9946196fa3f473f166"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a32cb9c87d2af0dbcb9ac31e677",
+        "sha256": "c00e8a33e6460078adcbc4cd09a677658b1e3a5ffcf6e4e3ea6eaea6429d7738"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a3fa80487d2b362ed14a023ca54",
+        "sha256": "4c1896904ea41f970b80aa1601fd17ffc5958a56fba60a6c38844c95c7f08fec"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a438c8487d29d2be7fa15848d0a",
+        "sha256": "ed532a82971442e640be18686459509cc99afd685b6daf17b8e087dff827630b"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a5cab3487d2b62ae6c086a876da",
+        "sha256": "d6b19b4bc5c3216ff5b28c68909bf91fc32a63a136226ae2ae838bb9bd8f7b55"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a662e8c87d28d86c731927e6ad7",
+        "sha256": "62a938afcd8afd7835ee9be258793c126ce25828e9fb6874576f148218faa64a"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0bdee961f525af46016af37a8db5a487d291ec4f35b885aa66",
+        "sha256": "8c72c54639af78dc42785b1c6c3e0932d4ff8fe687a8113e789a22878e0c67f2"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0f725b6446b40f17016af37a74c63c87d28bc34834cfc37280",
+        "sha256": "3abf4576258b41b98630375205be32e0d6c251f3c760868288d81db55144be7d"
+      },
+      {
+        "table": "gh_model_items",
+        "id": "rs_0f725b6446b40f17016af37a7cc91487d287cc8f4dd14966da",
+        "sha256": "d02e73ac5de32ce047a7fef4a4cc02b9d6c195636e965d53e77d9b6bd6b2b41a"
+      }
+    ],
+    "logicalHistoryPreserved": true,
+    "originalSetVerification": {
+      "tables": [
+        {
+          "name": "gh_agent_events",
+          "count": 180,
+          "sha256": "b82311bbaf94dc5d582992740e7577a3b055abd2302f533e275c58c77899be5b"
+        },
+        {
+          "name": "gh_audit",
+          "count": 1017,
+          "sha256": "306675e3f1a4f2b1653f5ce0874bd2e82876bcc95e3a5ef6e04ba99c939db24d"
+        },
+        {
+          "name": "gh_capabilities",
+          "count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "gh_datasets",
+          "count": 13,
+          "sha256": "f8ba08d564916df3fdebfc1dd9fae1df0286a28801d5ebd2dfd09c5c7bc8303b"
+        },
+        {
+          "name": "gh_dispute_inventories",
+          "count": 8,
+          "sha256": "d43e2a72f38f7a52f61cdab553a26b8106eccf8273f38dfe9d5e919f97c8a383"
+        },
+        {
+          "name": "gh_dispute_scenario_bindings",
+          "count": 4,
+          "sha256": "acb0eb4531ec7f409917135a259fb0d5af8f2af546599db850b84fd6ac2fa7bd"
+        },
+        {
+          "name": "gh_jobs",
+          "count": 2,
+          "sha256": "b8bba3815a0a045bd9f507807ef38d872b179714d8b0aef2a7e45c14228696b0"
+        },
+        {
+          "name": "gh_layouts",
+          "count": 2,
+          "sha256": "6286b419ed39b404cef72b6ae0f4ed56b7d6189c5b9229f3d367dc872b9852ec"
+        },
+        {
+          "name": "gh_memberships",
+          "count": 12,
+          "sha256": "684dfc04b762c360f8e3ced5342eabd8ef26db1f21b2fde495e743b9bf1ced05"
+        },
+        {
+          "name": "gh_observation_jobs",
+          "count": 105,
+          "sha256": "554a9886277c0d89cad269533d93697683fd8297f9c707d8e92d302c4f236199"
+        },
+        {
+          "name": "gh_operations",
+          "count": 210,
+          "sha256": "d4cefc35c8dfd6c50536c43a7c826b122fe30994ef14d645f7a52c99fc3e9b1d"
+        },
+        {
+          "name": "gh_payment_commands",
+          "count": 638,
+          "sha256": "67a05a9a3826f32768299cb8d6398699205aa944c3c8e4407db6dfa6e5c5709a"
+        },
+        {
+          "name": "gh_payment_consents",
+          "count": 1,
+          "sha256": "17c312cc6712e32d6152294a6d96c06c781da11ea6653722c1faf6eeba7342d3"
+        },
+        {
+          "name": "gh_paypal_connectors",
+          "count": 1,
+          "sha256": "74cc6bec913518f010b6645e65a8150b9603b80b56a25f1bdd667e09d7381047"
+        },
+        {
+          "name": "gh_plans",
+          "count": 3,
+          "sha256": "629e9729d2298715a129b01af92c660ba1bf0e0c546bf33f5de3d08680720a35"
+        },
+        {
+          "name": "gh_provider_observations",
+          "count": 717,
+          "sha256": "00c066d746e01a17f783d67f56d2bf19bd49bee858b6eec8eeadcf38b3b268bb"
+        },
+        {
+          "name": "gh_provider_resources",
+          "count": 1242,
+          "sha256": "3850b997c6235d15b2558d0ff2035f287db29549239cda8b68c2988ab651731f"
+        },
+        {
+          "name": "gh_recovery_intents",
+          "count": 105,
+          "sha256": "9861892e58704d5be382adab0aa1a030dd720a0c2c9dbe1712ec4dece184bc2a"
+        },
+        {
+          "name": "gh_recovery_runs",
+          "count": 1,
+          "sha256": "1398525ef06ba132ca9b6e57f3f0784776157ce08c5c5be357cdc4e49de66166"
+        },
+        {
+          "name": "gh_reporting_evidence",
+          "count": 600,
+          "sha256": "f57e000a99e002f5bd3c5fb6497bf34146253ba441a5a0db0c2daf0cc688ed68"
+        },
+        {
+          "name": "gh_reporting_pages",
+          "count": 6,
+          "sha256": "95a6b22d47b20f69edb1ed54610725f836011f061ff15b38002ab64129224e5d"
+        },
+        {
+          "name": "gh_reporting_runs",
+          "count": 1,
+          "sha256": "399b02cc30e544ab5faf15c5271414297ef9704c31ba17316da3de977616e794"
+        },
+        {
+          "name": "gh_reporting_windows",
+          "count": 1,
+          "sha256": "2caf0371fa5074b92fecdf69eb6c5c440b3235906df4244f1536290f33dd96db"
+        },
+        {
+          "name": "gh_resource_claims",
+          "count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "gh_scenario_revisions",
+          "count": 1,
+          "sha256": "5f028a5c6f7950f29cfdacd3925e1fd4c804784463b6a5bc8d953a531cd334b9"
+        },
+        {
+          "name": "gh_seed_items",
+          "count": 600,
+          "sha256": "e0bf6469d9fab7ac5553cfcba7c17fa6c55318b58413218639181089f1a78b0c"
+        },
+        {
+          "name": "gh_seed_runs",
+          "count": 1,
+          "sha256": "495c8573c3e161a92342de7ed923805b41e83fe7116b5b08afd477a03cd3148f"
+        },
+        {
+          "name": "gh_sessions",
+          "count": 14,
+          "sha256": "ad4c5b4c7010e2829cce67b2e384f62225df5211512c16166685abc4021dbf44"
+        },
+        {
+          "name": "gh_snapshots",
+          "count": 21,
+          "sha256": "c85f08511ca691d99e4e7616e9749ee673dbb8b7d80e8f8d6a09a5a60c225886"
+        },
+        {
+          "name": "gh_source_events",
+          "count": 64596,
+          "sha256": "64c1fe6bd7ac326f817b4891e87e06dd0c51ff6bd45e184431be8f5411870f14"
+        },
+        {
+          "name": "gh_state_intervals",
+          "count": 151754,
+          "sha256": "4cc935e043f7077a0afc15bd2eca5260bd25b8b45b9de4b79de24db23e8bab8e"
+        },
+        {
+          "name": "gh_status_checks",
+          "count": 105,
+          "sha256": "0705d28bd1a90413b3ee27cc57267960a917c2e1d5f0304f3ec5055317f3f0d5"
+        },
+        {
+          "name": "gh_vault_operations",
+          "count": 2,
+          "sha256": "f047128bda5f22fd78e57adac5c19ea22f602f15f5c39ecd93626724217ea569"
+        },
+        {
+          "name": "gh_webhook_deliveries",
+          "count": 2,
+          "sha256": "c3e7e88d3f4a33e0d9c2941e8f98f85c5c4ff0d2605a12546e206f55832ec62a"
+        },
+        {
+          "name": "gh_webhook_events",
+          "count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "paycore_attempts",
+          "count": 638,
+          "sha256": "d05f729048c0effcceddd87ba9048736dd09f9a3f0d9309da998a4fd55df1659"
+        },
+        {
+          "name": "paycore_operations",
+          "count": 638,
+          "sha256": "20967aeb2a5050ff395e88347cc1053b8e9e76847d0edca9f6613a62d4c96ea0"
+        },
+        {
+          "name": "paycore_resource_locks",
+          "count": 38,
+          "sha256": "f7178bf2708f362a26d67659770ef8250c67a4e7b01c47933db24692f8225f27"
+        },
+        {
+          "name": "paycore_webhook_deliveries",
+          "count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "paycore_webhook_events",
+          "count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "excludedNewSampleTenantCount": 3,
+      "qualificationAppends": [
+        {
+          "table": "gh_audit",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_datasets",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_memberships",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_sessions",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_snapshots",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_source_events",
+          "excludedTenantCount": 3
+        },
+        {
+          "table": "gh_state_intervals",
+          "excludedTenantCount": 3
+        }
+      ],
+      "allOriginalRowsUnchanged": true,
+      "conversationMetadataUnchanged": true
+    },
+    "providerCalls": 0
+  },
+  "actualModel": {
+    "runId": "run-23fb64e7-1568-479d-b942-06ae06213b61",
+    "state": "completed",
+    "snapshotHash": "67cec45bc5038c63bc9095c2cf30d6a7f016d67061675bb40b6cbff0c1fdecd0",
+    "turns": [
+      {
+        "runId": "run-23fb64e7-1568-479d-b942-06ae06213b61",
+        "index": 0,
+        "state": "completed",
+        "dispatchCount": 1,
+        "requestHash": "e247d3563820489b8d23cd98bea3325cd92b64341f8ee4ae30217efeef71dfd1",
+        "model": "gpt-6-astra",
+        "maxOutputTokens": 32768,
+        "reasoning": "max",
+        "providerId": "resp_0ccced204e68ece8006af4841d615487d29312e29e6635812f",
+        "providerStored": false,
+        "usage": {
+          "input_tokens": 843,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 20,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 863
+        }
+      },
+      {
+        "runId": "run-23fb64e7-1568-479d-b942-06ae06213b61",
+        "index": 1,
+        "state": "completed",
+        "dispatchCount": 1,
+        "requestHash": "a4451bf2cc933f3152ffcb32c56a1d9ce77504d60df3da6c32978ce70e1900e9",
+        "model": "gpt-6-astra",
+        "maxOutputTokens": 32768,
+        "reasoning": "max",
+        "providerId": "resp_0ccced204e68ece8006af48432092487d286878e49758251e8",
+        "providerStored": false,
+        "usage": {
+          "input_tokens": 924,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 15,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 939
+        }
+      },
+      {
+        "runId": "run-23fb64e7-1568-479d-b942-06ae06213b61",
+        "index": 2,
+        "state": "completed",
+        "dispatchCount": 1,
+        "requestHash": "ea03ca6114a4f32e0b145b0cf9557c61aa970f439efe7e4c0e85b62b6191632d",
+        "model": "gpt-6-astra",
+        "maxOutputTokens": 32768,
+        "reasoning": "max",
+        "providerId": "resp_0ccced204e68ece8006af48444254487d2958e74d7924e4fce",
+        "providerStored": false,
+        "usage": {
+          "input_tokens": 2325,
+          "input_tokens_details": {
+            "cache_write_tokens": 2322,
+            "cached_tokens": 0
+          },
+          "output_tokens": 1672,
+          "output_tokens_details": {
+            "reasoning_tokens": 1395
+          },
+          "total_tokens": 3997
+        }
+      }
+    ],
+    "toolNames": [
+      "rename_thread",
+      "read_incident"
+    ],
+    "readIncidentCalls": 1,
+    "eachOriginalRequestDispatchedOnce": true,
+    "sourceCoverage": {
+      "samplePayments": 600,
+      "sandboxPayments": 0,
+      "fixtureShipments": 600,
+      "providerDisputes": 0,
+      "complete": false
+    },
+    "totals": {
+      "orders": 600,
+      "captures": 600,
+      "capturedMinor": 2760000,
+      "affected": 63,
+      "delivered": 432,
+      "inTransit": 142,
+      "refundMinor": 0,
+      "openDisputes": 4
+    },
+    "context": {
+      "tenantId": "fernwood-53b66c42-8ff3-4c46-8b2f-2b26a0d49c10",
+      "rolePolicyVersion": "roles-v1:1",
+      "roleScope": "judge",
+      "clockDomain": "narrative_replay",
+      "sourceMode": "sample",
+      "asOf": "2026-11-06T10:00:00.000Z",
+      "knownAt": "2026-11-06T10:00:00.000Z",
+      "cohortId": "carrier-delay-pnw",
+      "cohortVersion": 1,
+      "currency": "USD",
+      "semanticModelVersion": "commerce-semantic-v1",
+      "projectionVersion": 1,
+      "filterHash": "all-authorized-orders-v1"
+    }
+  },
+  "native": {
+    "inAppBrowser": true,
+    "savedInvestigationReopenedAfterReload": true,
+    "markdownSummary": true,
+    "temporaryStorageDisclosure": true,
+    "mobile": {
+      "viewport": 390,
+      "page": 390,
+      "panelWidth": 390,
+      "panelScrollWidth": 389
+    },
+    "consoleErrors": 0
+  },
+  "originalFinancial": {
+    "tables": 12,
+    "rows": 3527,
+    "hashes": [
+      {
+        "name": "gh_plans",
+        "count": 3,
+        "sha256": "629e9729d2298715a129b01af92c660ba1bf0e0c546bf33f5de3d08680720a35"
+      },
+      {
+        "name": "gh_operations",
+        "count": 210,
+        "sha256": "d4cefc35c8dfd6c50536c43a7c826b122fe30994ef14d645f7a52c99fc3e9b1d"
+      },
+      {
+        "name": "gh_resource_claims",
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "gh_payment_consents",
+        "count": 1,
+        "sha256": "17c312cc6712e32d6152294a6d96c06c781da11ea6653722c1faf6eeba7342d3"
+      },
+      {
+        "name": "gh_vault_operations",
+        "count": 2,
+        "sha256": "f047128bda5f22fd78e57adac5c19ea22f602f15f5c39ecd93626724217ea569"
+      },
+      {
+        "name": "gh_seed_items",
+        "count": 600,
+        "sha256": "e0bf6469d9fab7ac5553cfcba7c17fa6c55318b58413218639181089f1a78b0c"
+      },
+      {
+        "name": "gh_payment_commands",
+        "count": 638,
+        "sha256": "67a05a9a3826f32768299cb8d6398699205aa944c3c8e4407db6dfa6e5c5709a"
+      },
+      {
+        "name": "gh_provider_resources",
+        "count": 1242,
+        "sha256": "3850b997c6235d15b2558d0ff2035f287db29549239cda8b68c2988ab651731f"
+      },
+      {
+        "name": "gh_provider_observations",
+        "count": 717,
+        "sha256": "00c066d746e01a17f783d67f56d2bf19bd49bee858b6eec8eeadcf38b3b268bb"
+      },
+      {
+        "name": "gh_recovery_runs",
+        "count": 1,
+        "sha256": "1398525ef06ba132ca9b6e57f3f0784776157ce08c5c5be357cdc4e49de66166"
+      },
+      {
+        "name": "gh_recovery_intents",
+        "count": 105,
+        "sha256": "9861892e58704d5be382adab0aa1a030dd720a0c2c9dbe1712ec4dece184bc2a"
+      },
+      {
+        "name": "gh_dispute_inventories",
+        "count": 8,
+        "sha256": "d43e2a72f38f7a52f61cdab553a26b8106eccf8273f38dfe9d5e919f97c8a383"
+      }
+    ],
+    "unchanged": true
+  },
+  "financialProviderDispatches": 0,
+  "limitations": [
+    "This hosted model investigation used isolated Sample data; it is not a new provider payment or shipping observation.",
+    "Actual scoped Toolkit reads and full Planner manifest pagination were separately qualified locally and are linked in the existing evidence.",
+    "The initial protected HTTP attempt timed out during the database audit; the retained second attempt passed after that read-only audit completed.",
+    "New Sample tenants were excluded by identity only after their removal reproduced the exact complete pre-migration hashes. A legacy session without a tenant field is retained.",
+    "Provider returned temporary storage; completed results remain encrypted in application storage.",
+    "Full organizational, analytical, evaluation and film scope remains in the delivery ledger."
+  ],
+  "promotion": {
+    "verifiedAt": "2026-11-11T15:10:59.993Z",
+    "stableUrl": "https://paypal-ai-glasshouse.vercel.app",
+    "deploymentId": "dpl_AUc8EgfAX4doAYm326VvxbZ2TWno",
+    "readyState": "READY",
+    "originalNativeWorkspace": {
+      "sandboxConnected": true,
+      "orders": 600,
+      "capturedMinor": 2760000,
+      "delayedFixtureShipping": 54,
+      "providerDisputes": 4,
+      "findingRevision": 787,
+      "savedInvestigations": 3,
+      "originalChartTranscriptReadable": true,
+      "originalCarrierTranscriptReadable": true,
+      "undoEntries": 7,
+      "redoEntries": 0,
+      "existingCookieUsed": true,
+      "noModelOrPaymentAction": true
+    }
+  }
+}
