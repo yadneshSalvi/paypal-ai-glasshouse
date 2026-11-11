@@ -1,0 +1,57 @@
+{
+  "at": "2026-11-11T07:04:26.303Z",
+  "source": "e430536",
+  "deployment": "dpl_AFNtUuM8JELnzRuDva89zGmWS5nD",
+  "url": "https://paypal-ai-glasshouse.vercel.app",
+  "actualProviderReportingGetPages": 6,
+  "observedOwnedCaptures": 600,
+  "reportedCaptureMinor": 2760000,
+  "currency": "USD",
+  "providerRefreshTimestamp": "2026-11-11T03:29:59.000Z",
+  "firstPageObservedAt": "2026-11-11T07:01:51.109Z",
+  "lastPageObservedAt": "2026-11-11T07:01:54.672Z",
+  "refreshAgeAtLastPageSeconds": 12715.672,
+  "financialProviderWrites": 0,
+  "limitations": [
+    "Thirty-eight owned refunds are outside the selected capture-day window.",
+    "Reporting refresh lag is preserved; recent-payment completeness is not asserted.",
+    "No authentic webhook delivery has been received."
+  ],
+  "passed": true,
+  "financialTablesUnchanged": [
+    {
+      "table": "gh_payment_commands",
+      "count": 638
+    },
+    {
+      "table": "gh_payment_consents",
+      "count": 1
+    },
+    {
+      "table": "gh_recovery_intents",
+      "count": 105
+    },
+    {
+      "table": "gh_recovery_runs",
+      "count": 1
+    },
+    {
+      "table": "gh_seed_items",
+      "count": 600
+    },
+    {
+      "table": "gh_seed_runs",
+      "count": 1
+    },
+    {
+      "table": "gh_vault_operations",
+      "count": 2
+    }
+  ],
+  "qualification": {
+    "hostedAuthorizationChecks": 25,
+    "nativeScanStartedOnce": true,
+    "originalTenantPreserved": true,
+    "newFinancialActions": 0
+  }
+}
