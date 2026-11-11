@@ -1,0 +1,320 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-11T17:46:09.983479+00:00",
+  "passed": true,
+  "sourceCommit": "a1824226a3fa685e5be4587f7f638595155b4e8f",
+  "deployment": {
+    "id": "dpl_C1AuxFbhU2qDUu8fSCiZgwVraXQs",
+    "url": "https://paypal-ai-glasshouse-lbfcal8p4-yadneshsalvis-projects.vercel.app",
+    "stableUrl": "https://paypal-ai-glasshouse.vercel.app",
+    "readyState": "READY",
+    "promoted": true
+  },
+  "backup": {
+    "bytes": 15326806,
+    "sha256": "ed4a34ebc6b653bddb1ccc1166056075447b2d461435ddf1251b1bd4119487b0",
+    "tocEntries": 194,
+    "format": "postgresql-custom",
+    "verifiedReadable": true,
+    "directConnection": true
+  },
+  "migration": {
+    "versions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "additiveVersions": [
+      8,
+      9
+    ],
+    "originalTables": 48,
+    "originalRows": 289000,
+    "allOriginalRowsPreserved": true
+  },
+  "hostedHttp": {
+    "sourceCommit": "d0ccd2129b57a1b75f860a4e0c9ff96d91d0ec8d",
+    "checks": [
+      {
+        "name": "Unauthenticated report denial",
+        "result": "PASS"
+      },
+      {
+        "name": "Foreign-origin session denial",
+        "result": "PASS"
+      },
+      {
+        "name": "Fresh provider-isolated Sample bootstrap",
+        "result": "PASS",
+        "orders": 600,
+        "affected": 63
+      },
+      {
+        "name": "Current directory admission",
+        "result": "PASS"
+      },
+      {
+        "name": "Profile command exact replay",
+        "result": "PASS"
+      },
+      {
+        "name": "Separate Sample workspace creation",
+        "result": "PASS"
+      },
+      {
+        "name": "Exact installed-native fixture history saved through HTTP",
+        "result": "PASS"
+      },
+      {
+        "name": "Unapproved source-bound Sample proposal",
+        "result": "PASS",
+        "refunds": 47,
+        "totalMinor": 23500,
+        "actions": 114
+      },
+      {
+        "name": "Immutable edition creation and exact response replay",
+        "result": "PASS"
+      },
+      {
+        "name": "Scoped edition library",
+        "result": "PASS"
+      },
+      {
+        "name": "Exact private downloadable JSON",
+        "result": "PASS"
+      },
+      {
+        "name": "Actual A4 HTTP renderer and exact encrypted cache",
+        "result": "PASS",
+        "pages": 21,
+        "bytes": 345204,
+        "sha256": "9b8130e0eb870e2cf20d6daf5bdcfe7c1d8f24014f98ee5b6a4dc0b02e985e38"
+      },
+      {
+        "name": "Actual LETTER HTTP renderer and exact encrypted cache",
+        "result": "PASS",
+        "pages": 21,
+        "bytes": 344925,
+        "sha256": "106958dcd68f3cb64c3723d522281bf87c69c9cd0653555f8a4a9d855cec08f8"
+      },
+      {
+        "name": "Private invitation preview",
+        "result": "PASS"
+      },
+      {
+        "name": "Viewer acceptance and private report read",
+        "result": "PASS"
+      },
+      {
+        "name": "Viewer report and legacy mutation denial",
+        "result": "PASS"
+      },
+      {
+        "name": "Revoked viewer cannot disclose saved report",
+        "result": "PASS"
+      },
+      {
+        "name": "Stale original tab is held after selection",
+        "result": "PASS"
+      },
+      {
+        "name": "New workspace has no cross-tenant edition access",
+        "result": "PASS"
+      },
+      {
+        "name": "Round-trip selection retains exact original cookie and history",
+        "result": "PASS"
+      },
+      {
+        "name": "Archived workspace preserves report and holds new changes",
+        "result": "PASS"
+      },
+      {
+        "name": "Workspace restoration preserves evidence",
+        "result": "PASS"
+      },
+      {
+        "name": "Linked correction preserves the earlier 63-order edition",
+        "result": "PASS",
+        "earlierAffected": 63,
+        "laterAffected": 54
+      },
+      {
+        "name": "Foreign-origin edition write denied",
+        "result": "PASS"
+      },
+      {
+        "name": "No model or payment endpoint invoked",
+        "result": "PASS",
+        "providerCalls": 0,
+        "modelCalls": 0
+      }
+    ],
+    "requests": 43,
+    "freshSampleOnly": true,
+    "modelCalls": 0,
+    "providerCalls": 0
+  },
+  "correctedSourceContinuity": {
+    "at": "2026-11-11T17:40:59.942Z",
+    "passed": true,
+    "deploymentId": "dpl_C1AuxFbhU2qDUu8fSCiZgwVraXQs",
+    "checks": [
+      {
+        "path": "/api/layout?envelope=1",
+        "sha256": "1681b67698f9f2f6bd4a955e441a9ef9ea699c28739ec48833a94bb34b8c311a",
+        "unchanged": true,
+        "undo": 7,
+        "redo": 0
+      },
+      {
+        "path": "/api/plans",
+        "sha256": "af0256defe28774c920ae865750d23ac97d90e49a0ba24023644ba2371d79123",
+        "count": 1,
+        "unchanged": true
+      },
+      {
+        "path": "/api/operations?planId=plan-a35e9516-786c-411c-9009-8e271cd56416",
+        "sha256": "30279560558cfae6a9c1fe6dde9ce6aac593c54f5b748f035dd6e3de5a3935ed",
+        "count": 105,
+        "unchanged": true
+      },
+      {
+        "path": "/api/agents/threads",
+        "sha256": "e9016542dc5c5958ce7f36bf71aaac583862ccc4ed408a037ad6e2cdcde9c06b",
+        "count": 3,
+        "unchanged": true
+      },
+      {
+        "path": "/api/agents/threads/thread-5c748de4-9a09-4991-b9c7-5565b0e180a9",
+        "sha256": "964a0eff05cbeb4e2b330881a41ea208e181dabc3ba4c30103ddf706480c9091",
+        "unchanged": true
+      },
+      {
+        "path": "/api/agents/threads/thread-a9dc487e-0db8-4f1c-944d-085423b296ab",
+        "sha256": "c72fdb8c425983205da173b786a1db5e12fb90ca2fe1e8f922e72142c5350a2a",
+        "unchanged": true
+      },
+      {
+        "path": "/api/agents/threads/thread-0bb67034-bf85-4057-b309-2d147c72aaa5",
+        "sha256": "927aa5fcdc2f3e31672a7f006d7c770d6fb95302a2665991071d8dfc99004680",
+        "unchanged": true
+      },
+      {
+        "base": "https://paypal-ai-glasshouse.vercel.app",
+        "orders": 600,
+        "affected": 54,
+        "capturedMinor": 2760000,
+        "snapshotHash": "41591a2659592a1bf0f95fc7b8c65040cf6f0f79731198b2665cd3e3a25cc78f"
+      },
+      {
+        "base": "https://paypal-ai-glasshouse-lbfcal8p4-yadneshsalvis-projects.vercel.app",
+        "orders": 600,
+        "affected": 54,
+        "capturedMinor": 2760000,
+        "snapshotHash": "41591a2659592a1bf0f95fc7b8c65040cf6f0f79731198b2665cd3e3a25cc78f"
+      }
+    ],
+    "methods": [
+      "GET"
+    ],
+    "modelRequests": 0,
+    "financialDispatches": 0
+  },
+  "native": {
+    "at": "2026-11-11T17:43:14.819029+00:00",
+    "passed": true,
+    "sourceCommit": "a182422",
+    "deploymentId": "dpl_C1AuxFbhU2qDUu8fSCiZgwVraXQs",
+    "originalHostedChecks": 9,
+    "inAppBrowser": {
+      "freshSampleOrganizationAndWorkspaceCreated": true,
+      "immutableEditionCreatedAndReloaded": true,
+      "reportId": "report-3e0799a9-4ce8-4237-93ec-19ac7c8a7141",
+      "jsonDownload": true,
+      "pdfDownload": true,
+      "keyboardFocusPreservedAfterBothDownloads": true,
+      "savingFeedbackNoPrematureRecoveryWarning": true,
+      "desktop": true,
+      "viewportWidths": [
+        390,
+        360
+      ],
+      "horizontalOverflow": false,
+      "consoleWarningsOrErrors": 0,
+      "temporaryCookieRestored": true,
+      "viewportRestored": true,
+      "editionCreationSourceCommit": "d0ccd2129b57a1b75f860a4e0c9ff96d91d0ec8d",
+      "exportFocusCorrectionSourceCommit": "a182422"
+    },
+    "pdf": {
+      "pagesRenderedAndVisuallyInspected": 11,
+      "embeddedJsonExact": true,
+      "byteIdenticalAcrossUiCorrection": true
+    },
+    "financialOrModelCalls": 0
+  },
+  "hostedDownload": {
+    "passed": true,
+    "reportId": "report-3e0799a9-4ce8-4237-93ec-19ac7c8a7141",
+    "documentHash": "8876276ea9dba0e3ca01654515b69679f09e807f5f14e067be797ed9a232183a",
+    "jsonBytes": 8360707,
+    "jsonSha256": "d188d2cd954d53fbe49ea3f1b0a94997d219e5fcbdc9687ccc69c601c3d9fa5d",
+    "a4Bytes": 310591,
+    "a4Sha256": "94826ea1b9446a4c10c755caccfe232bb99a5b0078d59f5d86c9e281d99a218e",
+    "pages": 11,
+    "embeddedJsonExact": true,
+    "orders": 600,
+    "affected": 63,
+    "manifests": 0
+  },
+  "productionNative": {
+    "original600Orders": true,
+    "affected54": true,
+    "capturedMinor": 2760000,
+    "revision": 787,
+    "original105CompletedOperationsPreservedByHttp": true,
+    "savedConversations": 3,
+    "undo": 7,
+    "redo": 0,
+    "originalCookieValueUnchanged": true,
+    "originalAccessExpiryDisplayed": "2026-11-17 19:41 UTC",
+    "cookieExpiryNotExtended": true,
+    "originalJudgeRolePreserved": true,
+    "consoleWarningsOrErrors": 0
+  },
+  "finalDatabase": {
+    "tables": 59,
+    "rows": 371152,
+    "originalTables": 48,
+    "originalRows": 289000,
+    "allOriginalRowsPreserved": true,
+    "protectedFinancialAndModelTables": 22,
+    "changedProtectedTables": []
+  },
+  "uploadScan": {
+    "files": 223,
+    "privateValuesChecked": 58,
+    "findings": 0
+  },
+  "retainedFailuresAndCorrections": [
+    "Vercel sensitive environment pull returned redacted placeholders; migration used retained established secrets and left the remote environment unchanged.",
+    "Initial pooled administrative read observed an empty search_path; restored the affected pooled connection setting, verified both existing backends and original HTTP recovery, and changed backup/migration tooling to direct verified-TLS Neon connections. No row repair was performed.",
+    "Initial original-layout comparison expected identical response keys; source review confirmed one additive content hash. The corrected check verifies exact existing history/version plus the new canonical hash.",
+    "Staged keyboard export lost focus. Corrected source a182422 retains focus using aria-disabled and the existing synchronous request lock; local and hosted keyboard downloads passed with unchanged bytes.",
+    "A redundant promotion wrapper used an incorrect relative evidence path. All checks had already passed independently; absolute-path evidence validation passed and promotion was not repeated."
+  ],
+  "limits": [
+    "All new organizations, rooms and report fixtures in this qualification are disclosed Sample data. No new payment, provider or model call was made.",
+    "The original controlled financial evidence was preserved; existing shipping and support fixtures do not prove physical delivery.",
+    "PDF/UA and arbitrary native-chart/filter static parity remain unqualified.",
+    "Verified external login, additional actual merchant connections, findings lifecycle, broader analytics/evaluation/research/judge/film work remain in the full delivery ledger."
+  ]
+}
