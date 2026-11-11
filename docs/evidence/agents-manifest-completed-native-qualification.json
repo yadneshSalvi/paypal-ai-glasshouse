@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-11T14:45:10.387Z",
+  "passed": true,
+  "sourceCommit": "997cf18f98b9889100698e1f97aa1bff8402aed3",
+  "scope": "One new actual model investigation of an unapproved Sample proposal in an isolated local workspace. Financial providers absent.",
+  "runs": [
+    {
+      "id": "run-be61e187-7ee7-49e9-af2e-d49547251916",
+      "agent_id": "coordinator",
+      "parent_run_id": null,
+      "state": "completed"
+    },
+    {
+      "id": "run-e544d883-38ca-40d6-952c-cf08774e86c4",
+      "agent_id": "planner",
+      "parent_run_id": "run-be61e187-7ee7-49e9-af2e-d49547251916",
+      "state": "completed"
+    }
+  ],
+  "turns": [
+    {
+      "runId": "run-be61e187-7ee7-49e9-af2e-d49547251916",
+      "index": 0,
+      "state": "completed",
+      "creates": 1,
+      "requestHash": "bf80f07bf34241ebc8b9c1ea8a11567b6b6f95308a485dc99c5592c903fa3127",
+      "model": "gpt-6-astra",
+      "maxOutputTokens": 32768,
+      "reasoning": "max",
+      "providerId": "resp_00dee2648153de9c006af47e760a4c87d2a34bf304c99bdcbb",
+      "providerState": "completed",
+      "providerStored": false,
+      "usage": {
+        "input_tokens": 886,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 310,
+        "output_tokens_details": {
+          "reasoning_tokens": 287
+        },
+        "total_tokens": 1196
+      }
+    },
+    {
+      "runId": "run-be61e187-7ee7-49e9-af2e-d49547251916",
+      "index": 1,
+      "state": "completed",
+      "creates": 1,
+      "requestHash": "b9b872f8fd3d9d2062df17b9037f3d7be79ded32ca16770a995bc31f2ce7efb3",
+      "model": "gpt-6-astra",
+      "maxOutputTokens": 32768,
+      "reasoning": "max",
+      "providerId": "resp_00dee2648153de9c006af47e879b8087d2944eaff0e9c1fa30",
+      "providerState": "completed",
+      "providerStored": false,
+      "usage": {
+        "input_tokens": 975,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 399,
+        "output_tokens_details": {
+          "reasoning_tokens": 251
+        },
+        "total_tokens": 1374
+      }
+    },
+    {
+      "runId": "run-e544d883-38ca-40d6-952c-cf08774e86c4",
+      "index": 0,
+      "state": "completed",
+      "creates": 1,
+      "requestHash": "e6452ad51b6e7a495c1dd7d6b0329d7c0ddcfb4d2dd7e0a4e38c12cc3ed97f6a",
+      "model": "gpt-6-astra",
+      "maxOutputTokens": 32768,
+      "reasoning": "max",
+      "providerId": "resp_0a74ec3753bcc47f006af47e9927c887d2935d52d1da1d5857",
+      "providerState": "completed",
+      "providerStored": false,
+      "usage": {
+        "input_tokens": 995,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 46,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1041
+      }
+    },
+    {
+      "runId": "run-e544d883-38ca-40d6-952c-cf08774e86c4",
+      "index": 1,
+      "state": "completed",
+      "creates": 1,
+      "requestHash": "6e3381c8ddacc82f388b55478286d6e8da045ec493708878d456045427086bc2",
+      "model": "gpt-6-astra",
+      "maxOutputTokens": 32768,
+      "reasoning": "max",
+      "providerId": "resp_0a74ec3753bcc47f006af47ea382e087d29f3ab86a451cef42",
+      "providerState": "completed",
+      "providerStored": false,
+      "usage": {
+        "input_tokens": 37205,
+        "input_tokens_details": {
+          "cache_write_tokens": 37202,
+          "cached_tokens": 0
+        },
+        "output_tokens": 2805,
+        "output_tokens_details": {
+          "reasoning_tokens": 2070
+        },
+        "total_tokens": 40010
+      }
+    },
+    {
+      "runId": "run-be61e187-7ee7-49e9-af2e-d49547251916",
+      "index": 2,
+      "state": "completed",
+      "creates": 1,
+      "requestHash": "2f25d6f1381af973dec97dfc65fb31d31d7bd2c8dfa4448b19f79f186b403858",
+      "model": "gpt-6-astra",
+      "maxOutputTokens": 32768,
+      "reasoning": "max",
+      "providerId": "resp_00dee2648153de9c006af47ee9b67c87d28356d0b887f75599",
+      "providerState": "completed",
+      "providerStored": false,
+      "usage": {
+        "input_tokens": 1702,
+        "input_tokens_details": {
+          "cache_write_tokens": 1699,
+          "cached_tokens": 0
+        },
+        "output_tokens": 1576,
+        "output_tokens_details": {
+          "reasoning_tokens": 1034
+        },
+        "total_tokens": 3278
+      }
+    }
+  ],
+  "proposal": {
+    "id": "plan-9d9e85ff-6055-4437-9c5c-316491c20ffe",
+    "hash": "137c75acce5443532be6f12287abf4529ec801d5d97d15bad569c22e2481f9b0",
+    "snapshotHash": "9d8b3e1807514afa15c75fcba8f98a1dd1237378dda9c131d30c54eb64512a3a",
+    "policy": {
+      "id": "goodwill-delay-v1",
+      "scenario": "targeted",
+      "graceHours": 48,
+      "refundAmountMinor": 500,
+      "currency": "USD",
+      "comparisonOnly": false,
+      "overrideAuthorization": "not_granted_by_this_tool"
+    },
+    "sourceClasses": [
+      "fixture_shipping",
+      "sample"
+    ],
+    "asOf": "2026-11-06T10:00:00.000Z",
+    "knownAt": "2026-11-06T10:00:00.000Z",
+    "actionCount": 114,
+    "actionKinds": {
+      "refund": 47,
+      "tracking": 63,
+      "dispute_response": 4
+    },
+    "eligible": 47,
+    "excluded": 16,
+    "refundTotalMinor": 23500,
+    "capMinor": 30000,
+    "status": "ready_for_review",
+    "approved": false,
+    "allProviderBlocked": true
+  },
+  "verification": {
+    "downloadEqualsSavedToolResult": true,
+    "downloadAndStoredPlanHashesMatch": true,
+    "nativeAll114OperationIdsMatch": true,
+    "policy63RowsPresent": true,
+    "readRecoveryCalls": 1,
+    "eachSavedTurnDispatchedOnce": true,
+    "protectedTables": 14,
+    "protectedRows": 16401,
+    "protectedStateUnchanged": true,
+    "financialDispatches": 0
+  },
+  "native": {
+    "inAppBrowser": true,
+    "finalNarrativeCompleted": true,
+    "childHandoffVisible": true,
+    "summaryAndMarkdownListAfterReload": true,
+    "viewport": {
+      "width": 1280,
+      "height": 720,
+      "conversationHeight": 320
+    },
+    "actionPages": [
+      25,
+      25,
+      25,
+      25,
+      14
+    ],
+    "policyPages": [
+      25,
+      25,
+      13
+    ],
+    "operationSearch": true,
+    "escapeReturnsInspectorFocus": true,
+    "mobile": {
+      "viewport": 390,
+      "page": 390,
+      "dialogLeft": 10,
+      "dialogRight": 380,
+      "dialogWidth": 370,
+      "scrollWidth": 368,
+      "tableViewport": 334,
+      "tableScrollWidth": 800
+    }
+  },
+  "limitations": [
+    "The prior 16,000-token terminal response remains unchanged and cannot be resumed. This is a separate new investigation.",
+    "Sample proposal evidence is not actual financial execution or proof of physical shipping.",
+    "Provider returned temporary storage; completed responses are retained encrypted locally.",
+    "Hosted release and full remaining project scope are separate gates."
+  ]
+}
