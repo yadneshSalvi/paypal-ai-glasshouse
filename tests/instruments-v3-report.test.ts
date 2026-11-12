@@ -13,6 +13,7 @@ import {ReportService} from '../lib/server/reports/service';
 import {ReportSecrets} from '../lib/server/reports/crypto';
 import {AgentSecrets} from '../lib/server/agents/security';
 import {renderReportPdf,REPORT_RENDERER_VERSION} from '../lib/server/reports/pdf';
+import {NATIVE_REPORT_RENDERER_VERSION} from '../packages/reports/renderer';
 import {hash,persistDataset} from '../lib/server/repository';
 import {saveLayout} from '../lib/server/layouts';
 import {snapshotContext} from '../lib/server/snapshots';
@@ -81,7 +82,7 @@ test('current-v3 immutable A4 and Letter editions preserve independent original/
   const outputs=[];
   for(const paper of ['A4','LETTER'] as const){
     const started=performance.now(),pdf=await service.pdf(h.scoped,report.summary.id,paper),coldMs=performance.now()-started;
-    assert.equal(pdf.rendererVersion,'glasshouse-native-static-v2.0.0');assert.equal(pdf.bytes.subarray(0,5).toString(),'%PDF-');assert.ok(pdf.pages>7&&pdf.pages<100);
+    assert.equal(pdf.rendererVersion,NATIVE_REPORT_RENDERER_VERSION);assert.equal(pdf.bytes.subarray(0,5).toString(),'%PDF-');assert.ok(pdf.pages>7&&pdf.pages<100);
     assert.equal((pdf.bytes.toString('latin1').match(/\/Type\s*\/Page(?=\s|\/)/g)??[]).length,pdf.pages);
     const warm=performance.now();assert.deepEqual(await service.pdf(h.scoped,report.summary.id,paper),pdf);
     outputs.push({paper,pages:pdf.pages,bytes:pdf.bytes.length,hash:pdf.hash,coldMs,warmMs:performance.now()-warm});

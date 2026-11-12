@@ -8,6 +8,7 @@ import {ReportService} from '../lib/server/reports/service';
 import {ReportSecrets} from '../lib/server/reports/crypto';
 import {AgentSecrets} from '../lib/server/agents/security';
 import {renderReportPdf,REPORT_RENDERER_VERSION} from '../lib/server/reports/pdf';
+import {NATIVE_REPORT_RENDERER_VERSION} from '../packages/reports/renderer';
 import {hash,persistDataset} from '../lib/server/repository';
 import {saveLayout} from '../lib/server/layouts';
 import {applyDeliveryRevision} from '../packages/domain';
@@ -26,7 +27,7 @@ test('new v2 A4 and Letter editions retain every exact native row and preserve t
  const service=new ReportService(h.db,new ReportSecrets(h.key),new AgentSecrets(h.key),{version:REPORT_RENDERER_VERSION,render:renderReportPdf}),folder='.private/pdf-v2-'+new Date().toISOString().replaceAll(':','-');await mkdir(folder,{recursive:true,mode:0o700});
  const outputs=[];
  for(const paper of ['A4','LETTER'] as const){
-  const started=performance.now(),pdf=await service.pdf(h.scoped,report.summary.id,paper);assert.equal(pdf.rendererVersion,'glasshouse-native-static-v2.0.0');assert.equal(pdf.bytes.subarray(0,5).toString(),'%PDF-');assert.ok(pdf.pages>40&&pdf.pages<=800);
+  const started=performance.now(),pdf=await service.pdf(h.scoped,report.summary.id,paper);assert.equal(pdf.rendererVersion,NATIVE_REPORT_RENDERER_VERSION);assert.equal(pdf.bytes.subarray(0,5).toString(),'%PDF-');assert.ok(pdf.pages>40&&pdf.pages<=800);
   assert.equal((pdf.bytes.toString('latin1').match(/\/Type\s*\/Page(?=\s|\/)/g)??[]).length,pdf.pages,'Page objects and recorded pagination agree.');
   const warm=performance.now();assert.deepEqual(await service.pdf(h.scoped,report.summary.id,paper),pdf);outputs.push({paper,pages:pdf.pages,bytes:pdf.bytes.length,hash:pdf.hash,coldMs:warm-started,warmMs:performance.now()-warm});
   await writeFile(folder+'/exact-native-'+paper+'.pdf',pdf.bytes,{mode:0o600});

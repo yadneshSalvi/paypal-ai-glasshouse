@@ -7,6 +7,7 @@ import type {Actor,AuditEvent,Operation,QueryContext,RecoveryPlan,SeedDataset,Sn
 import type {AgentFinding} from '@/packages/agents/contracts';
 import type {ReportDocument,ReportGrant,ReportList,ReportPaper,ReportRequest,ReportSummary,SavedReport,PdfRepresentation,ReportFindingCorrection} from '@/packages/reports/types';
 import type {ReportHistory} from '@/packages/studio/history-saves';
+import {REPORT_RENDERER_VERSION,NATIVE_REPORT_RENDERER_VERSION,PRIOR_NATIVE_REPORT_RENDERERS} from '@/packages/reports/renderer';
 import type {SeedManifest,SeedManifestEntry} from '@/packages/payments/types';
 import type {DisputeObservation} from '../recovery/disputes';
 import {buildSnapshot} from '@/packages/domain';
@@ -31,7 +32,7 @@ const cleanText=(min:number,max:number)=>z.string().trim().min(min).max(max).ref
 const id=z.string().min(1).max(160).regex(/^[A-Za-z0-9_-]+$/),fingerprint=z.string().regex(/^[a-f0-9]{64}$/);
 const createSchema=z.object({requestId:z.uuid(),title:cleanText(2,120),description:cleanText(0,1200).default(''),snapshotHash:fingerprint,expectedLayoutVersion:z.number().int().min(1),expectedLayoutHash:fingerprint,planIds:z.array(id).max(10).refine(ids=>new Set(ids).size===ids.length),parentId:id.optional(),findingDependencies:z.array(z.object({findingId:id,revisionId:id,hash:fingerprint}).strict()).max(20).optional()}).strict();
 type EditionRow=Record<string,unknown>&{tenant_id:string;id:string;created_by:string;membership_version:number;request_id:string;request_hash:string;document_hash:string;snapshot_hash:string;layout_version:number;layout_hash:string;parent_id:string|null;private_document:string;private_summary:string};
-type PdfRow=Record<string,unknown>&{state:'rendering'|'ready'|'failed';lease_id:string|null;lease_until:Date|null;private_bytes:string|null;byte_hash:string|null;page_count:number|null;attempts:number};
+type PdfRow=Record<string,unknown>&{renderer_version:string;state:'rendering'|'ready'|'failed';lease_id:string|null;lease_until:Date|null;private_bytes:string|null;byte_hash:string|null;page_count:number|null;attempts:number};
 type SummaryEnvelope={summary:ReportSummary;grants:ReportGrant[]};
 type ResourceRow=Record<string,unknown>&{kind:'order'|'capture'|'dispute';provider_id:string;order_id:string;run_id:string;active:boolean;body:Record<string,unknown>};
 export interface ReportRenderer {version:string;render(document:SavedReport,paper:ReportPaper):Promise<{bytes:Buffer;pages:number}>}
@@ -211,17 +212,24 @@ export class ReportService {
     if(paper!=='A4'&&paper!=='LETTER')throw new HttpError(400,'INVALID_REPORT_PAPER','Choose A4 or US Letter.');
     if(!this.renderer)throw new HttpError(503,'REPORT_RENDERER_UNAVAILABLE','The PDF renderer is unavailable. The saved report and full JSON remain readable.');
     const admitted=await this.read(actor,reportId);
-    const renderer={...this.renderer,version:this.renderer.version==='glasshouse-static-v1.0.0'&&admitted.document.schemaVersion===2?'glasshouse-native-static-v2.0.0':this.renderer.version},identity=`${reportId}:${paper}:${renderer.version}`,lease=randomUUID();
+    const native=this.renderer.version===REPORT_RENDERER_VERSION&&admitted.document.schemaVersion===2;
+    const renderer={...this.renderer,version:native?NATIVE_REPORT_RENDERER_VERSION:this.renderer.version},lease=randomUUID();
+    const versions=native?[...PRIOR_NATIVE_REPORT_RENDERERS,renderer.version]:[renderer.version];
     const claimed=await this.db.transaction(async tx=>{
       await this.member(tx,actor);const report=await this.edition(tx,actor,reportId);
-      await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`report-pdf:${actor.tenantId}:${identity}`]);
-      const row=(await tx.query<PdfRow>('SELECT * FROM gh_report_pdf WHERE tenant_id=$1 AND report_id=$2 AND paper=$3 AND renderer_version=$4 FOR UPDATE',[actor.tenantId,reportId,paper,renderer.version]))[0];
-      if(row?.state==='ready')return {report,row,render:false};
-      if(row?.state==='rendering'&&row.lease_until&&new Date(row.lease_until).getTime()>Date.now())throw new HttpError(409,'REPORT_PDF_RENDERING','This exact PDF is being prepared. The saved report and JSON are available; retry this download shortly.');
+      for(const version of versions)await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`report-pdf:${actor.tenantId}:${reportId}:${paper}:${version}`]);
+      const rows=await tx.query<PdfRow>('SELECT * FROM gh_report_pdf WHERE tenant_id=$1 AND report_id=$2 AND paper=$3 AND renderer_version=ANY($4::text[]) ORDER BY updated_at,renderer_version FOR UPDATE',[actor.tenantId,reportId,paper,versions]);
+      // The first completed download stays canonical across renderer upgrades.
+      // A failed older version is retained verbatim beside the new attempt.
+      const ready=rows.find(row=>row.state==='ready');
+      if(ready)return {report,row:ready,render:false};
+      if(rows.some(row=>row.state==='rendering'&&row.lease_until&&new Date(row.lease_until).getTime()>Date.now()))throw new HttpError(409,'REPORT_PDF_RENDERING','This exact PDF is being prepared. The saved report and JSON are available; retry this download shortly.');
+      const row=rows.find(row=>row.renderer_version===renderer.version);
       if(row&&row.attempts>=5)throw new HttpError(409,'REPORT_PDF_HELD','This representation is held after five local render attempts. The saved report and full JSON remain available.');
       await tx.query(`INSERT INTO gh_report_pdf(tenant_id,report_id,paper,renderer_version,state,lease_id,lease_until) VALUES($1,$2,$3,$4,'rendering',$5,now()+interval '90 seconds') ON CONFLICT(tenant_id,report_id,paper,renderer_version) DO UPDATE SET state='rendering',lease_id=$5,lease_until=now()+interval '90 seconds',attempts=gh_report_pdf.attempts+1,reason_code=null,updated_at=now()`,[actor.tenantId,reportId,paper,renderer.version,lease]);
       return {report,row:null,render:true};
     });
+    const responseVersion=claimed.row?.renderer_version??renderer.version,identity=`${reportId}:${paper}:${responseVersion}`;
     let bytes:Buffer,pages:number,byteHash:string;
     if(!claimed.render){
       bytes=Buffer.from(this.secrets.open<string>(actor.tenantId,'pdf',identity,claimed.row!.private_bytes!),'base64');pages=claimed.row!.page_count!;byteHash=claimed.row!.byte_hash!;
@@ -237,6 +245,6 @@ export class ReportService {
     }
     // A revoke/switch while CPU rendering keeps the pure saved representation,
     // but cannot disclose it to the now-stale requesting context.
-    await this.read(actor,reportId);return {bytes,hash:byteHash,pages,rendererVersion:renderer.version,paper};
+    await this.read(actor,reportId);return {bytes,hash:byteHash,pages,rendererVersion:responseVersion,paper};
   }
 }

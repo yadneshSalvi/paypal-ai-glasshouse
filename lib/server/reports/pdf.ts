@@ -6,8 +6,9 @@ import {reportInstruments,reportMoney,reportSource,reportTime} from '@/packages/
 import {HttpError} from '../errors';
 import type {InstrumentResult} from '@/packages/studio/instrument-model';
 import {recoveryPolicyCurrency} from '@/packages/domain/policy';
+import {REPORT_RENDERER_VERSION,NATIVE_REPORT_RENDERER_VERSION} from '@/packages/reports/renderer';
 
-export const REPORT_RENDERER_VERSION='glasshouse-static-v1.0.0';
+export {REPORT_RENDERER_VERSION} from '@/packages/reports/renderer';
 const palette={paper:'#F8F6F0',ink:'#17372F',muted:'#52645C',line:'#D6DED2',green:'#48745B',lime:'#D7E6A5',amber:'#9C5A31',white:'#FFFFFF'};
 type Font={hasGlyphForCodePoint(value:number):boolean};
 const fontkit=createRequire(import.meta.url)('fontkit') as {openSync(path:string):Font};
@@ -20,7 +21,7 @@ function bundledFonts(){return fonts??=fontNames.map(name=>{const path=join(proc
 export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Promise<{bytes:Buffer;pages:number}>{
   if(!['A4','LETTER'].includes(paper))throw new HttpError(400,'INVALID_REPORT_PAPER','Choose A4 or US Letter.');
   const {document:d,summary}=report,instruments=reportInstruments(d),fontFiles=bundledFonts();
-  const pdf=new PDFDocument({size:paper,margin:48,autoFirstPage:false,bufferPages:true,compress:true,pdfVersion:'1.7',info:{Title:d.title,Author:d.creator.displayName,Subject:'Private immutable commerce incident report',Creator:'Glasshouse '+(d.schemaVersion===2?'glasshouse-native-static-v2.0.0':REPORT_RENDERER_VERSION),Producer:'PDFKit 0.20.2',CreationDate:new Date(d.createdAt),ModDate:new Date(d.createdAt)}});
+  const pdf=new PDFDocument({size:paper,margin:48,autoFirstPage:false,bufferPages:true,compress:true,pdfVersion:'1.7',info:{Title:d.title,Author:d.creator.displayName,Subject:'Private immutable commerce incident report',Creator:'Glasshouse '+(d.schemaVersion===2?NATIVE_REPORT_RENDERER_VERSION:REPORT_RENDERER_VERSION),Producer:'PDFKit 0.20.2',CreationDate:new Date(d.createdAt),ModDate:new Date(d.createdAt)}});
   pdf.registerFont('body',fontFiles[0].path).registerFont('bold',fontFiles[1].path).registerFont('serif',fontFiles[2].path);
   const chunks:Buffer[]=[];let total=0;
   const complete=new Promise<Buffer>((resolve,reject)=>{pdf.on('data',(chunk:Buffer)=>{total+=chunk.length;if(total>32_000_000){pdf.destroy(new Error('PDF byte bound exceeded'));return;}chunks.push(chunk);});pdf.on('end',()=>resolve(Buffer.concat(chunks)));pdf.on('error',reject);});
@@ -78,6 +79,37 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
       let x=left;strings.forEach((value,column)=>{text(value,x+7,y+7,widths[column]-14,size);x+=widths[column];});
       y+=height;pdf.moveTo(left,y).lineTo(pdf.page.width-right,y).strokeColor(palette.line).lineWidth(.4).stroke();
     });y+=14;
+  }
+  function nativeRows(columns:string[],rows:Record<string,unknown>[]){
+    const value=(row:Record<string,unknown>,column:string)=>row[column]===null?'Unknown':String(row[column]??'');
+    if(columns.length<=5){table(columns.map(label=>({label,weight:1})),rows.map(row=>columns.map(column=>value(row,column))),8);return;}
+    // Wide records use paired short fields, with long values spanning the page.
+    // Every mapped value remains printed; no excerpt or citation is shortened.
+    const gap=20,fieldWidth=(width()-gap)/2;
+    const height=(value:string,w:number)=>{pdf.font('body').fontSize(8);return pdf.heightOfString(value,{width:w,lineGap:2});};
+    for(const [index,row] of rows.entries()){
+      const bands:string[][]=[];
+      let pair:string[]=[];
+      const flush=()=>{if(pair.length){bands.push(pair);pair=[];}};
+      for(const column of columns){
+        const field=column+': '+value(row,column);
+        if(column==='Excerpt'||field.length>1400||height(field,fieldWidth)>38){flush();bands.push([field]);}
+        else{pair.push(field);if(pair.length===2)flush();}
+      }
+      flush();
+      const bandHeight=(band:string[])=>Math.max(...band.map(field=>height(field,band.length===2?fieldWidth:width())))+8;
+      const totalHeight=28+bands.reduce((sum,band)=>sum+bandHeight(band),0);
+      const whole=bands.every(band=>band.every(field=>field.length<=1400))&&totalHeight<=bottom()-70;
+      ensure(whole?totalHeight:70);
+      continuation=`Row ${index+1} of ${rows.length} / ${row.Evidence??row.Transition??row.Order??String(row[columns[0]]??'Saved native record')}`;
+      rule();text(`Row ${index+1} of ${rows.length}`,left,y,width(),7,'bold',palette.muted);y+=12;
+      for(const band of bands){
+        if(band.length===1){paragraph(band[0],8);continue;}
+        const blockHeight=bandHeight(band);ensure(blockHeight);
+        band.forEach((field,column)=>text(field,left+column*(fieldWidth+gap),y,fieldWidth,8));y+=blockHeight;
+      }
+      continuation=null;continuationHeight=0;
+    }
   }
   function bars(rows:{label:string;value:number}[],maximum:number,format=(value:number)=>String(value)){
     for(const row of rows){ensure(35);text(row.label,left,y,125,8);const barX=left+132,barWidth=width()-205;pdf.roundedRect(barX,y+1,barWidth,13,3).fill('#E0E6DA');if(row.value>0&&maximum>0)pdf.roundedRect(barX,y+1,barWidth*Math.min(1,row.value/maximum),13,3).fill(palette.green);text(format(row.value),barX+barWidth+10,y,63,8,'bold');y+=29;}y+=6;
@@ -172,15 +204,8 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
           }
         }
         paragraph(widget.rows.length+' complete rows. '+(widget.instrument?.unit??'Mapped native fields')+'.',8,palette.muted);
-        if(widget.columns.length<=5)table(widget.columns.map(label=>({label,weight:1})),widget.rows.map(row=>widget.columns.map(column=>row[column]===null?'Unknown':String(row[column]??''))),8);
-        else for(const [index,row] of widget.rows.entries()){
-          const parts=widget.columns.map(column=>column+': '+(row[column]===null?'Unknown':String(row[column]??'')));
-          pdf.font('body').fontSize(8);const height=parts.reduce((sum,value)=>sum+pdf.heightOfString(value,{width:width(),lineGap:2})+8,16);
-          continuationHeight=0;ensure(parts.every(value=>value.length<=1400)&&height<=bottom()-70?height:70);
-          continuation=`Row ${index+1} of ${widget.rows.length} / ${row.Evidence??row.Transition??row.Order??String(row[widget.columns[0]]??widget.widgetId)}`;
-          rule();for(const value of parts)paragraph(value,8);continuation=null;continuationHeight=0;
-        }
-        if(widget.originalRows){paragraph('Original denominator, before shared highlight',11,palette.ink,'bold');table(widget.columns.map(label=>({label,weight:1})),widget.originalRows.map(row=>widget.columns.map(column=>row[column]===null?'Unknown':String(row[column]??''))),8);}
+        nativeRows(widget.columns,widget.rows);
+        if(widget.originalRows){paragraph('Original denominator, before shared highlight',11,palette.ink,'bold');nativeRows(widget.columns,widget.originalRows);}
       }
       if(d.findingRevisions?.length){newPage('SHARED FINDING VERSIONS');for(const finding of d.findingRevisions){heading('Review '+finding.sequence,finding.title);paragraph(finding.interpretation);paragraph('Counterpoint: '+finding.counterpoint);paragraph('State: '+finding.state+' / '+finding.id+' / SHA-256 '+finding.hash,7);for(const citation of finding.citations)paragraph(citation.relation+' / '+citation.id+' / '+citation.hash,7);}}
     }else{
@@ -276,7 +301,7 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
     table([{label:'TABLE',weight:3},{label:'ROWS / SHA-256',weight:6}],Object.entries(d.snapshot.tables).map(([name,rows])=>[name,rows.length+'\n'+d.snapshot.tableHashes[name]]),7);
     const sourceCount=Object.hasOwn(d.snapshot.tables,'regional_baseline_order_snapshot')?String(Object.keys(d.snapshot.tables).length):'six';
     paragraph('The attached glasshouse-edition.json contains this full immutable edition, all '+sourceCount+' exact tables, source evidence, native history, selected manifests, safe observed receipts and audit. Its document hash is '+summary.documentHash+'.',9);
-    paragraph('PDF renderer: '+(d.schemaVersion===2?'glasshouse-native-static-v2.0.0':REPORT_RENDERER_VERSION)+' / PDFKit 0.20.2 / '+paper+'. Fonts: unmodified Noto Sans and Noto Serif under SIL OFL 1.1. The PDF is a deterministic semantic presentation; the separately hashed JSON is the canonical evidence.',8,palette.muted);
+    paragraph('PDF renderer: '+(d.schemaVersion===2?NATIVE_REPORT_RENDERER_VERSION:REPORT_RENDERER_VERSION)+' / PDFKit 0.20.2 / '+paper+'. Fonts: unmodified Noto Sans and Noto Serif under SIL OFL 1.1. The PDF is a deterministic semantic presentation; the separately hashed JSON is the canonical evidence.',8,palette.muted);
     const attachment={name:'glasshouse-edition.json',type:'application/json',description:'Complete immutable Glasshouse edition and exact native evidence',creationDate:new Date(d.createdAt),modifiedDate:new Date(d.createdAt),relationship:'Source' as const};
     pdf.file(Buffer.from(JSON.stringify(report,null,2)+'\n'),attachment);
     const pages=pdf.bufferedPageRange().count;
