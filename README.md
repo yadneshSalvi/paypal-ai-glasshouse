@@ -2,6 +2,10 @@
 
 A commerce incident room for Fernwood Coffee. Follow a signal through source evidence, reconstruct what was known at a point in time, and review an exact recovery manifest before authorizing it.
 
+**Rewind the business. Review the evidence. Approve the exact remedy.**
+
+[Open Glasshouse](https://paypal-ai-glasshouse.vercel.app) · [Read the submission story and evidence](docs/submission-story.md). The qualified live application remains source `6bd66c6`; the 2:50 film clearly labels its separately retained native and Sandbox chapters.
+
 The application uses Next.js, React, PostgreSQL and six native AG Studio 3.1.0 instruments. Its actual Studio Agent Framework delegates investigation and chart creation through a server-side OpenAI adapter, with durable model/tool checkpoints, encrypted native history, sourced findings and owned PayPal Toolkit reads. The current source also adds private organizations and workspaces, precise access invitations, immutable finding reviews and source-driven plan invalidation, and immutable reports with six static instruments, exact JSON and downloadable A4/Letter PDFs. Payment, fulfillment, remediation and dispute state remain separate.
 
 The controlled sandbox run completed **600 captures totaling $27,600**, then **38 refunds totaling $190, 63 tracking assignments and four dispute evidence submissions**. A separate read of every recovery result confirmed all **105 original operations** at 2026-11-11 00:39:35 UTC. Shipping and support are explicitly synthetic fixtures; the four cases remained open, awaiting buyer response. See [the dated checkpoint](docs/evidence/checkpoint-2026-11-11.md) for evidence boundaries and validation.
