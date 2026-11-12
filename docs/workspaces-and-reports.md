@@ -23,13 +23,17 @@ Every newly created room uses the disclosed Fernwood Sample fixture. A merchant 
 An edition contains:
 
 - The exact snapshot, event time T, knowledge cutoff K, table hashes, source labels and generation time.
-- All six static semantic instruments, their denominators and explicit unknown values.
+- Static representations of the saved native instruments and supported built-in views, their exact mappings, filter scope, denominators and explicit unknown values.
 - Exact saved native configuration, filters, custom chart mappings, current state and undo/redo entries.
 - Selected immutable recovery manifests, every eligibility/exclusion row, exact action/operation identity, amount, policy, source and approval state at capture.
 - Explicitly selected, creator-shared supported finding versions for this exact snapshot, with source hashes, evidence clocks and counterpoints. Schema 10 does not automatically publish private agent findings. Earlier editions retain their original finding arrays and exact bytes; private conversations and hidden model reasoning are excluded from new editions.
 - Safe observed operation/case projections and a separate workspace audit. Later observations do not rewrite the earlier T/K snapshot.
 
-The whole admitted snapshot drives the six static instruments. They do not silently claim to reproduce every custom native chart or filter; those exact settings remain in the canonical JSON. Supporting and counterpoint source IDs are complete there. The printed evidence section cites each displayed source record and its clocks; the manifest appendix prints every action/operation identity and eligibility row.
+Schema-2 editions capture installed-native queries for the saved page and widget mappings. Highlight mode preserves the original denominator and selects a subset; Filter mode follows the registered widget's actual selection ownership. A supported chart or grid uses that same native query. Unsupported mappings are identified in the reader and PDF, with their exact settings retained in JSON. Earlier schema-1 editions retain their whole-snapshot six-instrument presentation. Supporting and counterpoint source IDs are complete in the edition. The printed evidence section cites each displayed source record and its clocks; the manifest appendix prints every action/operation identity and eligibility row.
+
+Map controls select the mapped region predicate. Choosing a region before or after a River state produces the same intersection, including when another selection has narrowed the visible map. A view's full original scope, its selected scope, each group's denominator and the selected-record table are labeled separately. Time Dial retains its own clock scope and does not receive shared selections. Earlier saved models and PDF bytes remain immutable; their readable scope labels can clarify the existing counts without changing the captured data.
+
+New source selections use `commerce-semantic-v3`, with twelve admitted tables. V1 and v2 snapshots retain their original reconstruction semantics and hashes. V3 regional comparisons include a separate order-grain historical baseline at the stated earlier T, using the same K and denomination. Original and selected daily and baseline values retain separate order counts and late/due shipment denominators. The neutral reference band is an observed inventory, not a statistical interval. Empty denominators remain unknown. Regional mapped-value history and alternate River transition clocks are explicitly unsupported until an exact adapter exists.
 
 Editions are encrypted at rest, hashed and protected by a database trigger against update/delete. A correction creates a new edition, optionally linked to an earlier one. A current workspace member can read saved editions; a viewer cannot create one. Included provider grants and bound-case ownership are rechecked at each list, read and download. A foreign object remains unavailable. There is no public report capability URL.
 
@@ -38,15 +42,15 @@ Editions are encrypted at rest, hashed and protected by a database trigger again
 | Instrument | Preserved meaning |
 |---|---|
 | Commerce River | Inventory counts each order once at T/K; transition counts use their separate state-change grain. |
-| Time Dial | T, K, clock domain, generation and observation times remain distinct. Replaying time does not execute a payment. |
+| Time Dial | T, K, clock domain, generation and observation times remain distinct. Its clock scope ignores shared selections in live and static views. Replaying time does not execute a payment. |
 | Evidence Lens | Source excerpts, detector denominators, hypotheses and counterpoints; quoted instructions remain untrusted evidence. |
-| Recovery Branches | Deterministic policy comparison, exact costs/caps and exclusion checks; a no-grace comparison grants no override. |
+| Recovery Branches | Goodwill is $5 USD per eligible USD order, with an explicitly USD cap. EUR/GBP views show goodwill as unavailable and apply no conversion; separately eligible tracking/dispute proposals remain reviewable. A no-grace comparison grants no override. |
 | Regional Impact | Coarse regions on a common scale with late/due and baseline denominators; an empty denominator is unknown. |
-| Deadline Strip | Only independently saved provider deadlines are verified. Sample dates remain unknown; evidence submission is not case resolution. |
+| Deadline Strip | Response ownership and deadline verification remain separate. A known merchant response can have an unknown due date and no countdown. Only independently saved provider deadlines are verified. Sample dates remain unknown; evidence submission is not case resolution. |
 
 The reader provides searchable, paginated source, manifest, operation, history and audit tables. A4 and Letter downloads use actual PDFKit with bundled OFL Noto fonts, vector marks and text. They require no browser renderer, external URL, image fetch, model or payment API. The full immutable JSON is attached to the PDF as `glasshouse-edition.json`, and can also be downloaded independently.
 
-PDF work uses a durable per-edition/paper/renderer lease. Concurrent requests do not duplicate an active render; the exact completed bytes are encrypted and reused. Membership/context/resource changes during rendering prevent disclosure while preserving the original artifact. A local render failure leaves the unchanged reader and JSON available. Complete JSON is bounded to 24 MB; PDF output to 32 MB/200 pages. Unsupported font glyphs or an oversized indivisible row fail clearly instead of dropping source text. PDF/UA tagging and wider script coverage are not claimed; the semantic HTML reader is the accessible representation.
+PDF work uses a durable per-edition/paper/renderer lease. Concurrent requests do not duplicate an active render; the exact completed bytes are encrypted and reused. Membership/context/resource changes during rendering prevent disclosure while preserving the original artifact. A local render failure leaves the unchanged reader and JSON available. Complete JSON is bounded to 24 MB; PDF output to 32 MB and 800 pages for native schema-2 editions, or 200 pages for legacy schema-1 editions. Unsupported font glyphs or an oversized indivisible row fail clearly instead of dropping source text. PDF/UA tagging and wider script coverage are not claimed; the semantic HTML reader is the accessible representation.
 
 ## Storage and migration
 
@@ -61,6 +65,7 @@ GLASSHOUSE_AGENT_MIGRATION_CONFIRM=schema7-and-private-agent-documents node --im
 GLASSHOUSE_WORKSPACE_MIGRATION_CONFIRM=schema8-private-workspaces node --import tsx --env-file=.env scripts/workspaces-migrate.ts
 GLASSHOUSE_REPORT_MIGRATION_CONFIRM=schema9-immutable-reports node --import tsx --env-file=.env scripts/reports-migrate.ts
 GLASSHOUSE_FINDING_MIGRATION_CONFIRM=schema10-immutable-finding-lifecycle node --import tsx --env-file=.env scripts/findings-migrate.ts
+GLASSHOUSE_INSTRUMENT_MIGRATION_CONFIRM=schema11-multiresource-observations node --import tsx --env-file=.env scripts/instruments-migrate.ts
 npm run dev
 ```
 
@@ -82,3 +87,5 @@ The integration owner completed the following native journeys locally, followed 
 Verified external login, additional real merchant connectors, native/hosted qualification of the new finding lifecycle, broader commerce/evaluation/research/judge/film work and exact static parity for arbitrary native mappings remain in the [full delivery ledger](remaining-scope.md). The existing Toolkit dependency risk assessment remains [separately documented](agents-dependencies.md); this unit adds no Toolkit write surface.
 
 The [finding lifecycle contract](finding-lifecycle.md) documents schema 10, exact version sharing and current dependency checks. Current correction notices use a separate authorized endpoint outside each saved edition. Neither a notice nor a later finding mutates an earlier report JSON document or cached PDF.
+
+The later native instrument unit adds schema11 append-only resource observations and per-actor source selections. New reconstructions use the twelve-table v3 model; admitted v1/v2 snapshots and existing immutable edition documents retain their original semantics. Root native review accepted exact native Filter scopes (River123/64, Map65/64), the unfiltered606-order clock, the explicit USD policy, supported static mappings, v3 JSON/A4/Letter parity and the corrected native React proof grid. Original edition/PDF bytes and session expiry were independently checked after the final review. True200% zoom and hosted qualification of this unit remain open.

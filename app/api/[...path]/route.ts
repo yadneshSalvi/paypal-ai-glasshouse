@@ -1,6 +1,7 @@
 import { database } from '@/packages/db/client';
 import { actor, startSession,bindSessionAuthority,assertRequestCurrent } from '@/lib/server/auth';
 import { body, problem, HttpError, sameOrigin } from '@/lib/server/errors';
+import {sourceSelection,saveSourceSelection,appendSampleCommerce} from '@/lib/server/instruments/service';
 import { snapshotFor } from '@/lib/server/snapshots';
 import { audit, auditFor, hash, operationsFor, plansFor } from '@/lib/server/repository';
 import { approvePlan, createPlan, enqueuePlan, reviseEvidence, reviewPlan } from '@/lib/server/plans';
@@ -32,8 +33,8 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
   }
   if((key==='session'||key==='session/new') && method==='POST') {
     const session=await startSession(request,{fresh:key==='session/new'}),workspace=await (await workspaceRuntime()).admit(session.actor,session.token,{newSample:!!session.cookie});
-    const current=await bindSessionAuthority(request,session.actor,session.token,workspace.identity.contextId),snapshot=await snapshotFor(current);
-    return Response.json({actor:current,snapshot,workspace,capabilities:await capabilities(current),studioLicense:process.env.AG_STUDIO_LICENSE_KEY || ''},{headers:session.cookie?{'Set-Cookie':session.cookie}:{}});
+    const current=await bindSessionAuthority(request,session.actor,session.token,workspace.identity.contextId),selection=await sourceSelection(current),snapshot=await snapshotFor(current,selection?.search);
+    return Response.json({actor:current,snapshot,sourceSelection:{followLatest:selection?.followLatest??true},workspace,capabilities:await capabilities(current),studioLicense:process.env.AG_STUDIO_LICENSE_KEY || ''},{headers:session.cookie?{'Set-Cookie':session.cookie}:{}});
   }
   const who=await actor(request);
   const db=await database();
@@ -59,13 +60,15 @@ async function dispatch(request:Request, context:Params):Promise<Response> {
       }
     }
   }
+  if(key==='snapshot-selection'&&method==='POST')return Response.json(await saveSourceSelection(who,await body(request)));
+  if(key==='commerce/observations'&&method==='POST')return Response.json(await appendSampleCommerce(who,(await body<{observations:unknown}>(request)).observations));
   if(key==='snapshots' && method==='GET') return Response.json(await snapshotFor(who,url.searchParams));
   if(key==='capabilities' && method==='GET') return Response.json(await capabilities(who));
   if(key==='evidence/revise' && method==='POST') return Response.json(await reviseEvidence(who));
   if(key==='plans' && method==='GET') return Response.json(await plansFor(who));
   if(key==='plans' && method==='POST') {
-    const input=await body<{branchId:string;budgetMinor:number;snapshotHash?:string;findingDependencies?:unknown}>(request);
-    return Response.json(await createPlan(who,input.branchId,input.budgetMinor,input.snapshotHash,input.findingDependencies));
+    const input=await body<{branchId:string;budgetMinor:number;snapshotHash?:string;findingDependencies?:unknown;orderIds?:unknown}>(request);
+    return Response.json(await createPlan(who,input.branchId,input.budgetMinor,input.snapshotHash,input.findingDependencies,input.orderIds));
   }
   if(path[0]==='plans' && path[2]==='review' && method==='GET')return Response.json(await reviewPlan(who,path[1]));
   if(path[0]==='plans' && path[2]==='approve' && method==='POST') {

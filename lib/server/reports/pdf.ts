@@ -4,6 +4,8 @@ import {join} from 'node:path';
 import type {ReportPaper,SavedReport} from '@/packages/reports/types';
 import {reportInstruments,reportMoney,reportSource,reportTime} from '@/packages/reports/semantics';
 import {HttpError} from '../errors';
+import type {InstrumentResult} from '@/packages/studio/instrument-model';
+import {recoveryPolicyCurrency} from '@/packages/domain/policy';
 
 export const REPORT_RENDERER_VERSION='glasshouse-static-v1.0.0';
 const palette={paper:'#F8F6F0',ink:'#17372F',muted:'#52645C',line:'#D6DED2',green:'#48745B',lime:'#D7E6A5',amber:'#9C5A31',white:'#FFFFFF'};
@@ -18,14 +20,14 @@ function bundledFonts(){return fonts??=fontNames.map(name=>{const path=join(proc
 export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Promise<{bytes:Buffer;pages:number}>{
   if(!['A4','LETTER'].includes(paper))throw new HttpError(400,'INVALID_REPORT_PAPER','Choose A4 or US Letter.');
   const {document:d,summary}=report,instruments=reportInstruments(d),fontFiles=bundledFonts();
-  const pdf=new PDFDocument({size:paper,margin:48,autoFirstPage:false,bufferPages:true,compress:true,pdfVersion:'1.7',info:{Title:d.title,Author:d.creator.displayName,Subject:'Private immutable commerce incident report',Creator:'Glasshouse '+REPORT_RENDERER_VERSION,Producer:'PDFKit 0.20.2',CreationDate:new Date(d.createdAt),ModDate:new Date(d.createdAt)}});
+  const pdf=new PDFDocument({size:paper,margin:48,autoFirstPage:false,bufferPages:true,compress:true,pdfVersion:'1.7',info:{Title:d.title,Author:d.creator.displayName,Subject:'Private immutable commerce incident report',Creator:'Glasshouse '+(d.schemaVersion===2?'glasshouse-native-static-v2.0.0':REPORT_RENDERER_VERSION),Producer:'PDFKit 0.20.2',CreationDate:new Date(d.createdAt),ModDate:new Date(d.createdAt)}});
   pdf.registerFont('body',fontFiles[0].path).registerFont('bold',fontFiles[1].path).registerFont('serif',fontFiles[2].path);
   const chunks:Buffer[]=[];let total=0;
   const complete=new Promise<Buffer>((resolve,reject)=>{pdf.on('data',(chunk:Buffer)=>{total+=chunk.length;if(total>32_000_000){pdf.destroy(new Error('PDF byte bound exceeded'));return;}chunks.push(chunk);});pdf.on('end',()=>resolve(Buffer.concat(chunks)));pdf.on('error',reject);});
   // Attach a handler immediately so an early layout failure cannot leave a
   // rejected stream promise unobserved while the caller retains HTML/JSON.
   void complete.catch(()=>{});
-  let y=0,page=0,section='PRIVATE INCIDENT REPORT';
+  let y=0,page=0,section='PRIVATE INCIDENT REPORT',continuation:string|null=null,continuationHeight=0;
   const left=48,right=48,width=()=>pdf.page.width-left-right,bottom=()=>pdf.page.height-62;
   function check(text:string,face:'body'|'bold'|'serif'){
     const font=fontFiles[face==='body'?0:face==='bold'?1:2].font;
@@ -35,12 +37,13 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
     check(value,face);pdf.font(face).fontSize(size).fillColor(color).text(value,x,at,{width:w,lineGap:2,...options});
   }
   function newPage(label=section){
-    section=label;page++;if(page>200)throw new HttpError(413,'REPORT_PDF_LIMIT','The complete report exceeds the 200-page PDF bound. The full JSON remains available.');
+    section=label;page++;const pageLimit=d.schemaVersion===2?800:200;if(page>pageLimit)throw new HttpError(413,'REPORT_PDF_LIMIT',`The complete report exceeds this edition’s ${pageLimit}-page PDF bound. The full JSON remains available.`);
     pdf.addPage();pdf.rect(0,0,pdf.page.width,pdf.page.height).fill(palette.paper);
     text('glasshouse.',left,25,180,12,'bold');text(label,pdf.page.width-300,29,252,7,'bold',palette.muted,{align:'right'});
-    pdf.moveTo(left,49).lineTo(pdf.page.width-right,49).strokeColor(palette.line).lineWidth(.7).stroke();y=70;
+    pdf.moveTo(left,49).lineTo(pdf.page.width-right,49).strokeColor(palette.line).lineWidth(.7).stroke();y=70;continuationHeight=0;
+    if(continuation){pdf.font('bold').fontSize(8);continuationHeight=pdf.heightOfString('CONTINUED / '+continuation,{width:width(),lineGap:2})+12;text('CONTINUED / '+continuation,left,y,width(),8,'bold',palette.green);y+=continuationHeight;}
   }
-  function ensure(height:number){if(height>bottom()-70)throw new HttpError(413,'REPORT_PDF_BLOCK_LIMIT','A complete report block exceeds one print page. The readable report and full JSON are unchanged.');if(y+height>bottom())newPage();}
+  function ensure(height:number){if(height>bottom()-70-continuationHeight)throw new HttpError(413,'REPORT_PDF_BLOCK_LIMIT','A complete report block exceeds one print page. The readable report and full JSON are unchanged.');if(y+height>bottom())newPage();}
   function paragraph(value:string,size=9,color=palette.ink,face:'body'|'bold'|'serif'='body'){
     // Bound individual flow blocks without dropping or shortening source text.
     const words=value.split(/(?<=\s)/);let block='';
@@ -79,6 +82,49 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
   function bars(rows:{label:string;value:number}[],maximum:number,format=(value:number)=>String(value)){
     for(const row of rows){ensure(35);text(row.label,left,y,125,8);const barX=left+132,barWidth=width()-205;pdf.roundedRect(barX,y+1,barWidth,13,3).fill('#E0E6DA');if(row.value>0&&maximum>0)pdf.roundedRect(barX,y+1,barWidth*Math.min(1,row.value/maximum),13,3).fill(palette.green);text(format(row.value),barX+barWidth+10,y,63,8,'bold');y+=29;}y+=6;
   }
+  function regionalReferences(instrument:InstrumentResult){
+    const ratio=instrument.unit==='late / due shipments';
+    const scale=ratio?1:Math.max(1,...instrument.groups.flatMap(group=>[
+      group.baseline?.originalValue??0,group.baseline?.selectedValue??0,
+      ...(group.daily??[]).flatMap(day=>[day.originalValue??0,day.selectedValue??0]),
+    ]));
+    const value=(amount:number|null|undefined)=>amount==null?'Unknown':ratio?(amount*100).toFixed(1)+'%':String(amount);
+    paragraph('Daily original context'+(instrument.highlighted?' and selected cohort':'')+' on one shared scale. Grey band: historical original reference.'+(instrument.highlighted?' Rose stipple: selected cohort. Dashed line: historical selection.':'')+' Historical references are measured inventories, not confidence intervals. ? means unknown: no denominator.',8,palette.muted);
+    for(const group of instrument.groups){
+      const baseline=group.baseline!,days=group.daily??[];
+      ensure(185);text(group.label,left,y,width(),10,'bold');y+=23;
+      const top=y,chartLeft=left+34,chartWidth=width()-42,chartHeight=64,axis=top+chartHeight;
+      pdf.moveTo(chartLeft,top).lineTo(chartLeft,axis).lineTo(chartLeft+chartWidth,axis).strokeColor(palette.line).lineWidth(.7).stroke();
+      text(ratio?'100%':String(scale),left,top-5,30,7,'body',palette.muted);
+      text('0',left,axis-5,30,7,'body',palette.muted);
+      if(baseline.originalValue!==null){
+        const at=axis-chartHeight*baseline.originalValue/scale;
+        pdf.rect(chartLeft,at-3,chartWidth,6).fill('#D7DCDD');
+        pdf.moveTo(chartLeft,at).lineTo(chartLeft+chartWidth,at).strokeColor('#667573').lineWidth(.7).stroke();
+      }
+      for(const [index,day] of days.entries()){
+        const step=chartWidth/Math.max(1,days.length),x=chartLeft+index*step+3,barWidth=Math.max(2,step-7);
+        const original=day.originalValue,selected=day.selectedValue;
+        if(original!=null&&original>0)pdf.rect(x,axis-chartHeight*original/scale,barWidth,chartHeight*original/scale).fill('#B6C9BE');
+        if(instrument.highlighted&&selected!=null&&selected>0){
+          const height=chartHeight*selected/scale,at=axis-height,selectedX=x+barWidth*.18,selectedWidth=barWidth*.64;
+          pdf.rect(selectedX,at,selectedWidth,height).fill('#E898A2');
+          for(let dx=4;dx<selectedWidth;dx+=7)for(let dy=4;dy<height;dy+=7)pdf.circle(selectedX+dx,at+dy,.65).fill('#803D4A');
+        }
+        if(original==null)text('?',x,axis-12,barWidth,8,'bold',palette.amber,{align:'center'});
+        if(instrument.highlighted&&selected==null)text('?',x,axis-25,barWidth,8,'bold','#803D4A',{align:'center'});
+        text(day.day.slice(5),x-2,axis+5,step,7,'body',palette.muted,{align:'center'});
+      }
+      if(instrument.highlighted&&baseline.selectedValue!==null){
+        const at=axis-chartHeight*baseline.selectedValue/scale;
+        pdf.save().moveTo(chartLeft,at).lineTo(chartLeft+chartWidth,at).dash(4,{space:3}).strokeColor('#596663').lineWidth(1).stroke().restore();
+      }
+      y=axis+27;
+      paragraph('Baseline '+reportTime(baseline.at)+' · original '+value(baseline.originalValue)+' ('+baseline.originalOrderCount+' orders; '+baseline.originalNumerator+'/'+baseline.originalDenominator+' late/due) · selected '+value(baseline.selectedValue)+' ('+baseline.selectedOrderCount+' orders; '+baseline.selectedNumerator+'/'+baseline.selectedDenominator+' late/due).',8,palette.muted);
+      if(baseline.originalValue===null)paragraph('Historical reference unknown: no due shipments in this original cohort.',8,palette.amber);
+      y+=9;
+    }
+  }
   try{
     newPage('AN IMMUTABLE EDITION');
     paragraph(d.workspace.organizationName??'PRIVATE MERCHANT WORKSPACE',8,palette.green,'bold');
@@ -92,15 +138,52 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
       text(value,left+20+statWidth*index,coverY+48,statWidth-12,index===2?22:31,'serif',palette.white);
       text(label,left+20+statWidth*index,coverY+97,statWidth-10,8,'body','#D1DDD1');
     });y=coverY+165;
-    paragraph('One edition. Six ways to read it.',22,palette.ink,'serif');
+    paragraph(d.nativePrint?'One edition. The exact saved views.':'One edition. Six ways to read it.',22,palette.ink,'serif');
     paragraph('Commerce River / Time Dial / Evidence Lens / Recovery Branches / Regional Impact / Deadline Strip',9,palette.green,'bold');
-    paragraph('The static instruments cover the whole admitted snapshot. Exact native configuration and undo/redo history are included in the embedded JSON. Saved proposals and observed outcomes retain their own clocks and source labels.',9,palette.muted);
+    paragraph(d.nativePrint?'The following exact tables use the saved native mappings and filters. Unsupported mappings are identified explicitly. Complete authorized sources remain in the embedded JSON.':'The static instruments cover the whole admitted snapshot. Exact native configuration and undo/redo history are included in the embedded JSON. Saved proposals and observed outcomes retain their own clocks and source labels.',9,palette.muted);
     rule();
     paragraph('Saved '+reportTime(d.createdAt)+' by '+d.creator.displayName+' ('+d.creator.role+'). Browser identity is self-declared.',8,palette.muted);
     paragraph('Document SHA-256: '+summary.documentHash,7,palette.muted);
     paragraph('Snapshot SHA-256: '+d.snapshot.hash,7,palette.muted);
     paragraph('Edition: '+d.id+(d.parentId?' / Derived from: '+d.parentId:''),7,palette.muted);
 
+    if(d.nativePrint){
+      for(const widget of d.nativePrint.widgets){
+        newPage('SAVED NATIVE VIEW / '+widget.type.toUpperCase());
+        heading(widget.pageId+' / '+widget.widgetId,widget.title,widget.status==='exact'?'Exact installed-native query at saved T/K and filter scope.':'Unsupported mapping; no substitute result.');
+        if(widget.status==='unsupported'){paragraph(widget.reason??'No exact static adapter is available.',10,palette.amber);continue;}
+        for(const note of widget.instrument?.notes??[])paragraph(note,8,palette.muted);
+        if(widget.instrument){
+          paragraph(widget.instrument.scopeLabel??`${widget.instrument.scope} orders in the native result; ${widget.instrument.selected} in the shared selection.`,9,palette.green,'bold');
+          if(widget.instrument.kind==='impact-map'&&widget.instrument.groups.some(group=>group.baseline)&&widget.rows.some(row=>row.Period==='Daily'))regionalReferences(widget.instrument);
+          else if(widget.instrument.groups.length){
+            const ratio=widget.instrument.kind==='impact-map'&&widget.instrument.unit==='late / due shipments',money=widget.instrument.kind!=='recovery-branches'&&widget.instrument.unit.endsWith('minor units');
+            const maximum=ratio?1:Math.max(1,...widget.instrument.groups.map(group=>group.value));
+            for(const group of widget.instrument.groups){
+              ensure(60);paragraph(group.label,9,palette.ink,'bold');
+              const display=(value:number,known=true)=>!known?'Unknown':ratio?(value*100).toFixed(1)+'%':money?reportMoney(value,d.snapshot.context.currency):String(value);
+              const known=!ratio||Boolean(group.denominator),originalKnown=!ratio||Boolean(group.originalDenominator);
+              const barX=left,barWidth=width()*.56;
+              pdf.roundedRect(barX,y,barWidth,11,2).fill('#E0E6DA');
+              if(group.value>0&&originalKnown)pdf.roundedRect(barX,y,barWidth*Math.min(1,group.value/maximum),11,2).fill('#A8BEA1');
+              if(group.selected>0&&known)pdf.roundedRect(barX,y,barWidth*Math.min(1,group.selected/maximum),6,2).fill(palette.ink);
+              text(display(group.selected,known)+' selected / '+display(group.value,originalKnown)+' original',barX+barWidth+12,y-1,width()-barWidth-12,8,'body');y+=25;
+            }
+          }
+        }
+        paragraph(widget.rows.length+' complete rows. '+(widget.instrument?.unit??'Mapped native fields')+'.',8,palette.muted);
+        if(widget.columns.length<=5)table(widget.columns.map(label=>({label,weight:1})),widget.rows.map(row=>widget.columns.map(column=>row[column]===null?'Unknown':String(row[column]??''))),8);
+        else for(const [index,row] of widget.rows.entries()){
+          const parts=widget.columns.map(column=>column+': '+(row[column]===null?'Unknown':String(row[column]??'')));
+          pdf.font('body').fontSize(8);const height=parts.reduce((sum,value)=>sum+pdf.heightOfString(value,{width:width(),lineGap:2})+8,16);
+          continuationHeight=0;ensure(parts.every(value=>value.length<=1400)&&height<=bottom()-70?height:70);
+          continuation=`Row ${index+1} of ${widget.rows.length} / ${row.Evidence??row.Transition??row.Order??String(row[widget.columns[0]]??widget.widgetId)}`;
+          rule();for(const value of parts)paragraph(value,8);continuation=null;continuationHeight=0;
+        }
+        if(widget.originalRows){paragraph('Original denominator, before shared highlight',11,palette.ink,'bold');table(widget.columns.map(label=>({label,weight:1})),widget.originalRows.map(row=>widget.columns.map(column=>row[column]===null?'Unknown':String(row[column]??''))),8);}
+      }
+      if(d.findingRevisions?.length){newPage('SHARED FINDING VERSIONS');for(const finding of d.findingRevisions){heading('Review '+finding.sequence,finding.title);paragraph(finding.interpretation);paragraph('Counterpoint: '+finding.counterpoint);paragraph('State: '+finding.state+' / '+finding.id+' / SHA-256 '+finding.hash,7);for(const citation of finding.citations)paragraph(citation.relation+' / '+citation.id+' / '+citation.hash,7);}}
+    }else{
     newPage('01 / COMMERCE RIVER');
     heading('01 / Commerce River','Where the orders stood.','Inventory counts each admitted order once at event time T, using knowledge available by K. It is not a transition count.');
     bars(instruments.inventory.map(row=>({...row,label:row.label.replaceAll('_',' ')})),d.snapshot.totals.orders);
@@ -137,12 +220,12 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
     heading('04 / Recovery Branches','What the policy would allow.','Scenario totals are deterministic calculations for this snapshot. They are distinct from selected saved approvals and observed outcomes.');
     const branches=d.snapshot.branches;
     table([{label:'POLICY FACT',weight:2.2},...branches.map(branch=>({label:branch.name.toUpperCase(),weight:2.5}))],[
-      ['Policy',...branches.map(branch=>branch.policyId)],['Grace period',...branches.map(branch=>branch.graceHours+' hours')],['Eligible refunds',...branches.map(branch=>branch.eligibleCount)],['Refund total',...branches.map(branch=>reportMoney(branch.refundTotalMinor,branch.currency))],['Budget cap',...branches.map(branch=>reportMoney(branch.budgetMinor,branch.currency))],['Tracking / dispute responses',...branches.map(branch=>branch.trackingCount+' / '+branch.disputeCount)],
+      ['Policy',...branches.map(branch=>branch.policyId)],['Grace period',...branches.map(branch=>branch.graceHours+' hours')],['Eligible refunds',...branches.map(branch=>branch.eligibleCount)],['Refund total',...branches.map(branch=>reportMoney(branch.refundTotalMinor,recoveryPolicyCurrency(branch)))],['Budget cap',...branches.map(branch=>reportMoney(branch.budgetMinor,recoveryPolicyCurrency(branch)))],['Tracking / dispute responses',...branches.map(branch=>branch.trackingCount+' / '+branch.disputeCount)],
     ]);
     for(const branch of branches){ensure(125);paragraph(branch.name,13,palette.ink,'serif');paragraph(branch.id==='comprehensive'?'No-grace comparison only. No policy override is authorized by this report.':'Targeted proposal using the stated '+branch.graceHours+'-hour grace period.',9,palette.muted);paragraph('Exclusion checks: '+Object.entries(branch.exclusionCounts).map(([reason,count])=>reason.replaceAll('_',' ')+' '+count).join('; ')+'. Checks can overlap for one order.',8,palette.muted);}
     ensure(95);
     paragraph('Selected saved manifests: '+d.plans.length+'. Their complete action and policy rows appear in the appendix and JSON. Exporting this report grants no approval and starts no execution.',9,palette.ink,'bold');
-    for(const plan of d.plans){ensure(80);paragraph(plan.id+' / '+plan.status+' / '+plan.executionMode,9,palette.green,'bold');paragraph('Frozen '+plan.branch.actions.length+' actions / '+plan.branch.eligibleCount+' refunds / '+reportMoney(plan.branch.refundTotalMinor,plan.branch.currency)+' / cap '+reportMoney(plan.branch.budgetMinor,plan.branch.currency)+'. Hash '+plan.hash,8,palette.muted);}
+    for(const plan of d.plans){ensure(80);paragraph(plan.id+' / '+plan.status+' / '+plan.executionMode,9,palette.green,'bold');paragraph('Frozen '+plan.branch.actions.length+' actions / '+plan.branch.eligibleCount+' refunds / '+reportMoney(plan.branch.refundTotalMinor,recoveryPolicyCurrency(plan.branch))+' / cap '+reportMoney(plan.branch.budgetMinor,recoveryPolicyCurrency(plan.branch))+'. Hash '+plan.hash,8,palette.muted);}
 
     newPage('05 / REGIONAL IMPACT');
     heading('05 / Regional Impact','The pattern, with denominators.','Coarse regions protect individual locations. Shares use known shipments due by the saved inventory time; empty denominators stay unknown.');
@@ -154,6 +237,8 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
     if(!instruments.deadlines.length)paragraph('No open dispute deadline rows are present in this saved snapshot.',10);
     else table([{label:'ORDER / SOURCE',weight:2},{label:'STATE',weight:2},{label:'SAVED DEADLINE',weight:3}],instruments.deadlines.map(row=>[String(row.reference)+'\n'+reportSource(String(row.sourceClass)),String(row.state??'Unknown'),row.verified?reportTime(String(row.dueAt)): 'Unknown - no verified provider deadline']));
     paragraph('A waiting-for-buyer state or successful evidence submission is not a resolved case. The observed-case appendix retains later provider states separately.',8,palette.amber);
+
+    }
 
     newPage('OUTCOMES / HISTORY / AUDIT');
     heading('The record that remains','Observed outcomes, separate histories.','These receipts were observed by the edition capture time. They do not retroactively change the saved T/K snapshot.');
@@ -175,7 +260,7 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
       newPage('APPENDIX / EXACT SAVED MANIFEST');
       heading('Exact manifest / '+plan.executionMode,plan.branch.name,plan.id);
       paragraph('Status at export: '+plan.status+'. Approved by: '+(plan.approvedBy??'Not approved')+'. Approved at: '+reportTime(plan.approvedAt)+'.',9);
-      paragraph('Policy '+plan.branch.policyId+' / '+plan.branch.graceHours+'-hour grace / '+plan.branch.eligibleCount+' eligible refunds / '+reportMoney(plan.branch.refundTotalMinor,plan.branch.currency)+' / cap '+reportMoney(plan.branch.budgetMinor,plan.branch.currency)+'.',9);
+      paragraph('Policy '+plan.branch.policyId+' / '+plan.branch.graceHours+'-hour grace / '+plan.branch.eligibleCount+' eligible refunds / '+reportMoney(plan.branch.refundTotalMinor,recoveryPolicyCurrency(plan.branch))+' / cap '+reportMoney(plan.branch.budgetMinor,recoveryPolicyCurrency(plan.branch))+'.',9);
       if(plan.branch.id==='comprehensive')paragraph('No-grace comparison. This edition grants no policy override or execution permission.',9,palette.amber,'bold');
       paragraph('Manifest SHA-256: '+plan.hash+'\nSnapshot SHA-256: '+plan.snapshotHash,7,palette.muted);
       paragraph('Frozen T '+reportTime(plan.context?.asOf)+' / K '+reportTime(plan.context?.knownAt)+' / expires '+reportTime(plan.expiresAt)+'. Full payloads, conditions and evidence IDs are in the attached JSON.',8,palette.muted);
@@ -189,8 +274,9 @@ export async function renderReportPdf(report:SavedReport,paper:ReportPaper):Prom
     heading('Provenance','What this edition can establish.');
     d.coverage.limitations.forEach(value=>paragraph(value,9));
     table([{label:'TABLE',weight:3},{label:'ROWS / SHA-256',weight:6}],Object.entries(d.snapshot.tables).map(([name,rows])=>[name,rows.length+'\n'+d.snapshot.tableHashes[name]]),7);
-    paragraph('The attached glasshouse-edition.json contains this full immutable edition, all six exact tables, source evidence, native history, selected manifests, safe observed receipts and audit. Its document hash is '+summary.documentHash+'.',9);
-    paragraph('PDF renderer: '+REPORT_RENDERER_VERSION+' / PDFKit 0.20.2 / '+paper+'. Fonts: unmodified Noto Sans and Noto Serif under SIL OFL 1.1. The PDF is a deterministic semantic presentation; the separately hashed JSON is the canonical evidence.',8,palette.muted);
+    const sourceCount=Object.hasOwn(d.snapshot.tables,'regional_baseline_order_snapshot')?String(Object.keys(d.snapshot.tables).length):'six';
+    paragraph('The attached glasshouse-edition.json contains this full immutable edition, all '+sourceCount+' exact tables, source evidence, native history, selected manifests, safe observed receipts and audit. Its document hash is '+summary.documentHash+'.',9);
+    paragraph('PDF renderer: '+(d.schemaVersion===2?'glasshouse-native-static-v2.0.0':REPORT_RENDERER_VERSION)+' / PDFKit 0.20.2 / '+paper+'. Fonts: unmodified Noto Sans and Noto Serif under SIL OFL 1.1. The PDF is a deterministic semantic presentation; the separately hashed JSON is the canonical evidence.',8,palette.muted);
     const attachment={name:'glasshouse-edition.json',type:'application/json',description:'Complete immutable Glasshouse edition and exact native evidence',creationDate:new Date(d.createdAt),modifiedDate:new Date(d.createdAt),relationship:'Source' as const};
     pdf.file(Buffer.from(JSON.stringify(report,null,2)+'\n'),attachment);
     const pages=pdf.bufferedPageRange().count;

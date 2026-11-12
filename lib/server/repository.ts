@@ -3,6 +3,7 @@ import type { Actor, AuditEvent, SeedDataset, RecoveryPlan, Operation, Snapshot 
 import { createSeedDataset } from '@/packages/domain';
 import { database, type Database } from '@/packages/db/client';
 import {assertWorkspaceContext,assertWorkspaceWritable} from './workspaces/authority';
+import {validateCommerceFacts} from '@/packages/domain/commerce-resources';
 
 export function hash(value: unknown): string {
   function canonical(input: unknown): string {
@@ -18,6 +19,17 @@ export async function audit(tx: Database, actor: Pick<Actor,'id'|'tenantId'>, ty
   return event;
 }
 export async function persistDataset(tx: Database, dataset: SeedDataset) {
+  const previous=await tx.query<{body:SeedDataset}>('SELECT body FROM gh_datasets WHERE tenant_id=$1 FOR UPDATE',[dataset.tenantId]);
+  if(dataset.commerceFacts?.length||previous[0]?.body.commerceFacts?.length){
+    validateCommerceFacts(dataset);
+    if(!(await tx.query('SELECT version FROM gh_schema_version WHERE version=11'))[0])throw new Error('Commerce observations require schema11.');
+    const saved=await tx.query<{id:string;observation_hash:string}>('SELECT id,observation_hash FROM gh_commerce_observations WHERE tenant_id=$1',[dataset.tenantId]);
+    const incoming=new Map((dataset.commerceFacts??[]).map(fact=>[fact.id,hash(fact)]));
+    if(saved.some(fact=>incoming.get(fact.id)!==fact.observation_hash))throw new Error('Previously admitted commerce observations cannot be removed or changed.');
+    await tx.query(`INSERT INTO gh_commerce_observations(tenant_id,id,order_id,kind,resource_id,observed_at,known_at,observation_hash,body)
+      SELECT $1,e->>'id',e->>'orderId',e->>'kind',e->>'resourceId',(e->>'occurredAt')::timestamptz,(e->>'ingestedAt')::timestamptz,e->>'observationHash',e->'body'
+      FROM jsonb_array_elements($2::jsonb) e ON CONFLICT(tenant_id,id) DO NOTHING`,[dataset.tenantId,JSON.stringify((dataset.commerceFacts??[]).map(fact=>({...fact,observationHash:hash(fact),body:fact})))]);
+  }
   await tx.query(`INSERT INTO gh_datasets(tenant_id,revision,body) VALUES ($1,$2,$3::jsonb)
     ON CONFLICT(tenant_id) DO UPDATE SET revision=excluded.revision,body=excluded.body,updated_at=now()`, [dataset.tenantId,dataset.revision,JSON.stringify(dataset)]);
   await tx.query(`INSERT INTO gh_source_events(tenant_id,id,order_id,occurred_at,ingested_at,source_class,body)

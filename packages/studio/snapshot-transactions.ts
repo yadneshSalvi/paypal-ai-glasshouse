@@ -3,7 +3,7 @@ import type {Snapshot} from '../domain/types';
 
 export function snapshotTransactions(before:Snapshot,next:Snapshot):AgDataTransaction[]{
   return Object.entries(next.tables).map(([tableId,rows])=>{
-    const previous=before.tables[tableId as keyof Snapshot['tables']];
+    const previous=before.tables[tableId as keyof Snapshot['tables']]??[];
     const oldKeys=new Set(previous.map(row=>row.id)),nextKeys=new Set(rows.map(row=>row.id));
     return {tableId,remove:previous.filter(row=>!nextKeys.has(row.id)).map(row=>row.id),
       update:rows.filter(row=>oldKeys.has(row.id)),add:rows.filter(row=>!oldKeys.has(row.id))};

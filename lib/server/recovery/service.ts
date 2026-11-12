@@ -1,3 +1,4 @@
+import {scopeRecoveryBranch} from '@/packages/domain/policy';
 import { randomUUID } from 'node:crypto';
 import { payloadHash, type PaymentCommand } from '@fracture/paypal-core';
 import type { Database } from '@/packages/db/client';
@@ -54,7 +55,7 @@ export class RecoveryService {
       if(!fixtureAcknowledged)throw new HttpError(400,'FIXTURE_ACKNOWLEDGEMENT_REQUIRED','Review and acknowledge the synthetic shipment evidence before its sandbox submission.');
       const dataset=await datasetFor(actor,tx);const snapshot=buildSnapshot(dataset,plan.context);
       if(dataset.revision!==plan.cohortVersion||snapshot.hash!==plan.snapshotHash)throw new HttpError(409,'COHORT_CHANGED','The evidence changed after this exact manifest was prepared.');
-      const policyBranch=snapshot.branches.find(branch=>branch.id===plan.branch.id);
+      const policyBranch=plan.branch.scopeOrderIds?scopeRecoveryBranch(snapshot,plan.branch.id,plan.branch.scopeOrderIds,plan.branch.budgetMinor):snapshot.branches.find(branch=>branch.id===plan.branch.id);
       if(!policyBranch||digest({...policyBranch,budgetMinor:plan.branch.budgetMinor,withinBudget:policyBranch.refundTotalMinor<=plan.branch.budgetMinor,actions:policyBranch.actions.map(action=>freezeAction(actor.tenantId,plan.id,action))})!==digest(plan.branch))throw new HttpError(409,'POLICY_MANIFEST_CHANGED','The proposed actions no longer match the deterministic recovery policy.');
       const resources:Record<string,number>={};const payments=new Map<string,OwnedPayment>();
       for(const action of plan.branch.actions){

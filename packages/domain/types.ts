@@ -48,6 +48,18 @@ export interface Evidence {
 export interface SeedDataset {
   version: string; tenantId: string; orders: Order[]; events: SourceEvent[];
   evidence: Evidence[]; intervals: StateInterval[]; revision: number;
+  /** Independently versioned resource observations. Absence retains the legacy, single-resource source. */
+  commerceFacts?: CommerceFact[];
+}
+export type CommerceResource = 'line' | 'capture' | 'refund' | 'shipment';
+export interface CommerceFact {
+  id: string; tenantId: string; orderId: string; kind: CommerceResource; resourceId: string;
+  /** Refunds identify their capture; shipments identify a line when the source supplies one. */
+  parentResourceId: string | null; state: string; amountMinor: number | null; currency: Currency;
+  quantity: number | null; occurredAt: string; narrativeTime: string; ingestedAt: string;
+  revision: number; sourceClass: SourceClass; sourceRef: string;
+  /** A shipment's own promise, when supplied; otherwise its order promise applies. */
+  promisedAt?:string|null;
 }
 export interface QueryContext {
   tenantId: string; rolePolicyVersion: string; roleScope: Role;
@@ -58,6 +70,9 @@ export interface QueryContext {
 export interface SnapshotOrder extends Order {
   paymentState: string; fulfillmentState: string; remediationState: string;
   affected: boolean; lateHours: number; ageDays: number; snapshotHash: string;
+  capturedMinor?: number; captureCount?: number; refundCount?: number; lineCount?: number; shipmentCount?: number;
+  dueShipmentCount?:number;lateShipmentCount?:number;
+  resourceCoverage?: 'legacy' | 'observed';
 }
 export interface ConditionResult { key: 'undelivered' | 'grace' | 'dispute' | 'prior_remedy' | 'balance'; passed: boolean; label: string }
 export interface EligibilityRow { orderId: string; eligible: boolean; conditions: ConditionResult[]; excludedReasons: string[] }
@@ -73,6 +88,8 @@ export interface RecoveryBranch {
   eligibleCount: number; refundTotalMinor: number; trackingCount: number; disputeCount: number;
   rows: EligibilityRow[]; actions: ActionRow[]; exclusionCounts: Record<string, number>;
   snapshotHash: string;
+  /** Optional exact native selection, included in the frozen branch hash. */
+  scopeOrderIds?: string[];
 }
 export interface Detector {
   id: string; kind: 'carrier_delay' | 'margin_leak' | 'checkout_decline'; title: string;
@@ -83,7 +100,7 @@ export interface Detector {
 export type TableRow = Record<string, string | number | boolean | null>;
 export interface Snapshot {
   id: string; hash: string; context: QueryContext; generationId: number; createdAt: string;
-  tables: { order_snapshot: TableRow[]; transition_snapshot: TableRow[]; finding_snapshot: TableRow[]; action_snapshot: TableRow[]; regional_snapshot: TableRow[]; deadline_snapshot: TableRow[] };
+  tables: { order_snapshot: TableRow[]; transition_snapshot: TableRow[]; finding_snapshot: TableRow[]; action_snapshot: TableRow[]; regional_snapshot: TableRow[]; deadline_snapshot: TableRow[]; [table:string]: TableRow[] };
   tableHashes: Record<string, string>; sourceCoverage: { samplePayments: number; sandboxPayments: number; fixtureShipments: number; providerDisputes: number; complete: boolean };
   orders: SnapshotOrder[]; evidence: Evidence[]; affectedOrderIds: string[]; removedOrderIds: string[];
   branches: RecoveryBranch[]; detectors: Detector[];

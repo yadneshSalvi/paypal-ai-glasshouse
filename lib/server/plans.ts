@@ -9,6 +9,7 @@ import {FINDING_DEPENDENCY_POLICY} from '@/packages/findings/types';
 import {parseFindingReferences,validateFindingReferences,savePlanFindingReferences,assertPlanFindingDependencies,bindFindingApprovalAuthority,assertFindingApprovalAuthority} from './findings/dependencies';
 import {recordFindingSourceChange} from './findings/sources';
 import { HttpError } from './errors';
+import {scopeRecoveryBranch} from '@/packages/domain/policy';
 import { exactPlanHash, freezeAction } from './recovery/contracts';
 import { recoveryRuntime } from './recovery/runtime';
 import type {Database} from '@/packages/db/client';
@@ -44,13 +45,16 @@ export async function reviseEvidence(actor: Actor) {
   });
 }
 
-export async function createPlan(actor: Actor, branchId: string, budgetMinor: number, expectedSnapshotHash?:string,rawFindingDependencies:unknown=[]) {
+export async function createPlan(actor: Actor, branchId: string, budgetMinor: number, expectedSnapshotHash?:string,rawFindingDependencies:unknown=[],rawOrderIds:unknown=undefined) {
   requireRole(actor,['owner','operator','judge','investigator']);
   if (!Number.isSafeInteger(budgetMinor) || budgetMinor<0 || budgetMinor>100_000) throw new HttpError(400,'INVALID_BUDGET','Choose a budget between $0 and $1,000 in whole cents.');
   const snapshot = await snapshotFor(actor);
   if(expectedSnapshotHash && expectedSnapshotHash!==snapshot.hash) throw new HttpError(409,'SNAPSHOT_CHANGED','Return to the latest time and knowledge cutoff before preparing a recovery. The reviewed snapshot is no longer current.');
-  const chosen = snapshot.branches.find(b=>b.id===branchId);
+  if(rawOrderIds!==undefined&&(!Array.isArray(rawOrderIds)||rawOrderIds.length>10_000||rawOrderIds.some(id=>typeof id!=='string')))throw new HttpError(400,'INVALID_SCOPE','Choose a bounded list of orders from this snapshot.');
+  let chosen;
+  try{chosen=scopeRecoveryBranch(snapshot,branchId,rawOrderIds as string[]|undefined,budgetMinor);}catch(error){throw new HttpError(400,'INVALID_SCOPE',error instanceof Error?error.message:'Invalid recovery scope.');}
   if (!chosen) throw new HttpError(400,'INVALID_BRANCH','Choose one of the evaluated recovery branches.');
+  if(!chosen.actions.length)throw new HttpError(409,'NO_ACTIONS','No outstanding actions are proposed for this exact selection.');
   const id = 'plan-' + randomUUID();
   const branch = {...chosen,budgetMinor,withinBudget:chosen.refundTotalMinor<=budgetMinor,actions:chosen.actions.map(action=>freezeAction(actor.tenantId,id,action))};
   if (!branch.withinBudget) throw new HttpError(409,'BUDGET_EXCEEDED','This branch exceeds the refund budget. Raise the cap or choose another branch.');

@@ -3,9 +3,9 @@ import type {GlasshouseRegistry} from './types';
 
 export const instrumentMinimumHeight:Record<string,number>={
   'commerce-river':520,
-  'time-dial':540,
+  'time-dial':760,
   'evidence-lens':640,
-  'recovery-branches':720,
+  'recovery-branches':860,
   'impact-map':600,
   'deadline-strip':600,
 };

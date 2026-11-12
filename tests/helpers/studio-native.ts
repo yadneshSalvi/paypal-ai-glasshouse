@@ -1,11 +1,11 @@
 import type {TestContext} from 'node:test';
-import type {AgReportHistory,AgReportState,AgStudioApi} from 'ag-studio';
+import type {AgReportHistory,AgReportState,AgStudioApi,AgWidgetParams} from 'ag-studio';
 import {JSDOM,VirtualConsole} from 'jsdom';
 import type {GlasshouseRegistry} from '../../packages/studio/types';
 
 /** Actual installed native state/schema/history and harness. JSDOM supplies the
  * document; empty widget renderers deliberately exclude visual qualification. */
-export async function nativeStudio(t:TestContext,history?:AgReportHistory<GlasshouseRegistry>|AgReportState<GlasshouseRegistry>){
+export async function nativeStudio(t:TestContext,history?:AgReportHistory<GlasshouseRegistry>|AgReportState<GlasshouseRegistry>,options:{snapshot?:import('../../packages/domain/types').Snapshot;onWidget?:(params:AgWidgetParams)=>void;onEngine?:(engine:import('ag-studio').AgDataEngine)=>void;engine?:import('ag-studio').AgDataEngine;drillThrough?:import('ag-studio').AgDrillThroughOptions}={}){
   const dom=new JSDOM('<!doctype html><html><body><div id="studio"></div></body></html>',{url:'http://isolated.test',pretendToBeVisual:true,virtualConsole:new VirtualConsole()});
   const win=dom.window;
   const names=['window','document','navigator','HTMLElement','Element','Node','ShadowRoot','HTMLInputElement','HTMLTextAreaElement','HTMLSelectElement','MutationObserver','DOMParser','DOMRect','getComputedStyle','requestAnimationFrame','cancelAnimationFrame'];
@@ -20,15 +20,19 @@ export async function nativeStudio(t:TestContext,history?:AgReportHistory<Glassh
   const {definitions,initialState,studioData}=await import('../../packages/studio/registry');
   const {createSeedDataset,buildSnapshot}=await import('../../packages/domain');
   if(process.env.AG_STUDIO_LICENSE_KEY)native.AgStudioLicenseManager.setLicenseKey(process.env.AG_STUDIO_LICENSE_KEY);
-  class EmptyWidget {element=win.document.createElement('div');getGui(){return this.element;}init(){}update(){}destroy(){}}
+  class EmptyWidget {element=win.document.createElement('div');getGui(){return this.element;}init(params:AgWidgetParams){options.onWidget?.(params);}update(params:AgWidgetParams){options.onWidget?.(params);}destroy(){}}
   const config=native.createWidgets({additionalTypes:definitions.map(definition=>({...definition,comp:EmptyWidget}))} as never);
   const widgets={...config,widgets:config.widgets.map(definition=>({...definition,comp:EmptyWidget}))};
   let ready!:()=>void;const started=new Promise<void>(resolve=>{ready=resolve;});
   const errors:{fatal:boolean;details:readonly string[]}[]=[];
+  const data=studioData(options.snapshot??buildSnapshot(createSeedDataset('native-history-fixture')));
+  const externalEngine=options.engine??(options.onEngine?native.createDataEngine(data as never):undefined);
+  if(externalEngine)options.onEngine?.(externalEngine);
   const api=native.createStudio(win.document.getElementById('studio')!,{
     // React instrument definitions have identical state shapes here; the only
     // framework boundary replaced by this test is each component constructor.
-    studioId:'native-history-fixture',data:studioData(buildSnapshot(createSeedDataset('native-history-fixture'))) as never,widgets:widgets as never,
+    studioId:'native-history-fixture',data:externalEngine??data as never,widgets:widgets as never,
+    ...options.drillThrough?{drillThrough:options.drillThrough}:{},
     initialState:structuredClone(history??initialState) as never,loadThemeGoogleFonts:false,mode:'view',history:{onModeChange:'preserve'},
     panels:{edit:{right:['edit','data','filters']},view:{right:[]}},
     ai:({api})=>native.createAiHarness(api as unknown as AgStudioApi,()=>({primary:'fixture',agents:[{id:'fixture',async *run(){throw new Error('No model dispatch is allowed in this native state test.');}}]})),
@@ -36,7 +40,7 @@ export async function nativeStudio(t:TestContext,history?:AgReportHistory<Glassh
   },{modules:[native.AgStudioAiModule]}) as unknown as AgStudioApi<GlasshouseRegistry>;
   let destroyed=false;
   const destroy=()=>{
-    if(destroyed)return;destroyed=true;api.destroy();dom.window.close();
+    if(destroyed)return;destroyed=true;api.destroy();if(!options.engine)externalEngine?.dispose?.();dom.window.close();
     for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else Reflect.deleteProperty(globalThis,key);}
   };
   t.after(destroy);

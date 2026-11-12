@@ -16,9 +16,12 @@ const {saveLayout}=await import('../../lib/server/layouts');
 const {freezeAction,exactPlanHash}=await import('../../lib/server/recovery/contracts');
 const {seedManifest}=await import('../../packages/payments/manifest');
 export const fixtureHistory=():ReportHistory=>({type:'AgReportHistory',current:{pages:[{id:'report-fixture',widgets:Object.fromEntries(['commerce-river','time-dial','evidence-lens','recovery-branches','impact-map','deadline-strip'].map(type=>[type,{type,dataMapping:{}}]))}],selectedPageId:'report-fixture'},undo:[],redo:[]} as unknown as ReportHistory);
-export async function reportHarness(t:TestContext,role:Role='judge'){
+export async function reportHarness(t:TestContext,role:Role='judge',semantics:1|2=1){
   const h=await workspaceHarness(role);t.after(h.dispose);await ensureReportsSchema(h.db);
-  const snapshot=await h.saveSnapshot(buildSnapshot(h.dataset,snapshotContext(h.scoped,h.dataset))),history=fixtureHistory();
+  // These established fixtures qualify the immutable v1 renderer and editions.
+  // New v2 native-table tests opt in explicitly with complete native mappings.
+  const reportContext=()=>({...snapshotContext(h.scoped,h.dataset),semanticModelVersion:semantics===1?'commerce-semantic-v1':'commerce-semantic-v2'});
+  const snapshot=await h.saveSnapshot(buildSnapshot(h.dataset,reportContext())),history=fixtureHistory();
   if(role!=='viewer')await saveLayout(h.db,h.scoped,{history,expectedVersion:0});
   const service=new ReportService(h.db,new ReportSecrets(h.key),new AgentSecrets(h.key));
   const input=(change:Partial<ReportRequest>={}):ReportRequest=>({requestId:randomUUID(),title:'Fixture-only Fernwood postmortem',description:'Synthetic qualification evidence. No external provider transport.',snapshotHash:snapshot.hash,expectedLayoutVersion:1,expectedLayoutHash:hash(history),planIds:[],...change});
@@ -36,7 +39,7 @@ export async function reportHarness(t:TestContext,role:Role='judge'){
     const source=h.dataset.events.find(row=>row.orderId===owned.orderId&&row.type==='payment.captured')!;
     source.sourceClass='sandbox';source.sourceLabel='Synthetic report ownership fixture';source.sourceRef='fixture://report-owned-capture';source.payload={...source.payload,paypalOrderId:owned.providerOrderId,captureId:owned.captureId,providerResourceId:owned.captureId,syntheticTransport:true};
     for(const interval of h.dataset.intervals)if(interval.sourceEventId===source.id)interval.sourceClass='sandbox';
-    await persistDataset(h.db,h.dataset);const current=await h.saveSnapshot(buildSnapshot(h.dataset,snapshotContext(h.scoped,h.dataset)));
+    await persistDataset(h.db,h.dataset);const current=await h.saveSnapshot(buildSnapshot(h.dataset,reportContext()));
     return {...owned,snapshot:current};
   };
   const scopedActor=async(credential:{sessionHash:string;contextId:string},actor:Actor)=>{const {sessionWorkspaceContext}=await import('../../lib/server/workspaces/authority');return h.db.transaction(tx=>sessionWorkspaceContext(tx,actor,credential.sessionHash,credential.contextId));};

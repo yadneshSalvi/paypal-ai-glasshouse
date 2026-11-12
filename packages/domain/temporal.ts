@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import {isCommerceResourceSemantics,withCommerceResources} from './commerce-resources';
 import type { Dimension, Evidence, QueryContext, SeedDataset, Snapshot, SnapshotOrder, SourceEvent, StateInterval, TableRow } from './types';
 import { CARRIER_BASELINE_AT, runDetectors } from './detectors';
 import { DEFAULT_BUDGET_MINOR, evaluateBranches } from './policy';
@@ -174,8 +175,9 @@ function snapshotEvidence(dataset: SeedDataset, orders: readonly SnapshotOrder[]
 function makeContext(dataset: SeedDataset, options: Partial<QueryContext>): QueryContext {
   if (options.tenantId !== undefined && options.tenantId !== dataset.tenantId) throw new Error('The query tenant does not match the authorized dataset.');
   const knownAt = timestamp(options.knownAt ?? (dataset.revision > 1 ? DELIVERY_REVISION_KNOWN_AT : INITIAL_KNOWN_AT),'knownAt');
-  const knownRevision = dataset.events.filter(event => event.tenantId === dataset.tenantId && Date.parse(event.ingestedAt) <= Date.parse(knownAt))
+  let knownRevision = dataset.events.filter(event => event.tenantId === dataset.tenantId && Date.parse(event.ingestedAt) <= Date.parse(knownAt))
     .reduce((revision,event) => Math.max(revision,event.revision),1);
+  if(isCommerceResourceSemantics(options.semanticModelVersion))knownRevision=(dataset.commerceFacts??[]).filter(fact=>Date.parse(fact.ingestedAt)<=Date.parse(knownAt)).reduce((revision,fact)=>Math.max(revision,fact.revision),knownRevision);
   const context: QueryContext = { tenantId: dataset.tenantId, rolePolicyVersion: options.rolePolicyVersion ?? 'roles-v1:1',
     roleScope: options.roleScope ?? 'investigator', clockDomain: options.clockDomain ?? 'narrative_replay', sourceMode: options.sourceMode ?? 'sample',
     asOf: timestamp(options.asOf ?? STORY_END,'asOf'), knownAt, cohortId: options.cohortId ?? INCIDENT_ID,
@@ -305,6 +307,7 @@ export function buildSnapshot(dataset: SeedDataset, options: Partial<QueryContex
   for (const order of orders) order.snapshotHash = hash;
   for (const branch of branches) branch.snapshotHash = hash;
   for (const rows of Object.values(tables)) for (const row of rows) row.snapshotHash = hash;
-  return { id: `snapshot-${hash.slice(0,28)}`, hash, context, generationId, createdAt: context.knownAt,
+  const snapshot:Snapshot = { id: `snapshot-${hash.slice(0,28)}`, hash, context, generationId, createdAt: context.knownAt,
     tables, tableHashes, orders, evidence, affectedOrderIds, removedOrderIds, branches, detectors, totals, sourceCoverage };
+  return isCommerceResourceSemantics(context.semanticModelVersion)?withCommerceResources(snapshot,dataset):snapshot;
 }

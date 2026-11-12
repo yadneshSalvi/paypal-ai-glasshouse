@@ -1,4 +1,5 @@
-import type { Evidence, QueryContext, SeedDataset, Snapshot, SnapshotOrder, SourceEvent } from './types';
+import type { CommerceFact, Evidence, QueryContext, SeedDataset, Snapshot, SnapshotOrder, SourceEvent } from './types';
+import {isCommerceResourceSemantics} from './commerce-resources';
 
 export type OrderTimelineEvent=Pick<SourceEvent,'id'|'type'|'dimension'|'state'|'occurredAt'|'ingestedAt'|'narrativeTime'|'sourceClass'|'sourceLabel'|'sourceRef'>;
 export interface ProviderReceiptView {
@@ -13,6 +14,7 @@ export interface StoredProviderObservation {
 }
 export interface OrderDetail {
   snapshotHash:string;context:QueryContext;order:SnapshotOrder;evidence:Evidence[];events:OrderTimelineEvent[];
+  resources?:Pick<CommerceFact,'kind'|'resourceId'|'parentResourceId'|'state'|'amountMinor'|'currency'|'quantity'|'occurredAt'|'narrativeTime'|'ingestedAt'|'sourceClass'|'sourceRef'>[];
   providerReceipts:ProviderReceiptView[];providerStatus:string;
 }
 const text=(value:unknown,max=512)=>typeof value==='string'&&value.length<=max?value:null;
@@ -50,7 +52,13 @@ export function buildOrderDetail(dataset:SeedDataset,snapshot:Snapshot,orderId:s
       captureId,providerOrderId:order.paypalOrderId,trackingNumber:text(body.trackingNumber),carrierName:text(body.carrierName),
       fixtureShipping:body.fixtureShipping===true,fieldVerification:text(body.fieldVerification),sellerResponseDueAt:time(body.sellerResponseDueAt),submittedEvidence:submitted});
   }
-  return {snapshotHash:snapshot.hash,context:snapshot.context,order,evidence,
+  // Read the already-admitted resource grain. Do not join child resources back
+  // onto orders, invent a single capture, or disclose later raw observations.
+  const resources=isCommerceResourceSemantics(snapshot.context.semanticModelVersion)?(['line','capture','refund','shipment'] as const).flatMap(kind=>(snapshot.tables[kind+'_snapshot']??[]).filter(row=>row.orderId===orderId).map(row=>({
+    kind,resourceId:String(row.resourceId),parentResourceId:row.parentResourceId===null?null:String(row.parentResourceId),state:String(row.state),amountMinor:row.amountMinor===null?null:Number(row.amountMinor),currency:String(row.currency) as CommerceFact['currency'],quantity:row.quantity===null?null:Number(row.quantity),
+    occurredAt:String(row.occurredAt),narrativeTime:String(row.narrativeTime),ingestedAt:String(row.ingestedAt),sourceClass:String(row.sourceClass) as CommerceFact['sourceClass'],sourceRef:String(row.sourceRef),
+  }))):undefined;
+  return {snapshotHash:snapshot.hash,context:snapshot.context,order,evidence,...resources?{resources}:{},
     events:sources.map(({id,type,dimension,state,occurredAt,ingestedAt,narrativeTime,sourceClass,sourceLabel,sourceRef})=>({id,type,dimension,state,occurredAt,ingestedAt,narrativeTime,sourceClass,sourceLabel,sourceRef})),
     providerReceipts,providerStatus:order.paymentSource==='sandbox'&&providerReceipts.some(receipt=>receipt.kind==='capture')?'Independently verified sandbox receipts':
       order.paymentSource==='sandbox'?'The admitted source observation is visible; its stored receipt is unavailable.':'Sample payment at this evidence cutoff'};

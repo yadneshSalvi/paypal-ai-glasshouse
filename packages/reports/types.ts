@@ -1,6 +1,7 @@
 import type {AuditEvent,Operation,QueryContext,RecoveryPlan,Snapshot} from '../domain/types';
 import type {FindingCorrection,FindingReference,FindingRevision} from '../findings/types';
 import type {AgentFinding} from '../agents/contracts';
+import type {NativePrint} from '../studio/native-print';
 import type {ReportHistory} from '../studio/history-saves';
 
 export type ReportPaper='A4'|'LETTER';
@@ -17,7 +18,7 @@ export interface ReportSummary {
   context:QueryContext;layoutVersion:number;planCount:number;operationCount:number;findingCount:number;
 }
 export interface ReportDocument {
-  schemaVersion:1;id:string;title:string;description:string;createdAt:string;parentId:string|null;
+  schemaVersion:1|2;nativePrint?:NativePrint;id:string;title:string;description:string;createdAt:string;parentId:string|null;
   workspace:{id:string;name:string;merchantName:string;organizationName:string|null;source:'sample'|'existing'};
   creator:{actorId:string;displayName:string;role:string;membershipVersion:number;identityKind:'browser_capability'};
   snapshot:Snapshot;
@@ -26,7 +27,7 @@ export interface ReportDocument {
   observed:{capturedAt:string;operations:ReportOperation[];cases:ReportCase[]};
   audit:{scope:'workspace_at_export';events:Pick<AuditEvent,'id'|'timestamp'|'actorId'|'type'|'summary'|'refId'>[];throughSequence:number};
   grants:ReportGrant[];
-  coverage:{snapshotOrders:number;snapshotEvidence:number;snapshotTransitions:number;nativePages:number;nativeWidgets:number;undoEntries:number;redoEntries:number;fullSnapshotInJson:true;staticInstruments:'whole_admitted_snapshot';customMappings:'preserved_in_native_history';agentNarratives:'creator_owned_findings_for_exact_snapshot'|'explicitly_shared_exact_finding_versions';sharing:'current_workspace_members_only';limitations:string[]};
+  coverage:{snapshotOrders:number;snapshotEvidence:number;snapshotTransitions:number;nativePages:number;nativeWidgets:number;undoEntries:number;redoEntries:number;fullSnapshotInJson:true;staticInstruments:'whole_admitted_snapshot'|'exact_native_queries';customMappings:'preserved_in_native_history'|'exact_supported_mappings';agentNarratives:'creator_owned_findings_for_exact_snapshot'|'explicitly_shared_exact_finding_versions';sharing:'current_workspace_members_only';limitations:string[]};
 }
 export interface SavedReport {summary:ReportSummary;document:ReportDocument}
 /** Live, authorized metadata beside an edition; never part of ReportDocument. */

@@ -8,13 +8,13 @@ import { dateLabel,money,sourceLabel } from '@/lib/client';
 export function OrderRecord({detail,snapshot}:{detail:OrderDetail;snapshot:Snapshot}){
   const [tab,setTab]=useState('evidence'),tabsId=useId();
   const order=detail.order,eligibility=snapshot.branches.find(branch=>branch.id==='targeted')?.rows.find(row=>row.orderId===order.id);
-  const tabs=['evidence','timeline','eligibility','provider'];
+  const tabs=['evidence','timeline',...(detail.resources?['resources']:[]),'eligibility','provider'];
   const currentTime=(event:OrderDetail['events'][number])=>detail.context.clockDomain==='observed'?event.occurredAt:event.narrativeTime;
   return <>
     <div className="order-state-grid">
       <div><span>Payment</span><strong>{order.paymentState.replaceAll('_',' ')}</strong><small>{sourceLabel(order.paymentSource)}</small></div>
-      <div><span>Fulfillment</span><strong>{order.fulfillmentState.replaceAll('_',' ')}</strong><small>Fixture shipping</small></div>
-      <div><span>Remediation</span><strong>{order.remediationState.replaceAll('_',' ')}</strong><small>{money(order.refundedMinor)} refunded</small></div>
+      <div><span>Fulfillment</span><strong>{order.fulfillmentState.replaceAll('_',' ')}</strong><small>{detail.resources?[...new Set(detail.resources.filter(row=>row.kind==='shipment').map(row=>sourceLabel(row.sourceClass)))].join(' / ')||'No shipment observed':'Fixture shipping'}</small></div>
+      <div><span>Remediation</span><strong>{order.remediationState.replaceAll('_',' ')}</strong><small>{money(order.refundedMinor,order.currency)} refunded</small></div>
       <div><span>Dispute</span><strong>{order.disputeState?.replaceAll('_',' ')||'Not observed'}</strong><small>{sourceLabel(order.disputeSource)}</small></div>
     </div>
     <div className="drawer-amount"><span>Order record amount</span><strong>{money(order.amountMinor,order.currency)}</strong></div>
@@ -34,6 +34,12 @@ export function OrderRecord({detail,snapshot}:{detail:OrderDetail;snapshot:Snaps
         <p>{event.dimension} → {event.state.replaceAll('_',' ')}</p><span className="source-chip">{sourceLabel(event.sourceClass)}</span>
         <details><summary>Source clocks and identity</summary><dl><div><dt>Occurred</dt><dd>{event.occurredAt}</dd></div><div><dt>Received</dt><dd>{event.ingestedAt}</dd></div><div><dt>Story time</dt><dd>{event.narrativeTime}</dd></div><div><dt>Source</dt><dd>{event.sourceRef}</dd></div></dl></details>
       </article>)}</div>}
+      {tab==='resources'&&<div className="provider-detail order-resources"><h3>Resources at these cutoffs</h3><p>Each line, capture, refund and shipment keeps its own identity. Money is counted once per financial resource.</p><p>{money(order.capturedMinor??0,order.currency)} captured · {money(order.refundedMinor,order.currency)} refunded · {money(order.refundableMinor,order.currency)} available for policy review.</p>
+        <div className="provider-receipts">{detail.resources!.map(resource=><article className="provider-receipt" key={resource.kind+':'+resource.resourceId}>
+          <header><strong>{resource.kind}</strong><span>{resource.amountMinor===null?'No monetary measure':money(resource.amountMinor,resource.currency)}</span></header><p>{resource.state.replaceAll('_',' ')}</p><code>{resource.resourceId}</code><span className="source-chip">{sourceLabel(resource.sourceClass)}</span>
+          <dl>{resource.parentResourceId&&<div><dt>{resource.kind==='refund'?'Parent capture':'Parent line'}</dt><dd>{resource.parentResourceId}</dd></div>}{resource.quantity!==null&&<div><dt>Quantity</dt><dd>{resource.quantity}</dd></div>}<div><dt>Occurred</dt><dd>{resource.occurredAt}</dd></div><div><dt>Story time</dt><dd>{resource.narrativeTime}</dd></div><div><dt>Known at</dt><dd>{resource.ingestedAt}</dd></div><div><dt>Source</dt><dd>{resource.sourceRef}</dd></div></dl>
+        </article>)}</div>{!detail.resources!.length&&<p>No resource is visible at the selected cutoffs.</p>}
+      </div>}
       {tab==='eligibility'&&<div className="eligibility-detail"><h3>Targeted goodwill</h3><p>Policy at the selected business time and evidence cutoff.</p>
         {eligibility?eligibility.conditions.map(condition=><div key={condition.key}><span className={condition.passed?'pass':'fail'}>{condition.passed?<Check size={16}/>:<X size={16}/>}</span><span>{condition.label}</span><small>{condition.passed?'Pass':'Excluded'}</small></div>):<p>This order is outside the incident cohort.</p>}
         {eligibility&&<strong className={eligibility.eligible?'mint-text':'amber-text'}>{eligibility.eligible?'Eligible for a proposed $5 refund':'Excluded from this branch'}</strong>}

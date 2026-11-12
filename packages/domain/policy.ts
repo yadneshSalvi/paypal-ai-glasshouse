@@ -1,11 +1,26 @@
-import type { ActionRow, ConditionResult, EligibilityRow, RecoveryBranch, SnapshotOrder } from './types';
+import type { ActionRow, ConditionResult, EligibilityRow, RecoveryBranch, SnapshotOrder,Snapshot } from './types';
 
 export const GOODWILL_POLICY_ID = 'goodwill-delay-v1';
+export const GOODWILL_CURRENCY = 'USD';
 export const GOODWILL_AMOUNT_MINOR = 500;
 export const DEFAULT_BUDGET_MINOR = 30_000;
+/** Policy money has its own denomination. Earlier saved branches retain the
+ * report currency field; interpreting that field must not rewrite their bytes. */
+export const recoveryPolicyCurrency = (branch:Pick<RecoveryBranch,'policyId'|'currency'>) => branch.policyId===GOODWILL_POLICY_ID?GOODWILL_CURRENCY:branch.currency;
+export const recoveryPolicyUnavailable = (branch:Pick<RecoveryBranch,'policyId'|'currency'>,scopeCurrency=branch.currency) => branch.policyId===GOODWILL_POLICY_ID&&scopeCurrency!==GOODWILL_CURRENCY?`USD goodwill unavailable for ${scopeCurrency}`:null;
 const money = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 const undelivered = (state: string) => ['in_transit', 'delayed', 'shipped'].includes(state);
 const closedDispute = (state: string | null) => state !== null && ['none', 'resolved', 'closed', 'cancelled'].includes(state);
+
+export function scopeRecoveryBranch(snapshot:Snapshot,branchId:string,orderIds:readonly string[]|undefined,budgetMinor:number):RecoveryBranch{
+  const source=snapshot.branches.find(branch=>branch.id===branchId);if(!source)throw new Error('Choose a known recovery policy.');
+  if(!Number.isSafeInteger(budgetMinor)||budgetMinor<0)throw new Error('Choose a non-negative integer cap.');
+  if(orderIds===undefined)return {...source,budgetMinor,withinBudget:source.refundTotalMinor<=budgetMinor};
+  const ids=new Set(orderIds),allowed=new Set(snapshot.orders.map(order=>order.id));
+  if(ids.size!==orderIds.length||orderIds.some(id=>!allowed.has(id)))throw new Error('The recovery scope must contain unique orders from this exact snapshot.');
+  const evaluated=evaluateBranches(snapshot.orders.filter(order=>ids.has(order.id)),budgetMinor,snapshot.hash).find(branch=>branch.id===branchId)!;
+  return {...evaluated,currency:snapshot.context.currency,actions:source.actions.filter(action=>ids.has(action.orderId)),scopeOrderIds:[...ids].sort()};
+}
 
 export function evaluateBranches(snapshotOrders: readonly SnapshotOrder[], budgetMinor = DEFAULT_BUDGET_MINOR, snapshotHash = ''): RecoveryBranch[] {
   if (!money(budgetMinor)) throw new Error('The refund budget must be a non-negative integer in minor units.');

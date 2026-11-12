@@ -1,3 +1,5 @@
+import {nativePrint} from '@/packages/studio/native-print';
+import {isCommerceResourceSemantics} from '@/packages/domain/commerce-resources';
 import {createHash,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import type {Database} from '@/packages/db/client';
@@ -50,7 +52,7 @@ export class ReportService {
   private unpack(row:EditionRow):SavedReport{
     const document=this.secrets.open<ReportDocument>(row.tenant_id,'edition',row.id,row.private_document);
     const envelope=this.secrets.open<SummaryEnvelope>(row.tenant_id,'summary',row.id,row.private_summary),summary=envelope.summary;
-    if(document.schemaVersion!==1||document.id!==row.id||document.workspace.id!==row.tenant_id||document.snapshot.context.tenantId!==row.tenant_id||document.creator.actorId!==row.created_by||document.snapshot.hash!==row.snapshot_hash||document.layout.version!==row.layout_version||document.layout.hash!==row.layout_hash||hash(document.layout.history)!==row.layout_hash||hash(document)!==row.document_hash||summary.documentHash!==row.document_hash||summary.id!==row.id||hash(envelope.grants)!==hash(document.grants))throw new HttpError(409,'REPORT_UNVERIFIED','This saved report does not match its encrypted immutable identity. Its original is preserved.');
+    if(!([1,2].includes(document.schemaVersion))||document.id!==row.id||document.workspace.id!==row.tenant_id||document.snapshot.context.tenantId!==row.tenant_id||document.creator.actorId!==row.created_by||document.snapshot.hash!==row.snapshot_hash||document.layout.version!==row.layout_version||document.layout.hash!==row.layout_hash||hash(document.layout.history)!==row.layout_hash||hash(document)!==row.document_hash||summary.documentHash!==row.document_hash||summary.id!==row.id||hash(envelope.grants)!==hash(document.grants))throw new HttpError(409,'REPORT_UNVERIFIED','This saved report does not match its encrypted immutable identity. Its original is preserved.');
     return {document,summary};
   }
   private async edition(tx:Database,actor:Actor,reportId:string){
@@ -140,12 +142,13 @@ export class ReportService {
       if(auditRows.length>10000)throw new HttpError(413,'REPORT_SIZE_LIMIT','The full workspace audit exceeds this edition bound. No partial audit was presented as complete.');
       const events=auditRows.map(row=>{if(row.body.tenantId!==actor.tenantId)throw bad('An audit entry is outside this workspace.');const {id,timestamp,actorId,type,summary,refId}=row.body;return {id,timestamp,actorId,type,summary,refId};});
       const reportId=`report-${randomUUID()}`,createdAt=new Date().toISOString();
-      const draft:ReportDocument={schemaVersion:1,id:reportId,title:input.title,description:input.description,createdAt,parentId:input.parentId??null,
+      const exactPrint=isCommerceResourceSemantics(snapshot.context.semanticModelVersion)?await nativePrint(snapshot,history.current,createdAt):undefined;
+      const draft:ReportDocument={schemaVersion:exactPrint?2:1,...exactPrint?{nativePrint:exactPrint}:{},id:reportId,title:input.title,description:input.description,createdAt,parentId:input.parentId??null,
         workspace:{id:actor.tenantId,name:workspace?.name??'Existing investigation',merchantName:workspace?.merchant_name??'Fernwood Supply',organizationName:workspace?.organization_name??null,source:workspace?.source_kind??'existing'},
         creator:{actorId:actor.id,displayName:person?.display_name??'Existing workspace member',role:actor.role,membershipVersion:actor.membershipVersion,identityKind:'browser_capability'},snapshot,layout:{history,version:layout.version,hash:input.expectedLayoutHash},plans,findings,findingRevisions,
         observed:{capturedAt:createdAt,operations,cases},audit:{scope:'workspace_at_export',events,throughSequence:Number(auditRows.at(-1)?.sequence??0)},grants,
-        coverage:{snapshotOrders:snapshot.orders.length,snapshotEvidence:snapshot.evidence.length,snapshotTransitions:snapshot.tables.transition_snapshot.length,...historyCounts(history),fullSnapshotInJson:true,staticInstruments:'whole_admitted_snapshot',customMappings:'preserved_in_native_history',agentNarratives:'explicitly_shared_exact_finding_versions',sharing:'current_workspace_members_only',limitations:[
-          'The six static instruments describe the whole admitted snapshot. Native filters, mappings, custom charts and full undo/redo entries are preserved exactly in the attached JSON; they are not silently reinterpreted as the static overview.',
+        coverage:{snapshotOrders:snapshot.orders.length,snapshotEvidence:snapshot.evidence.length,snapshotTransitions:snapshot.tables.transition_snapshot.length,...historyCounts(history),fullSnapshotInJson:true,staticInstruments:exactPrint?'exact_native_queries':'whole_admitted_snapshot',customMappings:exactPrint?'exact_supported_mappings':'preserved_in_native_history',agentNarratives:'explicitly_shared_exact_finding_versions',sharing:'current_workspace_members_only',limitations:[
+          ...(exactPrint?[`Static instruments use the saved native mappings and filters. ${exactPrint.widgets.filter(widget=>widget.status==='unsupported').length} unsupported widget mappings are explicitly identified without substituted results. Complete authorized sources remain in JSON, including excerpts hidden in presentation.`]:['The six static instruments describe the whole admitted snapshot. Native filters, mappings, custom charts and full undo/redo entries are preserved exactly in the attached JSON; they are not silently reinterpreted as the static overview.']),
           'Snapshot event time T, knowledge cutoff K, source observation times and report generation time are distinct. Observed operations and cases may be later than the snapshot.',
           'A proposal, approved action, observed refund, tracking update, submitted evidence and resolved dispute are distinct states. A comparison branch grants no policy override.',
           'Findings are source-bound interpretations, not causal proof. Only explicitly selected, creator-shared finding versions are included in this edition. Private findings, chats and model reasoning are excluded.',
@@ -207,7 +210,8 @@ export class ReportService {
     await requireReportsSchema(this.db);
     if(paper!=='A4'&&paper!=='LETTER')throw new HttpError(400,'INVALID_REPORT_PAPER','Choose A4 or US Letter.');
     if(!this.renderer)throw new HttpError(503,'REPORT_RENDERER_UNAVAILABLE','The PDF renderer is unavailable. The saved report and full JSON remain readable.');
-    const renderer=this.renderer,identity=`${reportId}:${paper}:${renderer.version}`,lease=randomUUID();
+    const admitted=await this.read(actor,reportId);
+    const renderer={...this.renderer,version:this.renderer.version==='glasshouse-static-v1.0.0'&&admitted.document.schemaVersion===2?'glasshouse-native-static-v2.0.0':this.renderer.version},identity=`${reportId}:${paper}:${renderer.version}`,lease=randomUUID();
     const claimed=await this.db.transaction(async tx=>{
       await this.member(tx,actor);const report=await this.edition(tx,actor,reportId);
       await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`report-pdf:${actor.tenantId}:${identity}`]);
@@ -225,7 +229,7 @@ export class ReportService {
     }else{
       try{
         const rendered=await renderer.render(claimed.report,paper);bytes=rendered.bytes;pages=rendered.pages;
-        if(bytes.length>32_000_000||pages<1||pages>200||!bytes.subarray(0,5).equals(Buffer.from('%PDF-')))throw new HttpError(413,'REPORT_PDF_LIMIT','This complete PDF exceeds the renderer bound. The static report and full JSON remain available.');
+        if(bytes.length>32_000_000||pages<1||pages>(claimed.report.document.schemaVersion===2?800:200)||!bytes.subarray(0,5).equals(Buffer.from('%PDF-')))throw new HttpError(413,'REPORT_PDF_LIMIT','This complete PDF exceeds the renderer bound. The static report and full JSON remain available.');
         byteHash=createHash('sha256').update(bytes).digest('hex');
         const saved=await this.db.query(`UPDATE gh_report_pdf SET state='ready',private_bytes=$6,byte_hash=$7,page_count=$8,lease_id=null,lease_until=null,updated_at=now() WHERE tenant_id=$1 AND report_id=$2 AND paper=$3 AND renderer_version=$4 AND lease_id=$5 AND state='rendering' RETURNING report_id`,[actor.tenantId,reportId,paper,renderer.version,lease,this.secrets.seal(actor.tenantId,'pdf',identity,bytes.toString('base64')),byteHash,pages]);
         if(!saved[0])throw new HttpError(409,'REPORT_PDF_LEASE_CHANGED','Another renderer retained the canonical result. Retry this exact download to read its saved bytes.');
