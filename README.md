@@ -4,7 +4,7 @@ A commerce incident room for Fernwood Coffee. Follow a signal through source evi
 
 **Rewind the business. Review the evidence. Approve the exact remedy.**
 
-[Open Glasshouse](https://paypal-ai-glasshouse.vercel.app) · [Read the submission story and evidence](docs/submission-story.md). The qualified live application remains source `6bd66c6`; the 2:50 film clearly labels its separately retained native and Sandbox chapters.
+[Open Glasshouse](https://paypal-ai-glasshouse.vercel.app) · [Read the submission story and evidence](docs/submission-story.md). The qualified live application remains source `6bd66c6`; the [2:30 demonstration](https://youtu.be/49wbJMi8S1I) clearly labels its separately retained native and Sandbox chapters.
 
 The application uses Next.js, React, PostgreSQL and six native AG Studio 3.1.0 instruments. Its actual Studio Agent Framework delegates investigation and chart creation through a server-side OpenAI adapter, with durable model/tool checkpoints, encrypted native history, sourced findings and owned PayPal Toolkit reads. The current source also adds private organizations and workspaces, precise access invitations, immutable finding reviews and source-driven plan invalidation, and immutable reports with six static instruments, exact JSON and downloadable A4/Letter PDFs. Payment, fulfillment, remediation and dispute state remain separate.
 
@@ -70,6 +70,6 @@ The evidence table shows original resource/order identities, signed amounts, pro
 
 This is an implementation checkpoint, not the full product release. The instrument and complete native PDF release is deployed from **6bd66c6**, after root browser acceptance, a verified backup, additive schema 11 and exact original-data continuity; see the [hosted qualification](docs/evidence/instruments-hosted-qualification.json). The six native instruments, v3 resource grains, supported mapping/filter exports and complete A4/Letter records are qualified within the recorded corpus. Verified external login, additional actual merchant connections, authenticated webhooks, model comparisons, remaining unsupported native mappings, the full temporal/accessibility/performance corpus, broader commerce remedies and the bounded public judge tour remain in scope. Anonymous entry still creates a Sample workspace automatically; an inert entry with an explicit start action is a separate follow-up. The [full delivery ledger](docs/remaining-scope.md) keeps those obligations explicit. No seller research, prevented-dispute or retained-revenue result is claimed. Provider tracking records an assignment; fulfillment fixtures supply delivery facts. Evidence submission records a seller response; current provider observations determine case status.
 
-The repository is private. Private plans, credentials, operational evidence, local data and the build handoff remain excluded from Git.
+The repository is public under the MIT License. Private plans, credentials, operational evidence, local data and the build handoff remain excluded from Git.
 
 [Finding lifecycle and migration](docs/finding-lifecycle.md) describes private immutable versions, source-driven 63→54 correction, exact affected plans, current dependency checks and unchanged earlier report downloads. Isolated PostgreSQL, HTTP and DOM checks do not substitute for actual provider/model or native-browser qualification.

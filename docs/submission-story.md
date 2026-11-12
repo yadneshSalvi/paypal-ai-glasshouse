@@ -6,7 +6,7 @@ Glasshouse is a commerce incident room for a PayPal business. A late-delivery si
 
 [Open the qualified live application](https://paypal-ai-glasshouse.vercel.app).
 
-The submission film is 2 minutes 50 seconds. Its chapters show retained native application states: a 600-order Sample investigation, a separate recorded AI investigation, a controlled correction from 63 to 54 affected orders, and the dated original PayPal Sandbox recovery. Chapter labels keep those scopes clear.
+[Watch the 2-minute-30-second demonstration](https://youtu.be/49wbJMi8S1I). Its chapters show retained native application states: a 600-order Sample investigation, a separate recorded AI investigation, a controlled correction from 63 to 54 affected orders, and the dated original PayPal Sandbox recovery. Chapter labels keep those scopes clear.
 
 ## The walkthrough
 
@@ -55,4 +55,4 @@ The live application remains the qualified `6bd66c6` release. Local filmed succe
 
 The historical model comparison separates mechanical protocol success from automated semantic adequacy: OpenAI 16/16 and 13/16 respectively; Gemini 12/16 and 1/16. This is an automated assessment, not a human causal validation. Prospective grounded-output fixes are implemented locally; their new actual-model evaluation was not run.
 
-No seller study, external participant quote, full screen-reader/200% zoom audit, authenticated webhook delivery qualification, or fresh full merchant rehearsal is claimed. Publication of the video, source repository and competition entry remains a separate step. The complete local package contains the film, captions, one-page PDF, cover, seven gallery frames, editable sources and provenance.
+No seller study, external participant quote, full screen-reader/200% zoom audit, authenticated webhook delivery qualification, or fresh full merchant rehearsal is claimed. The [Devpost entry](https://devpost.com/software/glasshouse-o3nwdb) links the demonstration and this source repository. The complete local package contains the film, captions, one-page PDF, cover, seven gallery frames, editable sources and provenance.
