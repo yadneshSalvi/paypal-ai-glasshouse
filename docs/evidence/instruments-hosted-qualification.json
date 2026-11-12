@@ -1,0 +1,61 @@
+{
+  "schema": "glasshouse.instruments-hosted.1",
+  "qualifiedAt": "2026-11-12T08:27:13.234Z",
+  "sourceCommit": "6bd66c6715294dfd0c8bdba965270ebf30005b2f",
+  "deploymentId": "dpl_3io4VLQKAicNFnK3deFwA9xWSdCp",
+  "url": "https://paypal-ai-glasshouse.vercel.app",
+  "runtime": "Node.js 22.x",
+  "schemaMigration": {"from": 10, "to": 11, "additive": true, "consistentBackupFullyRestoredAndVerified": true},
+  "sourceFreeze": {"sourceFiles": 344, "dependencyEntries": 46199, "buildEntries": 513, "privateValueLeaks": 0},
+  "provenance": {"incident": "historical sandbox payments with explicitly labelled fixture shipping and support", "newModelCalls": 0, "newProviderCalls": 0, "financialDispatches": 0, "originalFinancialReplay": false, "humanResearch": false},
+  "instrumentCoverage": {
+    "semanticModel": "commerce-semantic-v3",
+    "sourceTables": 12,
+    "earlierV1V2HashesPreserved": true,
+    "independentSixViewComparisons": 420,
+    "independentScopedModelComparisons": 642,
+    "independentRegionalBaselineComparisons": 84,
+    "installedNativeCurrencyAndPrintAdmission": ["USD", "EUR", "GBP"],
+    "nativeControls": ["both River/Map selection orders", "disabled outbound triggers", "explicit unsupported mappings", "USD-only goodwill policy", "unknown-deadline inclusion", "mouse and keyboard drill/proof/focus return", "pinned knowledge and explicit latest/reload continuity", "390px and 360px reflow", "reduced motion"]
+  },
+  "reportCorrection": {
+    "sameImmutableEdition": true,
+    "nativeWidgets": 8,
+    "nativeRows": 3416,
+    "evidenceRows": 2070,
+    "evidenceColumns": 9,
+    "renderer": "glasshouse-native-static-v2.1.0",
+    "pageLimitUnchanged": 800,
+    "byteLimitUnchanged": 32000000,
+    "everyPrintedNativeFieldCompared": true,
+    "embeddedEditionExactlyCompared": true,
+    "rasterizedPageOverviewsReviewed": 1253,
+    "detailedPageSamplesReviewed": 9,
+    "papers": [
+      {"paper": "A4", "pages": 597, "bytes": 2285483, "sha256": "b75334370632c946f1ef7d589f83980d3ed309f56fe80b5241ce17afe4a13893"},
+      {"paper": "LETTER", "pages": 656, "bytes": 2341347, "sha256": "1cecb6fd035ecffaab532858c394acd856f54c65a5a2f272a37a34e19bd8afe1"}
+    ],
+    "hostedAndNativeDownloadsMatchExactLocalBytes": true,
+    "legacyRendererByteComparisonPassed": true,
+    "priorFailedRepresentationPreserved": true,
+    "rendererAndReportRegressionsPassed": 20,
+    "findingSemanticAndLifecycleRegressionsPassed": 18
+  },
+  "hosted": {"firstStageChecksCompletedBeforeRetainedPdfLimitFailure": 163, "correctedStageChecks": 17, "canonicalGetOnlyChecks": 5, "canonicalHomepageRequests": 0, "canonicalPdfRequests": 0},
+  "rootReportNative": {"passed": true, "widths": [1280, 390, 360], "documentOverflow": false, "consoleWarningsOrErrors": 0, "sameEditionAfterReload": true, "exactCachedPaperDownloads": true, "originalCookiesRestored": true, "initialExistingCookieHomeVisitDisclosed": true, "observedDatabaseEffectOfNativeReview": "none across all 70 table fingerprints"},
+  "preservation": {"originalTables": 68, "originalRows": 486449, "missingOrChangedOriginalRows": 0, "unchangedFinancialTables": 18, "originalOperations": 105, "originalSessionRenewed": false, "originalNativeHistoryVersion": 92, "originalEditions": 5, "originalPdfRows": 7, "finalTables": 70, "finalRows": 552098, "rowsAddedOrChangedAfterNativeAndCanonicalChecks": 0},
+  "additionalAdmissionAccounting": {
+    "anonymousSampleAdmissions": 4,
+    "admissionsPerDeployment": 2,
+    "ordersPerAdmission": 600,
+    "sourceEventsPerAdmission": 4906,
+    "stateIntervalsPerAdmission": 11492,
+    "datasetRevision": 1,
+    "financialProviderModelPlanReportRowsPerAdmission": 0,
+    "qualificationInitiatedSessionRequests": 0,
+    "requesterIdentity": "unknown",
+    "evidenceBoundary": "Runtime logs show two initial page GETs followed by two session POSTs after each deployment. A screenshot crawler is only a hypothesis; no requester identity is asserted. All added graphs remain preserved."
+  },
+  "retainedFailures": ["Original 800-page PDF limit response and failed renderer identity.", "Earlier helper assumptions about HTML build identity and object-key canonical ordering.", "First native reload heading wait timed out; subsequent visible read succeeded and both observations remain retained."],
+  "limits": ["True 200% browser zoom and the remaining accessibility/performance corpus remain unverified.", "Arbitrary native mappings without an exact adapter remain explicitly unsupported.", "Anonymous landing still automatically creates Sample data; explicit-start entry is a separate follow-up.", "Separate Operator/capability candidates, actual-model/provider rehearsals, recordings, seller research and full-product completion are not certified by this release."]
+}
