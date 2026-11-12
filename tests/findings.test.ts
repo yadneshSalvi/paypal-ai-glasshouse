@@ -132,7 +132,7 @@ test('concurrent source correction and human challenge serialize into one truthf
 test('resource revocation and forged exact references deny finding disclosure, mutations and new reports',async t=>{
   const h=await findingHarness(t),bound=await h.boundCapture(),first=await h.findings.create(h.scoped,h.input({snapshotHash:bound.snapshot.hash,evidenceIds:[bound.snapshot.evidence[0].id]})),supported=await h.decide(first,'support');await h.share(supported);
   assert(supported.dependencies.resources.some(row=>row.id===bound.captureId));
-  const {createPlan}=await import('../lib/server/plans');await assert.rejects(createPlan(h.scoped,'targeted',30000,bound.snapshot.hash,[{...findingReference(supported),hash:'0'.repeat(64)}]),failure('FINDING_DEPENDENCY_CHANGED'));
+  await assert.rejects(h.prepare({...supported,hash:'0'.repeat(64)}),failure('FINDING_DEPENDENCY_CHANGED'));
   const {FindingService}=await import('../lib/server/findings/service'),{FindingSecrets}=await import('../lib/server/findings/crypto'),{randomBytes}=await import('node:crypto');
   const wrong=new FindingService(h.db,new FindingSecrets(randomBytes(32).toString('base64')),h.secrets);await assert.rejects(wrong.detail(h.scoped,first.findingId),failure('FINDING_UNVERIFIED'));
   const before=await h.db.query('SELECT private_document FROM gh_finding_revisions ORDER BY sequence');await h.db.query("UPDATE gh_provider_resources SET active=false,version=version+1 WHERE tenant_id=$1 AND kind='capture' AND provider_id=$2",[h.scoped.tenantId,bound.captureId]);

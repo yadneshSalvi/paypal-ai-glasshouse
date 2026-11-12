@@ -6,6 +6,8 @@ The report service keeps the first completed compatible PDF as the edition's dow
 
 The legacy v1 renderer is unchanged. An isolated synthetic edition produced identical A4 and Letter bytes through the original and corrected implementations. SQL regressions also verify unchanged cached bytes, preservation of failed attempts, the active-lease hold, and unchanged edition content.
 
+Saved finding reviews also retain their admitted v1, v2 or v3 semantic model when comparing current source facts. The comparison still uses the current actor, role policy, source cohort and knowledge cutoff. Unchanged legacy evidence therefore remains valid, while an actual source amendment still requires a revised finding. Newly prepared financial intents continue to require the current v3 snapshot contract.
+
 The portable density regression sends 2,070 nine-field synthetic evidence records through the actual PDF renderer, including a long citation list continued across pages. It checks every emitted field, content boundaries and explicit page counts on both paper sizes. The existing report, v2 native and v3 native suites cover authority, immutable history, exact mapped rows, source corrections and caching.
 
 A separate private check used the exact historical hosted edition that exposed the limit. Its 3,416 native rows across eight widgets rendered as 597 A4 pages and 656 Letter pages. Independent extraction matched every printed native field and the complete embedded edition. All 1,253 pages were rasterized and their page overviews reviewed; nine detailed pages covered evidence continuations, policy rows, region counts, unknown deadlines, records and provenance. Hosted corrected-download and root browser acceptance are separate release gates.
@@ -14,4 +16,5 @@ Run the bounded renderer regressions with:
 
 ```sh
 node --import tsx --test tests/reports-pdf-density.test.ts tests/reports-pdf.test.ts tests/reports.test.ts tests/instruments-report.test.ts tests/instruments-v3-report.test.ts
+node --import tsx --test tests/findings-semantic-compatibility.test.ts tests/findings.test.ts
 ```

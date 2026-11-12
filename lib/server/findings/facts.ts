@@ -27,7 +27,11 @@ export function cite(snapshot:Snapshot,supportIds:string[],counterIds:string[],e
 }
 export function currentFindingSnapshot(actor:Actor,dataset:SeedDataset,context?:QueryContext){
   const search=new URLSearchParams();if(context){search.set('asOf',context.asOf);search.set('currency',context.currency);search.set('clock',context.clockDomain==='observed'?'observed':'narrative_replay');}
-  return buildSnapshot(dataset,snapshotContext(actor,dataset,search));
+  const current=snapshotContext(actor,dataset,search);
+  // Retain the admitted source contract, while K, cohort and role authority are
+  // reconstructed from the current dataset and current actor above.
+  if(context)current.semanticModelVersion=context.semanticModelVersion;
+  return buildSnapshot(dataset,current);
 }
 export function sameSource(revision:FindingRevision,snapshot:Snapshot){return sourceFingerprint(snapshot,revision.dependencies.orderIds,revision.dependencies.evidenceIds)===revision.dependencies.fingerprint;}
 export function citationEvidence(citation:FindingCitation):Evidence{const {hash:unusedHash,relation:unusedRelation,scope:unusedScope,...evidence}=citation;void unusedHash;void unusedRelation;void unusedScope;return evidence;}
