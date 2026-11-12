@@ -1,0 +1,89 @@
+{
+  "schema": "glasshouse.query-safety-hosted.1",
+  "qualifiedAt": "2026-11-12T00:44:52.607Z",
+  "sourceCommit": "a089323f47c2de2cc6b1984a5afe449d3a7b1627",
+  "deploymentId": "dpl_JAZ3XbMXAXko75ZpDF6uF89PR3dg",
+  "url": "https://paypal-ai-glasshouse.vercel.app",
+  "runtime": "Node.js 22.x",
+  "provenance": {
+    "incident": "Sample / fixture shipping",
+    "model": "actual OpenAI responses through installed native Studio agents",
+    "paymentProviderCalls": 0,
+    "financialDispatches": 0,
+    "humanResearch": false
+  },
+  "native": {
+    "passed": true,
+    "assertions": 10,
+    "actualModelTurns": 8,
+    "completedRuns": 2,
+    "exactOriginalQueryAttempts": 1,
+    "correctedQueries": 1,
+    "correctedRawResult": {
+      "result": [
+        {
+          "directly_order_linked_checkout_evidence_records": null
+        }
+      ]
+    },
+    "tools": [
+      "rename_thread",
+      "delegate_to",
+      "view_schema",
+      "execute_query",
+      "execute_query",
+      "complete_task"
+    ],
+    "extraFindings": 0,
+    "financialOperations": 0,
+    "providerOperations": 0,
+    "layoutVersion": 1,
+    "undo": 0,
+    "redo": 0,
+    "originalExpiry": "2026-11-19T00:33:06.823Z",
+    "originalSessionRenewed": false,
+    "sdkFatalLogs": 2,
+    "fatalScope": "detached query engine; current report remained editable and saved/reloaded"
+  },
+  "preservation": {
+    "originalTables": 68,
+    "originalRows": 437129,
+    "missingOrChangedOriginalRows": 0,
+    "unchangedFinancialTables": 18,
+    "unchangedAgentTablesOutsideNewWorkspace": 6,
+    "schemaVersions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "establishedKeysUnchanged": true
+  },
+  "originalWorkspace": {
+    "getOnlyChecks": 11,
+    "orders": 600,
+    "affected": 54,
+    "capturedMinor": 2760000,
+    "operations": 105,
+    "encryptedConversations": 3,
+    "undo": 7,
+    "redo": 0,
+    "sessionRenewed": false,
+    "allOriginalResponseHashesUnchanged": true
+  },
+  "retainedFailures": [
+    "Original installed-SDK fatal query behavior and earlier scope overrun remain separate failed runs.",
+    "First post-promotion proof comparison failed on JavaScript undefined versus omitted JSON property; canonical comparison then passed without any application change."
+  ],
+  "limits": [
+    "One hosted bounded diagnostic, not a universal claim about model scope adherence.",
+    "Detached native query validation still emits two SDK error logs; current report editing/history remain usable.",
+    "No new financial operation, actual webhook delivery, seller research or full-product completion is claimed."
+  ]
+}
