@@ -5,6 +5,8 @@ import type {AgentRunEvent} from '../domain/types';
 import type {GlasshouseRegistry,StudioBridge} from '../studio/types';
 import type {ReportHistory} from '../studio/history-saves';
 import type {AgentId,AgentLayoutReceipt,EnrolledRun,RunView,ToolGrant,TurnView} from './contracts';
+import {studioData} from '../studio/registry';
+import {executeIsolatedQuery} from './isolated-query';
 
 export interface DurableStatus {runs:RunView[];events:AgentRunEvent[];documents:unknown[];modelMode:'live'|'synthetic'|'unavailable';toolkit:{installed:string;enabled:boolean;mode:string};encrypted:boolean}
 export interface AgentHistoryBridge {
@@ -184,7 +186,9 @@ export class DurableAgents {
         if(!tool.execute)throw new Error('This native tool has no executor.');
         if(mutation)this.workspace.mutation(true);
         try{
-          const result=await tool.execute(call,ctx);
+          const result=call.name==='execute_query'
+            ?await executeIsolatedQuery(studioData(this.bridge.getSnapshot()) as import('ag-studio').AgDataSourcesDefinition,call,ctx)
+            :await tool.execute(call,ctx);
           const acknowledgement={runId:active.runId,callId:call.toolCallId,clientId:active.clientId,leaseToken:grant.leaseToken,result,snapshotHash:this.bridge.getSnapshot().hash};
           if(mutation){
             if(!grant.mutationId)throw new Error('The native workspace mutation has no durable identity.');

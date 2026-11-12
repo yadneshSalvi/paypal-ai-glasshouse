@@ -1,0 +1,138 @@
+{
+  "query": {
+    "kind": "apiQuery",
+    "variant": "aggregation",
+    "measures": [
+      {
+        "expression": {
+          "operator": "if",
+          "inputs": [
+            {
+              "operator": "isNull",
+              "inputs": [
+                {
+                  "field": {
+                    "id": "finding_snapshot.id",
+                    "aggregation": "countd"
+                  }
+                }
+              ]
+            },
+            {
+              "literal": 0
+            },
+            {
+              "field": {
+                "id": "finding_snapshot.id",
+                "aggregation": "countd"
+              }
+            }
+          ]
+        },
+        "as": "directly_order_linked_checkout_evidence_records"
+      }
+    ],
+    "filter": {
+      "combinator": "and",
+      "conditions": [
+        {
+          "field": {
+            "id": "finding_snapshot.orderId"
+          },
+          "operator": "isIn",
+          "value": [
+            "fernwood-order-0001",
+            "fernwood-order-0002",
+            "fernwood-order-0003",
+            "fernwood-order-0004",
+            "fernwood-order-0005",
+            "fernwood-order-0006",
+            "fernwood-order-0007",
+            "fernwood-order-0008",
+            "fernwood-order-0009",
+            "fernwood-order-0010",
+            "fernwood-order-0011",
+            "fernwood-order-0012",
+            "fernwood-order-0013",
+            "fernwood-order-0014",
+            "fernwood-order-0015",
+            "fernwood-order-0016",
+            "fernwood-order-0017",
+            "fernwood-order-0018",
+            "fernwood-order-0019",
+            "fernwood-order-0020",
+            "fernwood-order-0021",
+            "fernwood-order-0022",
+            "fernwood-order-0023",
+            "fernwood-order-0024",
+            "fernwood-order-0025",
+            "fernwood-order-0026",
+            "fernwood-order-0027",
+            "fernwood-order-0028",
+            "fernwood-order-0029",
+            "fernwood-order-0030",
+            "fernwood-order-0031",
+            "fernwood-order-0032",
+            "fernwood-order-0033",
+            "fernwood-order-0034",
+            "fernwood-order-0035",
+            "fernwood-order-0036",
+            "fernwood-order-0037",
+            "fernwood-order-0038",
+            "fernwood-order-0039",
+            "fernwood-order-0040",
+            "fernwood-order-0041",
+            "fernwood-order-0042",
+            "fernwood-order-0043",
+            "fernwood-order-0044",
+            "fernwood-order-0045",
+            "fernwood-order-0046",
+            "fernwood-order-0047",
+            "fernwood-order-0048",
+            "fernwood-order-0049",
+            "fernwood-order-0050",
+            "fernwood-order-0051",
+            "fernwood-order-0052",
+            "fernwood-order-0053",
+            "fernwood-order-0054",
+            "fernwood-order-0055",
+            "fernwood-order-0056",
+            "fernwood-order-0057",
+            "fernwood-order-0058",
+            "fernwood-order-0059",
+            "fernwood-order-0060",
+            "fernwood-order-0061",
+            "fernwood-order-0062",
+            "fernwood-order-0063"
+          ]
+        },
+        {
+          "combinator": "or",
+          "conditions": [
+            {
+              "field": {
+                "id": "finding_snapshot.kind"
+              },
+              "operator": "equals",
+              "value": "checkout_decline"
+            },
+            {
+              "field": {
+                "id": "finding_snapshot.title"
+              },
+              "operator": "contains",
+              "value": "checkout"
+            },
+            {
+              "field": {
+                "id": "finding_snapshot.supports"
+              },
+              "operator": "contains",
+              "value": "event:checkout-attempt-"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
